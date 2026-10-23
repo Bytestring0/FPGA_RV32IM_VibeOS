@@ -1,0 +1,43 @@
+{
+  "board": "MES2L676-100HP",
+  "device": "PG2L100H-6IFBG676",
+  "clock_hz": 27000000,
+  "firmware_origin": "D:\\FPGA\\RiscV\\build\\smoke.hex",
+  "firmware_sha256": "706B1104653D4FD366FE1764AB0E6025DD542A39B76260ECE4B3DFBAE38FD90C",
+  "source_sha256": "AD410FFC66BD1F444074859F3277F158A914CE093DA3F34A90A6ED20723D9825",
+  "constraint_sha256": "5876C95A22A66FEC78E22BD837D80E33210EDC3AA4DC0D61D14BF806EFD24E3C",
+  "board_tested": true,
+  "bitstreams": [
+    {
+      "path": "D:\\FPGA\\RiscV\\build\\board27\\generate_bitstream\\qinglong_board_top.sbit",
+      "sha256": "E8A46F3CD510F8F1935396E0ADDA5B26BED271CAE44BE6C15D6D2C9BB2C96C54"
+    }
+  ],
+  "routed_timing_passed": true,
+  "bitstream_build_log": "D:\\FPGA\\RiscV\\build\\board27\\bitstream-current.log",
+  "board_validation": {
+    "test": "smoke",
+    "port": "COM12",
+    "baud": 115200,
+    "device_id": "0x00602899",
+    "program_and_verify_passes": 3,
+    "uart_boot_passes": 3,
+    "logs": [
+      {
+        "uart_log": "D:\\FPGA\\RiscV\\build\\board-smoke-run1.uart.log",
+        "program_log": "D:\\FPGA\\RiscV\\build\\board-smoke-run1.uart.log.program.log",
+        "uart_sha256": "3c68db629f6959d264d2626fe1589596dec42bec8e2c83d03343b308359f2d32"
+      },
+      {
+        "uart_log": "D:\\FPGA\\RiscV\\build\\board-smoke-run2.uart.log",
+        "program_log": "D:\\FPGA\\RiscV\\build\\board-smoke-run2.uart.log.program.log",
+        "uart_sha256": "3c68db629f6959d264d2626fe1589596dec42bec8e2c83d03343b308359f2d32"
+      },
+      {
+        "uart_log": "D:\\FPGA\\RiscV\\build\\board-smoke-run3.uart.log",
+        "program_log": "D:\\FPGA\\RiscV\\build\\board-smoke-run3.uart.log.program.log",
+        "uart_sha256": "3c68db629f6959d264d2626fe1589596dec42bec8e2c83d03343b308359f2d32"
+      }
+    ]
+  }
+}

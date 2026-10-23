@@ -1,0 +1,11 @@
+{
+  "iterations": 6000,
+  "measured_cycles": 1189859177,
+  "supplied_clock_hz": 81000000,
+  "seconds": 14.689619469135803,
+  "coremark": 408.4516969691784,
+  "coremark_per_mhz": 5.042613542829363,
+  "crcs_valid": true,
+  "clock_basis": "Board nominal 27MHz reference multiplied by 3 with GPLL; vendor model verified period and reference loss/relock; not frequency-counter calibrated",
+  "hardware_runs_with_identical_cycles": 2
+}

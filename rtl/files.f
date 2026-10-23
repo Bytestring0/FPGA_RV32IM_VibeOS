@@ -1,0 +1,9 @@
+rtl/rv32_pkg.sv
+rtl/rv32_decode.sv
+rtl/rv32_alu.sv
+rtl/rv32_predictor.sv
+rtl/rv32_divider.sv
+rtl/rv32_csr.sv
+rtl/rv32_core.sv
+rtl/uart_tx.sv
+rtl/qinglong_soc.sv

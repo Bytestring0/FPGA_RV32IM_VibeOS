@@ -1,0 +1,2 @@
+PASS vendor PLL: 27 -> 108 MHz, 100 measured periods, reference loss/relock
+D:\FPGA\RiscV\sim\board_clock_tb.sv:33: $finish called at 4125239942 (1fs)

@@ -1,0 +1,44 @@
+{
+  "board": "MES2L676-100HP",
+  "device": "PG2L100H-6IFBG676",
+  "clock_hz": 27000000,
+  "firmware_origin": "D:\\FPGA\\RiscV\\build\\board-coremark-performance.hex",
+  "firmware_sha256": "ADFD632F371719F99BB1312023DB11615A79E2109045494BEDDC0FC33F447032",
+  "source_sha256": "AD410FFC66BD1F444074859F3277F158A914CE093DA3F34A90A6ED20723D9825",
+  "constraint_sha256": "5876C95A22A66FEC78E22BD837D80E33210EDC3AA4DC0D61D14BF806EFD24E3C",
+  "board_tested": true,
+  "bitstreams": [
+    {
+      "sha256": "78B071581F6D85C806BC966AEB244EEC9796B10FFC899677F0064EA83A3B3F28",
+      "path": "D:\\FPGA\\RiscV\\build\\board27-coremark\\generate_bitstream\\qinglong_board_top.sbit"
+    }
+  ],
+  "routed_timing_passed": true,
+  "board_validation": {
+    "port": "COM12",
+    "baud": 115200,
+    "device_id": "0x00602899",
+    "test": "CoreMark performance, 2000 iterations",
+    "crc_valid": true,
+    "measured_cycles": 396619914,
+    "uart_log": "D:\\FPGA\\RiscV\\build\\board-coremark-confirm.uart.log",
+    "program_log": "D:\\FPGA\\RiscV\\build\\board-coremark-confirm.uart.log.program.log",
+    "verification_order": "Program, capture complete UART result, verify configuration",
+    "result": {
+      "iterations": 2000,
+      "measured_cycles": 396619914,
+      "supplied_clock_hz": 27000000,
+      "seconds": 14.689626444444444,
+      "coremark": 136.15050100585722,
+      "coremark_per_mhz": 5.042611148365082,
+      "crcs_valid": true,
+      "implemented_luts": 6634,
+      "coremark_per_lut": 0.020523138529673985,
+      "clock_basis": "Board reference clock nominal 27 MHz, PLL bypass; not independently measured with a frequency counter",
+      "configuration": "RV32IM_Zicsr_Zifencei_Zba_Zbb, dual issue, BTB256, load bypass, early LSU",
+      "hardware_runs_with_identical_cycles": 2,
+      "rtl_simulation_measured_cycles": 396619914,
+      "formal_certification": false
+    }
+  }
+}

@@ -1,0 +1,22 @@
+2K performance run parameters for coremark.
+CoreMark Size    : 666
+Total ticks      : 396619914
+Total time (secs): 14
+Iterations/Sec   : 142
+Iterations       : 2000
+Compiler version : GCC 13.2.0
+Compiler flags   : -march=rv32im_zicsr_zifencei_zba_zbb -mabi=ilp32 -O3 -ffreestanding -fno-builtin -ffunction-sections -fdata-sections -msmall-data-limit=0 -Wall -Wextra -funroll-all-loops -finline-limit=1000 -frename-registers -mtune=sifive-7-series
+Memory location  : 64 KiB dual-port FPGA TCM
+seedcrc          : 0xe9f5
+[0]crclist       : 0xe714
+[0]crcmatrix     : 0x1fd7
+[0]crcstate      : 0x8e3a
+[0]crcfinal      : 0x4983
+Correct operation validated. See README.md for run and reporting rules.
+MEASURED_CYCLES_HEX=0000000017a3f08a
+
+SIM exit=0 cycles=396637869 instret=491480414 branches=99609119 misses=6302706 load_stalls=0 dual_retire_count=122071804
+All three algorithm CRCs match upstream reference values.
+Simulation throughput: 5.042611 iterations/Mcycle (CoreMark/MHz equivalent)
+Duration check: upstream >=10-second check passed at the firmware's configured CPU_HZ.
+RTL simulation only; this is not a measured board clock or certified CoreMark score.

@@ -1,0 +1,123 @@
+# ============================================================
+# 青龙 QingLong RISC-V CPU —— 版本控制忽略规则
+# 原则：源码、约束、文档、验收证据入库；可再生成的中间产物、
+#       工具日志、二进制镜像、大体积第三方克隆不入库。
+# ============================================================
+
+# ---------- 构建与仿真输出（make / Verilator 全部产物） ----------
+build/
+obj_dir/
+*.o
+*.d
+*.a
+*.so
+*.exe
+*.vvp
+*.vcd
+*.fst
+*.lxt
+*.lxt2
+*.ghw
+*.wlf
+*.dump
+simv
+verilator_*.mk
+V*.h
+V*.cpp
+!fpga/generated/*
+
+# 固件中间产物（由 sw/ + tests/ 经 make 重新生成）
+# 保留 docs/results/**/firmware.hex 作为取证快照
+firmware.hex
+*.elf
+*.bin
+*.hex
+!docs/results/**/*.hex
+!docs/results/**/*.elf
+!rtl/*.hex
+
+# ---------- PDS 工程流水线中间目录 ----------
+# 每级目录内均为工具生成的 .adf/.db/.prr/.vm 等大文件，
+# 保留同目录内少量文本报告（*.txt/*.dmr/*.prt/*.rtr/*.pds）以便复核
+compile/
+constraint_check/
+device_map/
+synthesize/
+place_route/
+
+# PDS 备份工程 / 工具自动生成的 .pds
+fpga/backups/
+help.pds
+pds_help.pds
+*.pds.bak
+*.pds~
+
+# 位流与配置镜像（含器件配置、JTAG 回读结果）
+*.sbit
+*.bit
+*.bin.bak
+cfg_verify_result.*
+
+# ---------- 日志（可再生成；需归档的证据放 docs/results/） ----------
+log/
+logbackup/
+*.log
+*.log.bak
+*.uart.log
+*.program.log
+*.console.log
+*.sav
+*.jou
+*.str
+*.wdb
+*.ppf
+*.pb
+xvlog.log
+webtalk*.log
+usage_statistics*
+
+# ---------- 第三方依赖（scripts/fetch_deps.sh 按固定 commit 拉取） ----------
+
+# 如确需离线可复现，改为只忽略 git 元数据：
+third_party/**/.git/
+
+# ---------- 上板 / 实验临时文件 ----------
+# 板级实验工程在 scripts/prepare_board.ps1 中生成，不入库
+
+*.tcl.bak
+*.json.tmp
+multiseed_summary.csv
+stdout.log
+stderr.log
+stdout.log.bak
+
+# ---------- 参考手册 PDF（体积大、非本项目产出） ----------
+# 队友需要时从网盘/课程资料获取；确需入库可删除下面两行
+教程*_*.pdf
+!_*.pdf
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+env/
+!tests/env/
+.ipynb_checkpoints/
+
+# ---------- 编辑器 / 操作系统 ----------
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- 本地私有配置（各自机器的工具链路径） ----------
+*.local
+.env
+.env.*
+!docs/**

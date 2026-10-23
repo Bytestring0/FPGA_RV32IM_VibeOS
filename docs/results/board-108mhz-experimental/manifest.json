@@ -1,0 +1,51 @@
+{
+  "board": "MES2L676-100HP",
+  "device": "PG2L100H-6IFBG676",
+  "clock_hz": 108000000,
+  "firmware_origin": "D:\\FPGA\\RiscV\\build\\coremark-108mhz-performance.hex",
+  "firmware_sha256": "B4237C378737BE7807B6C20DE6BFF8F94D241FD340BEF73A2EC25E9F226AB52D",
+  "source_sha256": "33D1ADADCF736CF159FF3D7810EC23615F2896B6FDB5D7FAF9364E8B0B8FF955",
+  "constraint_sha256": "86A8505C7D48126A91ED5610742B86D32C9C58834CEA0457A18A4B3E21A08A4C",
+  "board_tested": true,
+  "pnr_options": "pnr -gplace_seed 0 -fix_hold_violation_in_route TRUE -fix_hold_violation_threshold_for_clk_tree 150",
+  "bitstreams": [
+    {
+      "sha256": "3506731D86B0B2ECA9DA02A232D24221DE3387EF953B87858CCA0AF8EE86261D",
+      "path": "D:\\FPGA\\RiscV\\build\\board108-shiftdiv\\generate_bitstream\\qinglong_board_top.sbit"
+    }
+  ],
+  "routed_timing_passed": false,
+  "experimental_setup_wns_ns": -0.346,
+  "experimental_timing_report_sha256": "E03375A2CCEA0BC2373DDE0A2F05D25E5AC0FCD2C48008FE48816D547620F6D9",
+  "board_validation": {
+    "port": "COM12",
+    "test": "CoreMark performance",
+    "result": {
+      "iterations": 8000,
+      "measured_cycles": 1586478654,
+      "supplied_clock_hz": 108000000,
+      "seconds": 14.689617166666666,
+      "coremark": 544.6023479872173,
+      "coremark_per_mhz": 5.042614333214974,
+      "crcs_valid": true,
+      "hardware_runs_with_identical_cycles": 2,
+      "implemented_luts": 7124,
+      "implemented_ff": 2432,
+      "distributed_ram_luts": 844,
+      "dsp": 4,
+      "drm36k": 48,
+      "coremark_per_lut": 0.07644614654508945,
+      "resource_boundary": "Entire implemented qinglong_board_top including CPU, TCM, UART, GPIO and PLL",
+      "clock_basis": "Board nominal 27MHz reference multiplied by 4 with GPLL; not frequency-counter calibrated",
+      "timing_closed": false,
+      "worst_setup_slack_ns": -0.346,
+      "slow_hold_slack_ns": 0.061,
+      "fast_hold_slack_ns": 0.043,
+      "classification": "Experimental hardware pass with negative static setup slack; not a timing-closed release"
+    },
+    "uart_logs": [
+      "D:\\FPGA\\RiscV\\build\\board108-experimental-run1.uart.log",
+      "D:\\FPGA\\RiscV\\build\\board108-experimental-run2.uart.log"
+    ]
+  }
+}
