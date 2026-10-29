@@ -1,6 +1,6 @@
 # RV 侧接口文档
 
-适用源码：`rtl/rv32_core.sv`、`qinglong_soc.sv`、`qinglong_extmem.sv`、`qinglong_l1cache.sv`、`qinglong_hmic_bridge.sv`。2026-10-29。本文区分已经连通的硬件接口与后续 AI 接口规划。
+适用源码：`rtl/rv32_core.sv`、`ag_soc.sv`、`ag_extmem.sv`、`ag_l1cache.sv`、`ag_hmic_bridge.sv`。2026-10-29。本文区分已经连通的硬件接口与后续 AI 接口规划。
 
 ## 1. CPU 与软件约定
 
@@ -49,7 +49,7 @@ RV32、小端、ILP32 ABI，复位 PC 为 0；IF1/IF2/ID/EX/MEM/WB 六级，顺�
 
 M 态 CSR：mstatus、misa、mie、mtvec、mscratch、mepc、mcause、mtval、mip、mcountinhibit、mcycle/minstret 及高半字。misa 报告 I+M，附加扩展能力按平台约定；未知 CSR 访问产生非法指令异常。mtvec 支持 direct 和 vectored；MRET 恢复中断状态。外部/软件/定时中断源分别为 irq_external、msip、mtime 比较；外部中断需电平同步，在板级中当前没有接入 AI 中断源。无 PLIC、S 模式或 PMP。
 
-核导出两个有序提交通道 retire_valid/pc/insn/rd/data 与 retire_second_*，以及 trap_valid/pc/cause/value、cycle_count、instret_count、dual_retire_count、branch_count、mispredict_count、load_stall_count。ILA 建议同 CPU 时钟采样上述提交、trap、取指/数据握手及 Cache busy/error，触发条件选 trap 或约定 CoreMark 开始 PC；必须在最终带调试核的工程中重新检查资源与时序。目前这些是观察信号和采集方案，尚无新工程的实板 ILA 波形。
+核导出两个有序提交通道 retire_valid/pc/insn/rd/data 与 retire_second_*，以及 trap_valid/pc/cause/value、cycle_count、instret_count、dual_retire_count、branch_count、mispredict_count、load_stall_count。ILA 建议同 CPU 时钟采样上述提交、trap、取指/数据握手及 Cache busy/error，触发条件选 trap 或约定 CoreMark 开始 PC；必须在最终带调试核的工程中重新检查资源与时序。2026-10-29 已完成当前 AG 的独立 ILA 工程闭合与实板采样：102 MHz、65 位 ×2048 点，观测 EX/MEM PC、第一/第二条退休和 EX 分支标记，立即触发覆盖链表/CRC 循环。窗口 IPC 1.1162，477 周期双退休；原始 WDF、CSV、截图和逐项限制见[ILA 实测归档](results/ag-contest-20261029/README.md)。未接入的 trap、Cache、停顿原因探针仍属于后续扩展方案。
 
 ## 5. Cache 与 DDR 行接口
 

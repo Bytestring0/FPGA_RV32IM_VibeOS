@@ -7,7 +7,7 @@ module board_clock_tb;
     integer edges = 0;
     GTP_GRS global_reset (.GRS_N(1'b1));
     always #18.5185185 clk = reference_running ? ~clk : 1'b0;
-    qinglong_board_clock #(.CLOCK_MHZ(CLOCK_MHZ)) dut (
+    ag_board_clock #(.CLOCK_MHZ(CLOCK_MHZ)) dut (
         .clk_27m(clk), .cpu_clk(cpu_clk), .locked(locked)
     );
     initial begin

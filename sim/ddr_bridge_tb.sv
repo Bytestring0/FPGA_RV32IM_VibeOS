@@ -22,7 +22,7 @@ module ddr_bridge_tb;
     logic [255:0] wdata, rdata;
     logic [31:0] wstrb;
     logic [3:0] wid, rid;
-    qinglong_extmem front (
+    ag_extmem front (
         .clk(clk), .rst(rst), .i_req_valid(iv), .i_req_ready(ir), .i_req_addr(ia),
         .i_rsp_valid(irv), .i_rsp_ready(irr), .i_rsp_data(idata), .i_rsp_error(ie),
         .d_req_valid(dv), .d_req_ready(dr), .d_req_addr(da), .d_req_wdata(dd),
@@ -30,7 +30,7 @@ module ddr_bridge_tb;
         .d_rsp_data(ddata), .d_rsp_error(dre), .req_valid(qv), .req_ready(qr),
         .req_addr(qa), .req_write(qw), .req_wdata(qd), .req_wstrb(qs),
         .rsp_valid(rv), .rsp_ready(rr), .rsp_data(rd), .rsp_error(re));
-    qinglong_hmic_bridge #(.TIMEOUT_BITS(8)) bridge (
+    ag_hmic_bridge #(.TIMEOUT_BITS(8)) bridge (
         .cpu_clk(clk), .ui_clk(ui_clk), .reset_n(reset_n), .init_done(init_done),
         .ready_cpu(ready_cpu), .fault_cpu(fault_cpu),
         .req_valid(qv), .req_ready(qr), .req_addr(qa), .req_write(qw), .req_wdata(qd), .req_wstrb(qs),

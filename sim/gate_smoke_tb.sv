@@ -7,10 +7,10 @@ module gate_smoke_tb;
     wire [7:0] led;
     integer index, bit_index;
     reg [7:0] received;
-    string expected = "QingLong RV32IM boot OK, hash=f60ac131\n";
+    string expected = "AG RV32IM boot OK, hash=f60ac131\n";
     localparam integer DIVISOR = 27000000 / 115200;
     GTP_GRS GRS_INST (.GRS_N(reset_n));
-    qinglong_fpga_top dut (.clk(clk), .reset_n(reset_n), .uart_txd(tx), .led(led));
+    ag_fpga_top dut (.clk(clk), .reset_n(reset_n), .uart_txd(tx), .led(led));
     always #18.518 clk = ~clk;
     initial begin
         repeat (10) @(negedge clk);

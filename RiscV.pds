@@ -1,5 +1,5 @@
 (_flow fab_demo "2022.2-SP6.1"
-    (_comment "QingLong CPU GUI project; regenerate with scripts/sync_pds_project.ps1")
+    (_comment "AG CPU GUI project; regenerate with scripts/sync_pds_project.ps1")
     (_version "1.1.0")
     (_status "initial")
     (_project
@@ -19,9 +19,9 @@
         )
         (_widget wgt_my_design_src
             (_input
-                (_file "fpga/generated/qinglong_all.sv"
+                (_file "fpga/generated/ag_all.sv"
                     (_format verilog)
-                    (_timespec "2026-10-28T23:47:28")
+                    (_timespec "2026-10-29T19:12:52")
                 )
             )
         )
@@ -44,7 +44,7 @@
     (_task tsk_compile
         (_command cmd_compile
             (_gci_state (_integer 4))
-            (_option top_module (_string "qinglong_fpga_top"))
+            (_option top_module (_string "ag_fpga_top"))
             (_option system_verilog (_switch ON))
         )
         (_widget wgt_rtl_view

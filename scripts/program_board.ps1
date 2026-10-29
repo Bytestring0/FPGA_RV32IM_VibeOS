@@ -3,7 +3,7 @@ param(
     [string]$Profile = 'build\board27',
     [string]$PdsRoot = 'D:\App\PDS_2022.2-SP6.1',
     [string]$Output = 'build\board-uart.log',
-    [string]$Expected = 'QingLong RV32IM boot OK, hash=f60ac131\r?\n',
+    [string]$Expected = 'AG RV32IM boot OK, hash=f60ac131\r?\n',
     [int]$TimeoutSeconds = 120,
     [switch]$ExperimentalTiming
 )
@@ -17,7 +17,7 @@ if ((!$manifest.routed_timing_passed -and !$ExperimentalTiming) -or @($manifest.
     throw 'Build this profile with prepare_board.ps1 -Build -Bitstream first.'
 }
 $checks = @(
-    @{Path=(Join-Path $profilePath 'qinglong_board.sv'); Hash=$manifest.source_sha256},
+    @{Path=(Join-Path $profilePath 'ag_board.sv'); Hash=$manifest.source_sha256},
     @{Path=(Join-Path $profilePath 'board.fdc'); Hash=$manifest.constraint_sha256},
     @{Path=(Join-Path $profilePath 'firmware.hex'); Hash=$manifest.firmware_sha256},
     @{Path=$manifest.bitstreams[0].path; Hash=$manifest.bitstreams[0].sha256}
@@ -30,7 +30,7 @@ foreach ($check in $checks) {
         throw "Build provenance mismatch: $($check.Path)"
     }
 }
-$timingPath = Join-Path $profilePath 'report_timing\qinglong_board_top.rtr'
+$timingPath = Join-Path $profilePath 'report_timing\ag_board_top.rtr'
 $timingReport = [IO.File]::ReadAllText($timingPath)
 if ($timingReport -notmatch 'Design Summary : All Constraints Met\.') {
     if (!$ExperimentalTiming -or !$manifest.experimental_setup_wns_ns -or

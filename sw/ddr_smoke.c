@@ -9,7 +9,7 @@ static int fail(uint32_t addr, uint32_t got, uint32_t expected) {
     puts_uart(" expected="); puthex(expected); puts_uart("\r\n"); return 1;
 }
 int main(void) {
-    puts_uart("Qinglong DDR3 smoke CPU="); puthex(CPU_HZ); puts_uart("\r\n");
+    puts_uart("AG DDR3 smoke CPU="); puthex(CPU_HZ); puts_uart("\r\n");
     uint64_t start = read_cycles();
     while (!(MMIO32(DDR_STATUS) & 1)) {
         if ((MMIO32(DDR_STATUS) & 2) || read_cycles() - start > (uint64_t)CPU_HZ * 5) {

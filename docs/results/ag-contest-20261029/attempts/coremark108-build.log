@@ -1,0 +1,31 @@
+License checkout: fabric_shell from D:\App\PDS_2022.2-SP6.1\license\new_pds_F4A80DA47D72.lic
+Compiling architecture definition.
+W: Warning : The license will invalid in 5 days. In order not to affect your usage, please update the license in time.
+
+Analyzing project file 'D:/FPGA/RiscV/build/ag-coremark108/ag_board.pds'.
+Executing : set_arch -family Logos2 -device PG2L100H -speedgrade -6 -package FBG676
+Executing : set_arch -family Logos2 -device PG2L100H -speedgrade -6 -package FBG676 successfully.
+Executing : add_design ag_board.sv
+Executing : add_design ag_board.sv successfully.
+Executing : add_constraint board.fdc
+Executing : add_constraint board.fdc successfully.
+
+
+Executing : compile -top_module ag_board_top -system_verilog -multi_file_compilation_unit TRUE
+Executing : compile -top_module ag_board_top -system_verilog -multi_file_compilation_unit TRUE successfully.
+
+
+Executing : synthesize -ads -resource_sharing FALSE
+Executing : synthesize -ads -resource_sharing FALSE successfully.
+
+
+Executing : dev_map -force_to_run -input_db_file synthesize/ag_board_top_syn.adf
+
+
+Process "Device Map" started.
+Current time: Thu Oct 29 20:05:47 2026
+Compiling architecture definition.
+Analyzing project file 'D:/FPGA/RiscV/build/ag-coremark108/ag_board.pds'.
+E: Flow-0002: File 'D:/FPGA/RiscV/build/ag-coremark108/synthesize/ag_board_top_syn.adf' doesn't exist.
+Program Error Out.
+E: Failed to execute the script : 

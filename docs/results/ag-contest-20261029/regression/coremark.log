@@ -1,0 +1,89 @@
+make coremark MARCH=rv32im_zicsr_zifencei_zba_zbb EXTRA_CFLAGS="-funroll-all-loops -finline-limit=1000 -frename-registers -mtune=sifive-7-series"
+make[1]: Entering directory '/mnt/d/FPGA/RiscV'
+riscv64-unknown-elf-gcc -march=rv32im_zicsr_zifencei_zba_zbb -mabi=ilp32 -O3 -ffreestanding -fno-builtin -ffunction-sections -fdata-sections -msmall-data-limit=0 -Wall -Wextra -funroll-all-loops -finline-limit=1000 -frename-registers -mtune=sifive-7-series -nostdlib -nostartfiles -Wl,--gc-sections -T sw/link.ld -Isw/coremark -Ithird_party/coremark \
+    -DCOMPILER_FLAGS='"-march=rv32im_zicsr_zifencei_zba_zbb -mabi=ilp32 -O3 -ffreestanding -fno-builtin -ffunction-sections -fdata-sections -msmall-data-limit=0 -Wall -Wextra -funroll-all-loops -finline-limit=1000 -frename-registers -mtune=sifive-7-series"' \
+    -DITERATIONS=10 -DCPU_HZ=102000000 -DTOTAL_DATA_SIZE=2000 \
+    -DVALIDATION_RUN=0 -DPERFORMANCE_RUN=1 \
+    sw/start.S third_party/coremark/core_list_join.c third_party/coremark/core_main.c third_party/coremark/core_matrix.c third_party/coremark/core_state.c third_party/coremark/core_util.c sw/coremark/core_portme.c sw/coremark/ee_printf.c \
+    -lgcc -o build/coremark.elf
+/usr/lib/gcc/riscv64-unknown-elf/13.2.0/../../../riscv64-unknown-elf/bin/ld: warning: build/coremark.elf has a LOAD segment with RWX permissions
+riscv64-unknown-elf-objcopy -O binary build/coremark.elf build/coremark.bin
+python3 scripts/bin2hex.py build/coremark.bin build/coremark.hex
+riscv64-unknown-elf-objdump -d build/coremark.elf > build/coremark.dis
+verilator --cc --exe --build -j 4 -O3 -CFLAGS -O3 -Wno-fatal -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-DECLFILENAME --top-module ag_soc -f rtl/files.f \
+    "-GLOAD_WORD_ONLY=1'b0" "-GMULH_PIPELINE=1'b1" \
+    "-GSIM_FAST_UART=1'b1" "-GPREDICT_ENABLE=1'b1" -GBTB_BITS=8 \
+    "-GDUAL_ISSUE=1'b1" "-GLOAD_BYPASS=1'b1" \
+    "-GEARLY_LSU=1'b1" \
+    --Mdir build/soc /mnt/d/FPGA/RiscV/sim/soc_main.cpp
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:631:56: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'ag_soc.cpu'
+  631 |                     if ((fetch_pop == 0 && fetch_count == fi) ||
+      |                                                        ^~
+                      ... For warning description see https://verilator.org/warn/WIDTHEXPAND?v=5.020
+                      ... Use "/* verilator lint_off WIDTHEXPAND */" and lint_on around source to disable this message.
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:632:56: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'ag_soc.cpu'
+  632 |                         (fetch_pop == 1 && fetch_count == fi+1) ||
+      |                                                        ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:633:56: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'ag_soc.cpu'
+  633 |                         (fetch_pop == 2 && fetch_count == fi+2)) begin
+      |                                                        ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:641:57: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'ag_soc.cpu'
+  641 |                         ((fetch_pop == 0 && fetch_count == fi-1) ||
+      |                                                         ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:642:57: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'ag_soc.cpu'
+  642 |                          (fetch_pop == 1 && fetch_count == fi) ||
+      |                                                         ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:643:57: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'ag_soc.cpu'
+  643 |                          (fetch_pop == 2 && fetch_count == fi+1))) begin
+      |                                                         ^~
+make[2]: Entering directory '/mnt/d/FPGA/RiscV/build/soc'
+g++  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -Os -c -o soc_main.o /mnt/d/FPGA/RiscV/sim/soc_main.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -c -o verilated.o /usr/share/verilator/include/verilated.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -c -o verilated_threads.o /usr/share/verilator/include/verilated_threads.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -x c++-header Vag_soc__pch.h -o Vag_soc__pch.h.fast.gch
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -x c++-header Vag_soc__pch.h -o Vag_soc__pch.h.slow.gch
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vag_soc__pch.h.fast -c -o Vag_soc.o Vag_soc.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vag_soc__pch.h.fast -c -o Vag_soc___024root__DepSet_h75f266f3__0.o Vag_soc___024root__DepSet_h75f266f3__0.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vag_soc__pch.h.fast -c -o Vag_soc___024root__DepSet_h9c28cd98__0.o Vag_soc___024root__DepSet_h9c28cd98__0.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vag_soc__pch.h.fast -c -o Vag_soc___024root__DepSet_h9c28cd98__1.o Vag_soc___024root__DepSet_h9c28cd98__1.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vag_soc__pch.h.slow -c -o Vag_soc__ConstPool_0.o Vag_soc__ConstPool_0.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vag_soc__pch.h.slow -c -o Vag_soc___024root__Slow.o Vag_soc___024root__Slow.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vag_soc__pch.h.slow -c -o Vag_soc___024root__DepSet_h75f266f3__0__Slow.o Vag_soc___024root__DepSet_h75f266f3__0__Slow.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vag_soc__pch.h.slow -c -o Vag_soc___024root__DepSet_h9c28cd98__0__Slow.o Vag_soc___024root__DepSet_h9c28cd98__0__Slow.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vag_soc__pch.h.slow -c -o Vag_soc__Syms.o Vag_soc__Syms.cpp
+echo "" > Vag_soc__ALL.verilator_deplist.tmp
+Archive ar -rcs Vag_soc__ALL.a Vag_soc.o Vag_soc___024root__DepSet_h75f266f3__0.o Vag_soc___024root__DepSet_h9c28cd98__0.o Vag_soc___024root__DepSet_h9c28cd98__1.o Vag_soc__ConstPool_0.o Vag_soc___024root__Slow.o Vag_soc___024root__DepSet_h75f266f3__0__Slow.o Vag_soc___024root__DepSet_h9c28cd98__0__Slow.o Vag_soc__Syms.o
+g++     soc_main.o verilated.o verilated_threads.o Vag_soc__ALL.a    -pthread -lpthread -latomic   -o Vag_soc
+rm Vag_soc__ALL.verilator_deplist.tmp
+make[2]: Leaving directory '/mnt/d/FPGA/RiscV/build/soc'
+cp build/coremark.hex build/firmware.hex
+MAX_CYCLES=2000000000 python3 scripts/run_coremark.py
+2K performance run parameters for coremark.
+CoreMark Size    : 666
+Total ticks      : 1983373
+Total time (secs): 0
+ERROR! Must execute for at least 10 secs for a valid result!
+Iterations       : 10
+Compiler version : GCC 13.2.0
+Compiler flags   : -march=rv32im_zicsr_zifencei_zba_zbb -mabi=ilp32 -O3 -ffreestanding -fno-builtin -ffunction-sections -fdata-sections -msmall-data-limit=0 -Wall -Wextra -funroll-all-loops -finline-limit=1000 -frename-registers -mtune=sifive-7-series
+Memory location  : 64 KiB dual-port FPGA TCM
+seedcrc          : 0xe9f5
+[0]crclist       : 0xe714
+[0]crcmatrix     : 0x1fd7
+[0]crcstate      : 0x8e3a
+[0]crcfinal      : 0xfcaf
+Errors detected
+MEASURED_CYCLES_HEX=00000000001e438d
+
+SIM exit=0 cycles=2000362 instret=2476105 branches=502373 misses=31985 load_stalls=0 dual_retire_count=615505
+All three algorithm CRCs match upstream reference values.
+Simulation throughput: 5.041916 iterations/Mcycle (CoreMark/MHz equivalent)
+Duration check: short run (<10 simulated seconds); functional/per-cycle comparison only.
+RTL simulation only; this is not a measured board clock or certified CoreMark score.
+make[1]: Leaving directory '/mnt/d/FPGA/RiscV'

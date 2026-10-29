@@ -3,7 +3,7 @@ import re
 import subprocess
 from pathlib import Path
 os.chdir(Path(__file__).resolve().parents[1])
-run = subprocess.run(["build/soc/Vqinglong_soc"], text=True, capture_output=True)
+run = subprocess.run(["build/soc/Vag_soc"], text=True, capture_output=True)
 print(run.stdout, end="")
 print(run.stderr, end="")
 Path("build/coremark-run.log").write_text(run.stdout + run.stderr)

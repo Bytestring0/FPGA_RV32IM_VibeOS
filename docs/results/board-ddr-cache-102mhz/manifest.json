@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-29",
+  "board": "MES2L676-100HP",
+  "device": "PG2L100H-6IFBG676",
+  "device_id": "0x00602899",
+  "port": "COM12",
+  "baud": 115200,
+  "clock_hz": 102000000,
+  "ddr_ui_hz": 125000000,
+  "ddr_mt_s": 1000,
+  "cache_bytes_each": 16384,
+  "board_tested": true,
+  "routed_timing_passed": true,
+  "tested_source_archive": "../offline-ddr-cache-102mhz",
+  "source_sha256": "0E33CDBE491190B02C042228D5A7E66BFF668740D2A9C556C43A88F602D33861",
+  "constraint_sha256": "E5C0BD53BAAF29E64EE62A2A4F87A48775B7894E0E1C10BBBE66F6B0EFB5F855",
+  "firmware_sha256": "43E23A87AB3C36D356967D71919CCA684AFAEC943B13B436586655AD1A344E09",
+  "bitstream_sha256": "2b32b5d5f2901136525e4ff22fe515a21b401dadfd235b415cdbef5569bee75e",
+  "verification_mask_sha256": "7435f6eaa9f38482559cdc6973e349d7152843eefa4459ca8ca91df5058e8e9a",
+  "runs": [
+    {
+      "uart": "run1.uart.log",
+      "program_log": "run1.uart.log.program.log",
+      "functional_passed": true,
+      "configuration_verified": false,
+      "note": "Frozen snapshot initially omitted the matching .smsk sidecar. Configuration succeeded; readback failed to open the mask."
+    },
+    {
+      "uart": "run2.uart.log",
+      "program_log": "run2.uart.log.program.log",
+      "functional_passed": true,
+      "configuration_verified": true,
+      "status_register": "0x081ffca0"
+    }
+  ],
+  "flash_written": false,
+  "coremark_measured": false,
+  "scope": "Tested the frozen timing-closed pre-rename qinglong bitstream. This result is not an AG renamed bitstream timing/hardware claim."
+}

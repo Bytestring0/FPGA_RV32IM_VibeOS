@@ -1,0 +1,10 @@
+riscv64-unknown-elf-gcc -march=rv32im_zicsr_zifencei_zba_zbb -mabi=ilp32 -O3 -ffreestanding -fno-builtin -ffunction-sections -fdata-sections -msmall-data-limit=0 -Wall -Wextra -funroll-all-loops -finline-limit=1000 -frename-registers -mtune=sifive-7-series -nostdlib -nostartfiles -Wl,--gc-sections -T sw/link.ld -Isw/coremark -Ithird_party/coremark \
+    -DCOMPILER_FLAGS='"-march=rv32im_zicsr_zifencei_zba_zbb -mabi=ilp32 -O3 -ffreestanding -fno-builtin -ffunction-sections -fdata-sections -msmall-data-limit=0 -Wall -Wextra -funroll-all-loops -finline-limit=1000 -frename-registers -mtune=sifive-7-series"' \
+    -DITERATIONS=6000 -DCPU_HZ=102000000 -DTOTAL_DATA_SIZE=2000 \
+    -DVALIDATION_RUN=0 -DPERFORMANCE_RUN=1 \
+    sw/start.S third_party/coremark/core_list_join.c third_party/coremark/core_main.c third_party/coremark/core_matrix.c third_party/coremark/core_state.c third_party/coremark/core_util.c sw/coremark/core_portme.c sw/coremark/ee_printf.c \
+    -lgcc -o build/coremark.elf
+/usr/lib/gcc/riscv64-unknown-elf/13.2.0/../../../riscv64-unknown-elf/bin/ld: warning: build/coremark.elf has a LOAD segment with RWX permissions
+riscv64-unknown-elf-objcopy -O binary build/coremark.elf build/coremark.bin
+python3 scripts/bin2hex.py build/coremark.bin build/coremark.hex
+riscv64-unknown-elf-objdump -d build/coremark.elf > build/coremark.dis

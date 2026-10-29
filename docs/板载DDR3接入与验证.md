@@ -6,7 +6,7 @@
 
 完整 CPU + I/D Cache + 板载 DDR3 工程 `build/ddr-soc102-cache16-latealu-mc/qinglong_board.pds` 已获得最终 All Constraints Met：CPU 102 MHz setup +0.056 ns、hold +0.136/+0.099 ns；DDR UI 125 MHz setup +2.216 ns。两路 I/D Cache 各 16 KiB，整机 14618 LUT、10521 FF、66.5 DRM36K 等效。采用 PDS HMIC_S 1.10 与原有 DDR3 1000 MT/s 配置。
 
-本次没有连接 FPGA，位流是待上板 DDR/Cache 自检版；复现和接板命令见 [闭合版归档](results/offline-ddr-cache-102mhz/README.md)。以下记录保留历史开发过程。
+2026-10-29 接板复测：该冻结闭合版两次通过 DDR/Cache 自检，第二次完成 JTAG 回读校验，见[本次实测归档](results/board-ddr-cache-102mhz/README.md)。无完整 SoC 正式板测 CoreMark。本轮同时将项目改名为 AG，DDR IP 为 `ag_ddr3`；历史证据保留原名，当前脚本默认在 `build/ag-ddr-ip/` 生成 IP。AG 新实现的时序与实测须另行核对。以下记录保留历史开发过程。
 
 ## 历史进度与验证边界
 
@@ -39,11 +39,11 @@
 | CKE | R1 | CKE_DQS_EN |
 | CK | U6 | CK_DQS_EN |
 
-完整配置固定在 [qinglong_ddr3.idf](../fpga/ip/qinglong_ddr3/qinglong_ddr3.idf)，修正前哈希和器件 PAD 对照保存在 [configuration-audit.json](../fpga/ip/qinglong_ddr3/configuration-audit.json)。原 `build/ddr-ip/` 保留，修正版另生成到 `build/ddr-board-ip/`。厂商生成的加密 RTL 留在 build，按本机 PDS 安装再生成。
+完整配置固定在 [ag_ddr3.idf](../fpga/ip/ag_ddr3/ag_ddr3.idf)，修正前哈希和器件 PAD 对照保存在 [configuration-audit.json](../fpga/ip/ag_ddr3/configuration-audit.json)。原 `build/ddr-ip/` 保留，修正版历史输出为 `build/ddr-board-ip/`，AG 版重新生成到 `build/ag-ddr-ip/`。厂商生成的加密 RTL 留在 build，按本机 PDS 安装再生成。
 
 ## CPU 接口与故障处理
 
-默认 `qinglong_soc.DDR_ENABLE=0`；DDR 工程显式设置为 1。
+默认 `ag_soc.DDR_ENABLE=0`；DDR 工程显式设置为 1。
 
 | CPU 地址 | 用途 |
 | --- | --- |
@@ -51,11 +51,11 @@
 | 0x10000200 | 只读状态：bit 0 已校准且可用，bit 1 故障锁存，bit 2 已集成 DDR |
 | 0x80000000–0xbfffffff | 1 GiB 无缓存 DDR，支持数据访问和代码执行 |
 
-`qinglong_extmem.sv` 对取指和数据做轮转仲裁，一次只发一笔 32 字节原生事务。数据端支持字节使能；指令端返回两个 32 位指令，跨 32 字节边界时拆成两次读。最后一个 DDR 字地址只允许第一条指令有效，第二条独立返回越界错误，不回绕到 DDR 开头。
+`ag_extmem.sv` 对取指和数据做轮转仲裁，一次只发一笔 32 字节原生事务。数据端支持字节使能；指令端返回两个 32 位指令，跨 32 字节边界时拆成两次读。最后一个 DDR 字地址只允许第一条指令有效，第二条独立返回越界错误，不回绕到 DDR 开头。
 
 HMIC_S 是精简 AXI 接口：256 位数据拍、28 位地址；地址单位为 32 位 DDR 字，所以 `native_address = byte_offset / 4`。单拍使用 LEN=0，并对齐 8 个原生字。**没有 WVALID、B 响应和 RREADY**，不能直接接通用 AXI master。写数据必须在 AW 前准备好并保留到 WREADY；读端必须预留缓冲，不能阻塞 RVALID。
 
-`qinglong_hmic_bridge.sv` 用请求/完成 toggle 握手跨越 CPU 102 MHz 和 UI 125 MHz，数据在整个握手期间保持。约束对 payload 设置 8 ns `set_max_delay -datapath_only`，同步器只切断异步输入路径；没有把 CPU/UI 的全部路径统一 false-path。完整复位必须同时复位桥和 HMIC，不能只复位一侧。
+`ag_hmic_bridge.sv` 用请求/完成 toggle 握手跨越 CPU 102 MHz 和 UI 125 MHz，数据在整个握手期间保持。约束对 payload 设置 8 ns `set_max_delay -datapath_only`，同步器只切断异步输入路径；没有把 CPU/UI 的全部路径统一 false-path。完整复位必须同时复位桥和 HMIC，不能只复位一侧。
 
 未校准时访问返回错误；校准丢失、错误 ID/LAST、事务超时进入故障锁存，后续访问返回错误，直到公共复位。CPU 域也有超时器，用于 UI 时钟停止。默认事务超时量级为 CPU 约 10.28 ms / UI 约 8.39 ms；启动固件等待校准最多 5 秒。
 
@@ -73,12 +73,12 @@ wsl -d Ubuntu-24.04 -- bash -lc 'cd /mnt/d/FPGA/RiscV && make ddr-firmware'
   -MulhPipeline -RoutingPasses 1 -Build -Bitstream
 ```
 
-当前整体候选工程路径为 **`D:\FPGA\RiscV\build\ddr-soc102-grant\qinglong_board.pds`**，顶层 `qinglong_board_top`。脚本显式注册所有 RTL、IP 和约束，解决命令行新工程“没有文件”的问题；不加 `-Build` 时仍会运行 Compile 并生成可打开的工程。已有修正版 IP 时可跳过 `prepare_ddr_ip.ps1`，不需要再次在 IP Compiler 点 Generate。默认只运行一轮布线，只有出现具体未闭合路径时才追加迭代。
+当前整体候选工程路径为 **`D:\FPGA\RiscV\build\ddr-soc102-grant\ag_board.pds`**，顶层 `ag_board_top`。脚本显式注册所有 RTL、IP 和约束，解决命令行新工程“没有文件”的问题；不加 `-Build` 时仍会运行 Compile 并生成可打开的工程。已有修正版 IP 时可跳过 `prepare_ddr_ip.ps1`，不需要再次在 IP Compiler 点 Generate。默认只运行一轮布线，只有出现具体未闭合路径时才追加迭代。
 
 若手动操作 PDS：
 
-1. 打开上述 `qinglong_board.pds`，不要打开旧的空工程。
-2. 检查器件 PG2L100H、-6、FBG676，综合 ADS；源列表包括合并的 `qinglong_board.sv` 及 HMIC 的 RTL。
+1. 打开上述 `ag_board.pds`，不要打开旧的空工程。
+2. 检查器件 PG2L100H、-6、FBG676，综合 ADS；源列表包括合并的 `ag_board.sv` 及 HMIC 的 RTL。
 3. 按 Compile → Synthesize → Device Map → Place & Route → Report Timing。整体报告通过才生成当前版位流。
 4. 用 JTAG 下载配置 RAM，串口 COM12、115200、8N1。此流程不写外部 Flash。
 
@@ -156,4 +156,12 @@ DDR 整机还启用 `PIPELINED_MMIO=1`（默认跟随 DDR_ENABLE）：接收外�
 
 元数据 RAM 与合并 D 读端口后，`cache16-compact` 最终布线为 14,541 LUT、10,467 FF、66.5 DRM36K 等效；CPU 102 MHz setup −0.918 ns，DDR UI +0.345 ns，两角 hold 通过。Cache 模块综合 LUT 从 5,844 降到 1,764，容量与自检性能不变。详见 [面积优化证据](results/cache-area/README.md)。CPU 当前另一个修订将取指队列改为环形结构，针对上述报告中的宽 FIFO 搬移关键路径；新实现为 `cache16-ring`，不能提前声明该版时序通过。
 
-环形队列的原布线及一次恢复重试均卡在两条连接，已停止，未产生最终时序或位流。当前撤回环形结构，保留原队列拓扑，在入队时登记寄存器匹配、指令相邻关系和顺序预测标志，缩短配对判断路径。`cache16-prepair` 的差分、异常、中断、Cache 功能与短 CoreMark 均通过，周期完全不变；正在执行有时限的完整实现，结果需单独核对。
+环形队列的原布线及一次恢复重试均卡在两条连接，已停止，未产生最终时序或位流。此阶段撤回环形结构，保留原队列拓扑，在入队时登记寄存器匹配、指令相邻关系和顺序预测标志，缩短配对判断路径。`cache16-prepair` 的差分、异常、中断、Cache 功能与短 CoreMark 均通过，周期完全不变。后续最终结果见下文。
+
+## 2026-10-29 冻结闭合版板测与 AG 独立验证
+
+后续 MEM 位操作拆分与多角布线候选最终在 102 MHz 闭合，CPU setup +0.056 ns / slow-fast hold +0.136/+0.099 ns，DDR UI 125 MHz setup +2.216 ns；全 SoC 14618 LUT / 10521 FF。冻结位流已两次下载通过 DDR 校准、16 KiB 数据、字节/半字、地址线/边界、DDR 代码执行、MULH/MINMAX 和 Cache 自修改/维护自检。第二次执行结束后 JTAG 回读通过，原始日志见[完整 DDR/Cache 板测归档](results/board-ddr-cache-102mhz/README.md)。这是冻结位流的功能板测，未测正式 CoreMark。
+
+项目生产输入现已改名为 AG，合并 DDR RTL 经审计仅有命名变化，改名后 DDR/Cache 仿真和所有 CPU 回归均通过；当前 AG TCM 与独立 ILA 位流已重新闭合并上板，见[AG 赛题指标与 ILA](results/ag-contest-20261029/README.md)。改名后的完整 DDR/Cache 实现与正式成绩仍须独立核对，不能直接继承冻结位流的资源或时序。
+
+本次改名后的完整 DDR/Cache 两个 102 MHz 重建（自检与 CoreMark 固件）在有界实现预算内未完成详细路由，未取得最终时序或可下载位流；未继续优化或重跑。原始输入与日志见[完整 AG 重建限制](results/ag-contest-20261029/README.md)。因此尚无改名后完整 DDR/Cache 的新板测或正式 CoreMark/LUT，不能继承 TCM 结果或冻结位流的闭合状态。

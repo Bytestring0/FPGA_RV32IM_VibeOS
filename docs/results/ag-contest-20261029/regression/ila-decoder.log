@@ -1,0 +1,2 @@
+﻿PASS: corrupted/missing channel is rejected
+PASS: constant PC alignment channel has 2048 zero samples

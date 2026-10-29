@@ -1,4 +1,4 @@
-#include "Vqinglong_l1cache.h"
+#include "Vag_l1cache.h"
 #include "verilated.h"
 #include <array>
 #include <unordered_map>
@@ -8,7 +8,7 @@
 using Line=std::array<uint32_t,8>;
 static void check(bool b,const char*m){if(!b){fprintf(stderr,"FAIL %s\n",m);exit(1);}}
 struct Bench {
- Vqinglong_l1cache t; uint64_t cycle=0,reads=0,writes=0; bool pending=false,err=false,fail_next=false; unsigned delay=0;Line response{};
+ Vag_l1cache t; uint64_t cycle=0,reads=0,writes=0; bool pending=false,err=false,fail_next=false; unsigned delay=0;Line response{};
  std::unordered_map<uint32_t,uint32_t> mem;
  uint32_t word(uint32_t n){auto i=mem.find(n);return i==mem.end()?(n*0x9e3779b9u)^0xa55aa55a:i->second;}
  bool step(){

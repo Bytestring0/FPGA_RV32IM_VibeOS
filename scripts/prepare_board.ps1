@@ -21,18 +21,18 @@ New-Item -ItemType Directory -Force -Path $out | Out-Null
 $utf8 = [Text.UTF8Encoding]::new($false)
 $source = [Text.StringBuilder]::new()
 $names = @(Get-Content (Join-Path $root 'rtl/files.f') | Where-Object { $_.Trim() -and !$_.StartsWith('#') })
-$names += 'rtl/qinglong_fpga_top.sv', 'fpga/board/qinglong_board_clock.sv', 'fpga/board/qinglong_board_system.sv'
+$names += 'rtl/ag_fpga_top.sv', 'fpga/board/ag_board_clock.sv', 'fpga/board/ag_board_system.sv'
 foreach ($name in ($names | Select-Object -Unique)) {
     [void]$source.AppendLine("// Source: $name")
     [void]$source.AppendLine([IO.File]::ReadAllText((Join-Path $root $name)))
 }
 [void]$source.AppendLine(@"
-module qinglong_board_top(input wire clk_27m, reset_n, output wire uart_txd, output wire [7:0] led);
-    qinglong_board_system #(.CLOCK_MHZ($ClockMHz)) board (
+module ag_board_top(input wire clk_27m, reset_n, output wire uart_txd, output wire [7:0] led);
+    ag_board_system #(.CLOCK_MHZ($ClockMHz)) board (
         .clk_27m(clk_27m), .reset_n(reset_n), .uart_txd(uart_txd), .led(led));
 endmodule
 "@)
-$sv = Join-Path $out 'qinglong_board.sv'
+$sv = Join-Path $out 'ag_board.sv'
 [IO.File]::WriteAllText($sv, $source.ToString(), $utf8)
 Copy-Item -LiteralPath $fw -Destination (Join-Path $out 'firmware.hex') -Force
 $constraint = @'
@@ -50,10 +50,10 @@ $constraint += "`n" + [IO.File]::ReadAllText((Join-Path $root 'fpga/board/board_
 $fdc = Join-Path $out 'board.fdc'
 [IO.File]::WriteAllText($fdc, $constraint, $utf8)
 $project = [IO.File]::ReadAllText((Join-Path $root 'fpga/RiscV.template.pds'))
-$project = $project.Replace('fpga/generated/qinglong_all.sv', 'qinglong_board.sv').Replace('fpga/timing.fdc', 'board.fdc').Replace('qinglong_fpga_top', 'qinglong_board_top')
+$project = $project.Replace('fpga/generated/ag_all.sv', 'ag_board.sv').Replace('fpga/timing.fdc', 'board.fdc').Replace('ag_fpga_top', 'ag_board_top')
 $project = $project.Replace('__SOURCE_TIME__', (Get-Item $sv).LastWriteTime.ToString('yyyy-MM-ddTHH:mm:ss'))
 $project = $project.Replace('__CONSTRAINT_TIME__', (Get-Item $fdc).LastWriteTime.ToString('yyyy-MM-ddTHH:mm:ss'))
-[IO.File]::WriteAllText((Join-Path $out 'qinglong_board.pds'), $project, $utf8)
+[IO.File]::WriteAllText((Join-Path $out 'ag_board.pds'), $project, $utf8)
 $manifest = [ordered]@{
     board = 'MES2L676-100HP'; device = 'PG2L100H-6IFBG676'; clock_hz = $ClockMHz * 1000000
     firmware_origin = $fw; firmware_sha256 = (Get-FileHash (Join-Path $out 'firmware.hex')).Hash
@@ -61,13 +61,13 @@ $manifest = [ordered]@{
     board_tested = $false
 }
 $manifest | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $out 'manifest.json')
-Write-Output "Prepared $out\qinglong_board.pds ($ClockMHz MHz, MES2L676-100HP pins)."
+Write-Output "Prepared $out\ag_board.pds ($ClockMHz MHz, MES2L676-100HP pins)."
 if (!$Build) { return }
 $tcl = @'
 set_arch -family Logos2 -device PG2L100H -speedgrade -6 -package FBG676
-add_design qinglong_board.sv
+add_design ag_board.sv
 add_constraint board.fdc
-compile -top_module qinglong_board_top -system_verilog -multi_file_compilation_unit TRUE
+compile -top_module ag_board_top -system_verilog -multi_file_compilation_unit TRUE
 synthesize -ads -resource_sharing FALSE
 dev_map
 pnr
@@ -83,9 +83,9 @@ $manifest | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $out 'manifes
 [IO.File]::WriteAllText((Join-Path $out 'build.tcl'), $tcl, $utf8)
 Push-Location $out
 try {
-    & (Join-Path $PdsRoot 'bin/pds_shell.exe') -file build.tcl -work_dir $out -project_name qinglong_board
+    & (Join-Path $PdsRoot 'bin/pds_shell.exe') -file build.tcl -work_dir $out -project_name ag_board
     if ($LASTEXITCODE -ne 0) { throw "PDS failed with exit code $LASTEXITCODE" }
-    $reportPath = Join-Path $out 'report_timing/qinglong_board_top.rtr'
+    $reportPath = Join-Path $out 'report_timing/ag_board_top.rtr'
     if (!(Test-Path $reportPath) -or (Get-Item $reportPath).LastWriteTime -lt (Get-Item $sv).LastWriteTime) {
         throw 'No fresh routed timing report was produced.'
     }
@@ -100,15 +100,15 @@ try {
         # a second invocation with the device explicitly selected.
         $bitTcl = @'
 set_arch -family Logos2 -device PG2L100H -speedgrade -6 -package FBG676
-add_design qinglong_board.sv
+add_design ag_board.sv
 add_constraint board.fdc
-gen_bit_stream -force_to_run -input_db_file {place_route/qinglong_board_top_pnr.adf} -write_drm_data TRUE -scbv {High Voltage} -unused_io_status UNUSED
+gen_bit_stream -force_to_run -input_db_file {place_route/ag_board_top_pnr.adf} -write_drm_data TRUE -scbv {High Voltage} -unused_io_status UNUSED
 '@
         [IO.File]::WriteAllText((Join-Path $out 'bitstream.tcl'), $bitTcl, $utf8)
-        $projectPath = Join-Path $out 'qinglong_board.pds'
+        $projectPath = Join-Path $out 'ag_board.pds'
         $routedProject = [IO.File]::ReadAllText($projectPath)
         try {
-            & (Join-Path $PdsRoot 'bin/pds_shell.exe') -file bitstream.tcl -work_dir $out -project_name qinglong_board
+            & (Join-Path $PdsRoot 'bin/pds_shell.exe') -file bitstream.tcl -work_dir $out -project_name ag_board
             if ($LASTEXITCODE -ne 0) { throw "Bitstream generation failed with exit code $LASTEXITCODE" }
         } finally {
             # The standalone bitstream invocation rewrites the project context.

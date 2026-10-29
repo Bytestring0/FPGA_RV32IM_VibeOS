@@ -1,4 +1,4 @@
-#include "Vqinglong_soc.h"
+#include "Vag_soc.h"
 #include "verilated.h"
 
 #include <array>
@@ -7,7 +7,7 @@
 #include <unordered_map>
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
-    Vqinglong_soc top;
+    Vag_soc top;
     std::unordered_map<uint32_t,uint32_t> memory;
     std::array<uint32_t,8> response{};
     bool pending=false; unsigned delay=0, transactions=0;

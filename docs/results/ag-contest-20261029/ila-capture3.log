@@ -1,0 +1,42 @@
+License checkout: fabric_debugger from D:\App\PDS_2022.2-SP6.1\license\new_pds_F4A80DA47D72.lic
+W: Warning : The license will invaild in 5 days. In order to not affect your usage, please update the license in time.
+
+M_PROCESS_FINISH_STARTED
+
+Executing : dbg_connect -ip 127.0.0.1 -port 65420
+Executing : dbg_connect -ip 127.0.0.1 -port 65420 successfully.
+Executing : dbg_scan_chain
+Executing : dbg_scan_chain successfully.
+Executing : dbg_program -device 0 -file D:/FPGA/RiscV/build/ag-coremark102-ila/generate_bitstream/ag_board_top.sbit
+Executing : dbg_program -device 0 -file D:/FPGA/RiscV/build/ag-coremark102-ila/generate_bitstream/ag_board_top.sbit successfully.
+Executing : dbg_import_fic -file D:/FPGA/RiscV/build/ag-coremark102-ila/ag-coremark-ila.fic
+Import Core: 0 OK
+Executing : dbg_import_fic -file D:/FPGA/RiscV/build/ag-coremark102-ila/ag-coremark-ila.fic successfully.
+Executing : dbg_get_cur_core
+Current Device:0 Device Name:PG2L100H
+Current Core:0 Core Name:MyFLA0
+Executing : dbg_get_cur_core successfully.
+Executing : dbg_list
+===============Device:0 CORE:0===============
+Core Type: FLA
+Sample buffer depth = 2048
+Data sample width = 65
+Number of trigger ports = 1
+No trigger sequencer
+No storage qualification
+No dynamic trigger output
+TU0:        Trigger Port0
+            Width = 65 bits
+            Type = Basic W/Edges
+            Counter = No counter
+Executing : dbg_list successfully.
+Executing : dbg_add_all_to_waveform
+Executing : dbg_add_all_to_waveform successfully.
+Executing : dbg_add_all_to_listing
+Executing : dbg_add_all_to_listing successfully.
+Executing : dbg_trig_immd
+Executing : dbg_trig_immd successfully.
+Executing : dbg_delay -time 2
+Executing : dbg_delay -time 2 successfully.
+Executing : dbg_save_project -file D:/FPGA/RiscV/build/contest-validation/ag-coremark-ila.dprj
+Executing : dbg_save_project -file D:/FPGA/RiscV/build/contest-validation/ag-coremark-ila.dprj successfully.

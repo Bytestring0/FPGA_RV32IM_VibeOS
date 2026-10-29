@@ -1,12 +1,14 @@
-# 青龙 QingLong：六级流水线双发射 RISC-V CPU
+# AG：六级流水线双发射 RISC-V CPU
 
 面向紫光同创赛题一的自主 SystemVerilog CPU 与最小 SoC。支持 RV32IM + Zicsr/Zifencei + Zba/Zbb、六级顺序流水线、动态通道交换双发射、四项指令队列、局部历史预测和返回地址栈、精确异常与机器态中断。
 
-2026-10-26 实板验证：**102 MHz、514.346581 CoreMark、5.042614 CoreMark/MHz、0.072556 CoreMark/LUT**，6000 轮 CRC 正确、JTAG 配置校验通过。对应最小 TCM SoC 为 7089 LUT，setup **+0.120 ns**、慢/快角 hold **+0.059/+0.041 ns**。这是目前同时通过时序与板测的最高频点；历史 108 MHz 实验仍未闭合。成绩不包含新增 DDR/AI 硬件的面积。详见[性能与验证报告](docs/性能与验证报告.md)。
+2026-10-29 当前 AG 独立重建板测：**102 MHz、514.346581 CoreMark、5.042614 CoreMark/MHz、7023 LUT、0.073237446 CoreMark/LUT**，6000 轮用时 11.665286 秒，CRC、UART、JTAG 回读均通过；setup +0.156 ns。独立 ILA 版本同样闭合并通过完整基准，真实捕获 2048 点链表/CRC 循环，窗口退休 2286 条、IPC 1.1162，477 周期双退休。以上为 TCM SoC 指标，完整 DDR/Cache 配置独立统计。见[本次 AG 指标与 ILA 原始证据](docs/results/ag-contest-20261029/README.md)、[逐项赛题核验](docs/赛题一RV侧完成情况与指标.md)。108 MHz 已结束的对照未闭合，按用户要求不再实现。
 
-2026-10-28：**CPU 102 MHz + 板载 DDR3 1000 MT/s 已通过功能板测**，含校准、读写及 DDR 代码执行，UART 与 JTAG 校验通过。该镜像 CPU setup −1.022 ns，属于未闭合的实验配置；整机 12557 LUT、9232 FF，与上面的 TCM CoreMark 配置分开统计。见[实验板测记录](docs/results/board-ddr-102mhz-experimental/README.md)。
+项目现更名为 **AG**，生产 RTL、仿真、构建脚本和 DDR IP 使用 `ag_*`；历史归档保留原文件名、UART 和哈希。改名后两个完整 DDR/Cache 102 MHz 重建在限时内未完成布线，尚无新的完整 SoC 板测/CoreMark；[详细结果与日志](docs/results/ag-contest-20261029/README.md)已保留。
 
-2026-10-29 最新离线结果：**完整 CPU + 两路 I/D Cache（各 16 KiB）+ 板载 DDR3 已在 102 MHz / DDR UI 125 MHz 下闭合时序**，最终报告 All Constraints Met；CPU setup +0.056 ns、slow/fast hold +0.136/+0.099 ns，整机 14618 LUT。短仿真 CoreMark 等效 5.041916/MHz。此版尚未重新板测，不继承上述历史成绩。见[闭合证据与复现](docs/results/offline-ddr-cache-102mhz/README.md)、[RV 接口](docs/RV侧接口文档.md)、[赛题完成情况与指标](docs/赛题一RV侧完成情况与指标.md)。
+2026-10-29：**完整 CPU + 两路 I/D Cache（各 16 KiB）+ 板载 DDR3 的 102 MHz 冻结闭合版已通过实板自检与 JTAG 回读校验**。两次下载均通过 DDR 校准、数据/代码执行、MULH、MIN/MAX、Cache 命中、自修改及维护测试；第二次完成配置回读。该冻结位流 CPU setup +0.056 ns、slow/fast hold +0.136/+0.099 ns，整机 14618 LUT。短仿真 CoreMark 等效 5.041916/MHz，尚无完整 DDR/Cache 位流正式实板 CoreMark。见[本次实测证据](docs/results/board-ddr-cache-102mhz/README.md)、[原始闭合归档](docs/results/offline-ddr-cache-102mhz/README.md)、[RV 接口](docs/RV侧接口文档.md)。
+
+历史 2026-10-26 TCM 位流为 7089 LUT、setup +0.120 ns、0.072556 CoreMark/LUT；2026-10-28 DDR 实验镜像 setup −1.022 ns，未闭合。历史数据分别见[性能与验证报告](docs/性能与验证报告.md)与[DDR 实验板测记录](docs/results/board-ddr-102mhz-experimental/README.md)，不可混用到当前 AG 的面积或成绩。
 
 ## 文档
 
@@ -14,17 +16,17 @@
 - [模型加速器整合与浏览器方案](docs/模型加速器整合与浏览器方案.md)：团队 W4A8 核心审查、模型候选，以及当前唯一确定的 AI 浏览器应用。
 
 - [CPU 设计说明](docs/CPU设计说明.md)：架构、双发射、旁路、总线、CSR、地址空间及 OS/AI 接入边界。
-- [青龙 OS 与即时应用设计](docs/青龙OS与即时应用设计.md)：简化 VibeOS 的方案，含 AI 计算器、AI 网页、生成式应用商店、应用脚本、DDR 与持久化；目前为设计稿。
+- [AG OS 与即时应用设计](docs/AGOS与即时应用设计.md)：简化 VibeOS 的方案，含 AI 计算器、AI 网页、生成式应用商店、应用脚本、DDR 与持久化；目前为设计稿。
 - [性能与验证报告](docs/性能与验证报告.md)：赛题三个性能指标、周期、资源、时序、限制与复现命令。
 - [PDS 使用说明](docs/PDS使用说明.md)：解决“没有文件”、同步源码与运行流程。
 - [上板调试记录](docs/上板调试记录.md)：27/81/108 MHz 测试、JTAG 下载、COM12 串口及证据位置。
 
 ## 在 PDS 中运行
 
-打开 **D:\FPGA\RiscV\RiscV.pds**，顶层为 qinglong_fpga_top，器件 PG2L100H-6 / FBG676，综合器选择 ADS。
+打开 **D:\FPGA\RiscV\RiscV.pds**，顶层为 ag_fpga_top，器件 PG2L100H-6 / FBG676，综合器选择 ADS。
 
 1. 关闭之前的空工程，避免将旧的空文件列表保存覆盖新工程。
-2. 重新打开 RiscV.pds，源文件列表应包含 qinglong_all.sv。
+2. 重新打开 RiscV.pds，源文件列表应包含 ag_all.sv。
 3. 运行 Compile → Synthesize → Device Map → Place & Route → Report Timing。
 
 修改原始 rtl/*.sv 后，在 PowerShell 中同步：
@@ -34,7 +36,7 @@ Set-Location D:\FPGA\RiscV
 .\scripts\sync_pds_project.ps1
 ```
 
-该命令按 rtl/files.f 合并 RTL 文件到 fpga/generated/qinglong_all.sv，复制 smoke 固件到根目录 firmware.hex，并写入完整的 PDS 工程设置。只添加合并文件可规避旧版 PDS 的 package 兼容问题；不要同时添加原始模块。
+该命令按 rtl/files.f 合并 RTL 文件到 fpga/generated/ag_all.sv，复制 smoke 固件到根目录 firmware.hex，并写入完整的 PDS 工程设置。只添加合并文件可规避旧版 PDS 的 package 兼容问题；不要同时添加原始模块。
 
 独立命令行综合与布局布线：
 

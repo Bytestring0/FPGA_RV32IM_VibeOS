@@ -1,5 +1,5 @@
-#ifndef QINGLONG_PLATFORM_H
-#define QINGLONG_PLATFORM_H
+#ifndef AG_PLATFORM_H
+#define AG_PLATFORM_H
 typedef unsigned int uint32_t;
 typedef unsigned long long uint64_t;
 #define MMIO32(addr) (*(volatile uint32_t *)(addr))

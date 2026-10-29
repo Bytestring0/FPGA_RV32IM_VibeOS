@@ -1,0 +1,25 @@
+bash scripts/test_cache.sh
+make[1]: Entering directory '/mnt/d/FPGA/RiscV'
+riscv64-unknown-elf-gcc -march=rv32im_zicsr_zifencei -mabi=ilp32 -O3 -ffreestanding -fno-builtin -ffunction-sections -fdata-sections -msmall-data-limit=0 -Wall -Wextra -nostdlib -nostartfiles -Wl,--gc-sections -T sw/link.ld -DCPU_HZ=102000000 sw/start.S sw/cache_smoke.c -lgcc -o build/cache_smoke.elf
+riscv64-unknown-elf-objcopy -O binary build/cache_smoke.elf build/cache_smoke.bin
+python3 scripts/bin2hex.py build/cache_smoke.bin build/cache_smoke.hex
+rm build/cache_smoke.bin
+make[1]: Leaving directory '/mnt/d/FPGA/RiscV'
+Cache PASS: 2-way hits, byte masks, dirty LRU eviction, FENCE coherence, backpressure, refill/writeback errors, random traffic; reads=397 writes=220 cycles=7788
+AG DDR3 smoke CPU=06146580
+DDR calibrated
+DDR PASS data16KiB byte halfword address-lines edge execute
+CPU MULH PASS signed mixed unsigned edges
+CPU MINMAX PASS signed unsigned equal edges
+CACHE I_HIT=00000204 D_HIT=00001efd WB=00000231 IBUF_HIT=000005ce
+CACHE_WORK_CYCLES=000010f0
+CACHE PASS DDR code warm-hit self-modify maintenance
+DDR SoC simulation exit=0 cycles=96516 transactions=1232
+AG DDR3 smoke CPU=06146580
+DDR calibrated
+DDR PASS data16KiB byte halfword address-lines edge execute
+CPU MULH PASS signed mixed unsigned edges
+CPU MINMAX PASS signed unsigned equal edges
+CACHE_WORK_CYCLES=00005325
+CACHE PASS DDR code warm-hit self-modify maintenance
+DDR SoC simulation exit=0 cycles=165567 transactions=10570

@@ -1,11 +1,11 @@
-#include "Vqinglong_soc.h"
+#include "Vag_soc.h"
 #include "verilated.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
-    Vqinglong_soc top;
+    Vag_soc top;
     uint64_t limit = 200000000;
     if (const char *v = std::getenv("MAX_CYCLES")) limit = std::strtoull(v, nullptr, 0);
     top.clk = 0; top.rst = 1; top.irq_external = 0;

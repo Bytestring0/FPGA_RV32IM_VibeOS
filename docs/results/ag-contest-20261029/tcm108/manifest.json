@@ -1,0 +1,10 @@
+﻿{
+    "board":  "MES2L676-100HP",
+    "device":  "PG2L100H-6IFBG676",
+    "clock_hz":  108000000,
+    "firmware_origin":  "D:\\FPGA\\RiscV\\build\\contest-validation\\coremark-102mhz-6000.hex",
+    "firmware_sha256":  "17B1CF490C8ADD6E75A5AE2DEC4212D0D57367C28900A6166D1AB33391F4DB56",
+    "source_sha256":  "3B8954D6762134F7F95373178FD700A678CFA5EAE0EFAE4927DD963519E35744",
+    "constraint_sha256":  "86A8505C7D48126A91ED5610742B86D32C9C58834CEA0457A18A4B3E21A08A4C",
+    "board_tested":  false
+}

@@ -1,0 +1,24 @@
+{
+  "board": "MES2L676-100HP",
+  "device": "PG2L100H-6IFBG676",
+  "clock_hz": 102000000,
+  "firmware_origin": "D:\\FPGA\\RiscV\\build\\contest-validation\\coremark-102mhz-6000.hex",
+  "firmware_sha256": "17B1CF490C8ADD6E75A5AE2DEC4212D0D57367C28900A6166D1AB33391F4DB56",
+  "source_sha256": "6F19CC350AA749C211DEB2BDFBBB532EAEDACA392EB3710F106C4550A59F19A9",
+  "constraint_sha256": "009B4E7EDBE44798826417F512B4C213C0288A68BBA1D397E21EDA856FB9F13E",
+  "board_tested": true,
+  "routed_timing_passed": true,
+  "bitstreams": [
+    {
+      "path": "D:\\FPGA\\RiscV\\build\\ag-coremark102\\generate_bitstream\\ag_board_top.sbit",
+      "sha256": "4ADFE7A5C1E38AF5911297464FFDF3D9DB98E4D61A8B7A96503E53AD313F13E7"
+    }
+  ],
+  "timing_report_sha256": "AF8FB7A0EEF867D82C6564E5E94667AE18AD740B78D07846CD8DA9C84FD76983",
+  "iterations": 6000,
+  "uart_evidence": "D:\\FPGA\\RiscV\\build\\contest-validation\\ag-coremark102.uart.log",
+  "configuration_verification_evidence": "D:\\FPGA\\RiscV\\build\\contest-validation\\ag-coremark102.uart.log.program.log",
+  "configuration_verified": true,
+  "measured_cycles": 1189859177,
+  "measured_iterations": 6000
+}

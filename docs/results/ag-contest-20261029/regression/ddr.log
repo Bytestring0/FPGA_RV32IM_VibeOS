@@ -1,0 +1,15 @@
+PASS DDR bridge checks=658 native_transactions=663 cpu_half_ns=4.901961
+- sim/ddr_bridge_tb.sv:195: Verilog $finish
+PASS DDR bridge checks=658 native_transactions=663 cpu_half_ns=3.100000
+- sim/ddr_bridge_tb.sv:195: Verilog $finish
+PASS DDR bridge checks=658 native_transactions=663 cpu_half_ns=7.300000
+- sim/ddr_bridge_tb.sv:195: Verilog $finish
+riscv64-unknown-elf-gcc -march=rv32im_zicsr_zifencei -mabi=ilp32 -O3 -ffreestanding -fno-builtin -ffunction-sections -fdata-sections -msmall-data-limit=0 -Wall -Wextra -nostdlib -nostartfiles -Wl,--gc-sections -T sw/link.ld -DCPU_HZ=102000000 sw/start.S sw/ddr_smoke.c -lgcc -o build/ddr_smoke.elf
+/usr/lib/gcc/riscv64-unknown-elf/13.2.0/../../../riscv64-unknown-elf/bin/ld: warning: build/ddr_smoke.elf has a LOAD segment with RWX permissions
+riscv64-unknown-elf-objcopy -O binary build/ddr_smoke.elf build/ddr_smoke.bin
+python3 scripts/bin2hex.py build/ddr_smoke.bin build/ddr_smoke.hex
+rm build/ddr_smoke.bin
+AG DDR3 smoke CPU=06146580
+DDR calibrated
+DDR PASS data16KiB byte halfword address-lines edge execute
+DDR SoC simulation exit=0 cycles=83810 transactions=1623

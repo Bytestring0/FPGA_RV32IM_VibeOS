@@ -1,0 +1,12 @@
+{
+  "profile": "ag-board-102mhz",
+  "timing_closed": false,
+  "final_timing_available": false,
+  "board_tested": false,
+  "bitstream_generated": false,
+  "measurement_boundary": "Full AG CPU + I/D Cache 16 KiB each + DDR controller; firmware exercises DDR and Cache functionality, not formal CoreMark",
+  "pnr_options": "pnr -gplace_seed 2 -fix_hold_violation_in_route TRUE -fix_hold_violation_threshold_for_clk_tree 100 -action_timeout 60 -share_router_control_signal FALSE -optimize_multi_corner_timing -enable_route_constraint_iterate -route_constraint_iterate_times 3 -route_constraint_slack 0.1",
+  "completion_status": "Stopped at implementation time budget; no final timing report or usable bitstream",
+  "last_route_iteration": 132,
+  "last_unrouted_nets": 3224
+}

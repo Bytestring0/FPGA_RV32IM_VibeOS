@@ -1,0 +1,166 @@
+verilator --lint-only -Wall -Wno-fatal --top-module ag_soc -f rtl/files.f
+%Warning-DECLFILENAME: rtl/rv32_alu.sv:61:8: Filename 'rv32_alu' does not match MODULE name: 'rv32_late_alu'
+   61 | module rv32_late_alu (
+      |        ^~~~~~~~~~~~~
+                       ... For warning description see https://verilator.org/warn/DECLFILENAME?v=5.020
+                       ... Use "/* verilator lint_off DECLFILENAME */" and lint_on around source to disable this message.
+%Warning-GENUNNAMED: rtl/rv32_alu.sv:15:5: Unnamed generate block 'genblk1' (IEEE 1800-2017 27.6)
+                                         : ... Suggest assign a label with 'begin : gen_<label_name>'
+   15 |     for (genvar k = 0; k < 32; k = k + 1) begin
+      |     ^~~
+%Warning-GENUNNAMED: rtl/rv32_alu.sv:68:5: Unnamed generate block 'genblk1' (IEEE 1800-2017 27.6)
+                                         : ... Suggest assign a label with 'begin : gen_<label_name>'
+   68 |     for (genvar k = 0; k < 32; k = k + 1)
+      |     ^~~
+%Warning-GENUNNAMED: rtl/rv32_alu.sv:89:5: Unnamed generate block 'genblk2' (IEEE 1800-2017 27.6)
+                                         : ... Suggest assign a label with 'begin : gen_<label_name>'
+   89 |     for (genvar p = 0; p < 8; p = p + 1)
+      |     ^~~
+%Warning-GENUNNAMED: rtl/rv32_alu.sv:91:5: Unnamed generate block 'genblk3' (IEEE 1800-2017 27.6)
+                                         : ... Suggest assign a label with 'begin : gen_<label_name>'
+   91 |     for (genvar p = 0; p < 4; p = p + 1)
+      |     ^~~
+%Warning-GENUNNAMED: rtl/rv32_alu.sv:93:5: Unnamed generate block 'genblk4' (IEEE 1800-2017 27.6)
+                                         : ... Suggest assign a label with 'begin : gen_<label_name>'
+   93 |     for (genvar p = 0; p < 2; p = p + 1)
+      |     ^~~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:631:56: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'ag_soc.cpu'
+  631 |                     if ((fetch_pop == 0 && fetch_count == fi) ||
+      |                                                        ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:632:56: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'ag_soc.cpu'
+  632 |                         (fetch_pop == 1 && fetch_count == fi+1) ||
+      |                                                        ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:633:56: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'ag_soc.cpu'
+  633 |                         (fetch_pop == 2 && fetch_count == fi+2)) begin
+      |                                                        ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:641:57: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'ag_soc.cpu'
+  641 |                         ((fetch_pop == 0 && fetch_count == fi-1) ||
+      |                                                         ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:642:57: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'ag_soc.cpu'
+  642 |                          (fetch_pop == 1 && fetch_count == fi) ||
+      |                                                         ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:643:57: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'ag_soc.cpu'
+  643 |                          (fetch_pop == 2 && fetch_count == fi+1))) begin
+      |                                                         ^~
+%Warning-UNUSEDSIGNAL: rtl/ag_soc.sv:39:45: Signal is not used: 'mem_req_ready'
+                                          : ... note: In instance 'ag_soc'
+   39 |     output logic mem_req_valid, input logic mem_req_ready,
+      |                                             ^~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/ag_soc.sv:42:17: Signal is not used: 'mem_rsp_valid'
+                                          : ... note: In instance 'ag_soc'
+   42 |     input logic mem_rsp_valid, output logic mem_rsp_ready,
+      |                 ^~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/ag_soc.sv:43:25: Signal is not used: 'mem_rsp_data'
+                                          : ... note: In instance 'ag_soc'
+   43 |     input logic [255:0] mem_rsp_data, input logic mem_rsp_error
+      |                         ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/ag_soc.sv:43:51: Signal is not used: 'mem_rsp_error'
+                                          : ... note: In instance 'ag_soc'
+   43 |     input logic [255:0] mem_rsp_data, input logic mem_rsp_error
+      |                                                   ^~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/ag_soc.sv:56:26: Signal is not used: 'ddr_d_write'
+                                          : ... note: In instance 'ag_soc'
+   56 |     logic ddr_d_pending, ddr_d_write;
+      |                          ^~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/ag_soc.sv:57:18: Signal is not used: 'ddr_d_addr'
+                                          : ... note: In instance 'ag_soc'
+   57 |     logic [31:0] ddr_d_addr, ddr_d_wdata;
+      |                  ^~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/ag_soc.sv:57:30: Signal is not used: 'ddr_d_wdata'
+                                          : ... note: In instance 'ag_soc'
+   57 |     logic [31:0] ddr_d_addr, ddr_d_wdata;
+      |                              ^~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/ag_soc.sv:58:17: Signal is not used: 'ddr_d_strb'
+                                          : ... note: In instance 'ag_soc'
+   58 |     logic [3:0] ddr_d_strb;
+      |                 ^~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/ag_soc.sv:74:10: Signal is not used: 'cpu_fence_i'
+                                          : ... note: In instance 'ag_soc'
+   74 |     wire cpu_fence_i,cache_busy,cache_error;
+      |          ^~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_core.sv:59:44: Bits of signal are not used: 'x_dec_second'[86,68,28:0]
+                                             : ... note: In instance 'ag_soc.cpu'
+   59 |     decode_t id_dec, id_dec_second, x_dec, x_dec_second;
+      |                                            ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_core.sv:73:64: Bits of signal are not used: 'insn'[24:15,11:7]
+                                             : ... note: In instance 'ag_soc.cpu'
+   73 |     function automatic [6:0] issue_metadata(input logic [31:0] insn);
+      |                                                                ^~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_core.sv:104:66: Bits of signal are not used: 'older'[31:12,6:0]
+                                              : ... note: In instance 'ag_soc.cpu'
+  104 |     function automatic [2:0] register_matches(input logic [31:0] older,younger);
+      |                                                                  ^~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_core.sv:104:72: Bits of signal are not used: 'younger'[31:25,14:12,6:0]
+                                              : ... note: In instance 'ag_soc.cpu'
+  104 |     function automatic [2:0] register_matches(input logic [31:0] older,younger);
+      |                                                                        ^~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_core.sv:118:16: Bits of signal are not used: 'first_meta'[1:0]
+                                              : ... note: In instance 'ag_soc.cpu'
+  118 |     wire [6:0] first_meta = fetch_meta[0], second_meta = fetch_meta[1];
+      |                ^~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_core.sv:118:44: Bits of signal are not used: 'second_meta'[3]
+                                              : ... note: In instance 'ag_soc.cpu'
+  118 |     wire [6:0] first_meta = fetch_meta[0], second_meta = fetch_meta[1];
+      |                                            ^~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_core.sv:162:49: Bits of signal are not used: 'partial_hh'[33:32]
+                                              : ... note: In instance 'ag_soc.cpu'
+  162 |     logic signed [33:0] partial_lh, partial_hl, partial_hh;
+      |                                                 ^~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_core.sv:163:24: Bits of signal are not used: 'partial_middle'[15:0]
+                                              : ... note: In instance 'ag_soc.cpu'
+  163 |     wire signed [34:0] partial_middle = $signed({19'b0,partial_ll_high}) +
+      |                        ^~~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_core.sv:179:18: Signal is not used: 'redirect_pc'
+                                              : ... note: In instance 'ag_soc.cpu'
+  179 |     logic [31:0] redirect_pc;
+      |                  ^~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_core.sv:189:18: Bits of signal are not used: 'load_shifted'[31:16]
+                                              : ... note: In instance 'ag_soc.cpu'
+  189 |     logic [31:0] load_shifted, mem_result;
+      |                  ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_core.sv:194:11: Signal is not used: 'div_busy'
+                                              : ... note: In instance 'ag_soc.cpu'
+  194 |     logic div_busy, div_done, div_started, div_saved;
+      |           ^~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_divider.sv:6:23: Bits of signal are not used: 'funct3'[2]
+                                               : ... note: In instance 'ag_soc.cpu.divider'
+    6 |     input logic [2:0] funct3,
+      |                       ^~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_divider.sv:11:18: Bits of signal are not used: 'remainder'[32]
+                                                : ... note: In instance 'ag_soc.cpu.divider'
+   11 |     logic [32:0] remainder, trial, difference;
+      |                  ^~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_csr.sv:14:24: Bits of signal are not used: 'trap_pc'[1:0]
+                                            : ... note: In instance 'ag_soc.cpu.csrs'
+   14 |     input logic [31:0] trap_pc, trap_cause, trap_value,
+      |                        ^~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_csr.sv:14:33: Bits of signal are not used: 'trap_cause'[31]
+                                            : ... note: In instance 'ag_soc.cpu.csrs'
+   14 |     input logic [31:0] trap_pc, trap_cause, trap_value,
+      |                                 ^~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_alu.sv:11:17: Signal is not used: 'reverse_a'
+                                            : ... note: In instance 'ag_soc.cpu.alu_full'
+   11 |     wire [31:0] reverse_a;
+      |                 ^~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_alu.sv:13:17: Bits of signal are not used: 'shifted_right'[63:32]
+                                            : ... note: In instance 'ag_soc.cpu.alu_full'
+   13 |     wire [63:0] shifted_right = {shift_upper, a} >> b[4:0];
+      |                 ^~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_alu.sv:14:17: Bits of signal are not used: 'shifted_left'[31:0]
+                                            : ... note: In instance 'ag_soc.cpu.alu_full'
+   14 |     wire [63:0] shifted_left = {a, (rotating ? a : 32'b0)} << b[4:0];
+      |                 ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_alu.sv:70:17: Bits of signal are not used: 'rotate_right'[63:32]
+                                            : ... note: In instance 'ag_soc.cpu.alu_aux.late_alu'
+   70 |     wire [63:0] rotate_right = {a,a} >> b[4:0];
+      |                 ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: rtl/rv32_alu.sv:71:17: Bits of signal are not used: 'rotate_left'[31:0]
+                                            : ... note: In instance 'ag_soc.cpu.alu_aux.late_alu'
+   71 |     wire [63:0] rotate_left = {a,a} << b[4:0];
+      |                 ^~~~~~~~~~~

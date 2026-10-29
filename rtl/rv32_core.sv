@@ -1,4 +1,4 @@
-// QingLong RV32: IF1 -> IF2 -> ID -> EX -> MEM -> WB.
+// AG RV32: IF1 -> IF2 -> ID -> EX -> MEM -> WB.
 // Harvard request/response ports; at most one outstanding transaction per port.
 // Responses arrive >= 1 cycle after acceptance and remain valid until ready.
 // Instruction requests are cancellable until accepted (not a direct AXI port).

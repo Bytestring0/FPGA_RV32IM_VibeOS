@@ -29,7 +29,7 @@ for src in sources:
                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     subprocess.run([prefix+"objcopy", "-O", "binary", str(elf), str(binary)], check=True)
     subprocess.run(["python3", "scripts/bin2hex.py", str(binary), "build/firmware.hex"], check=True)
-    run = subprocess.run(["build/soc/Vqinglong_soc"], text=True, capture_output=True,
+    run = subprocess.run(["build/soc/Vag_soc"], text=True, capture_output=True,
                          env={**os.environ, "MAX_CYCLES": "2000000"})
     (out / (name+".log")).write_text(run.stdout + run.stderr)
     if run.returncode:

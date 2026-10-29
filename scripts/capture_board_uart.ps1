@@ -24,7 +24,7 @@ try {
             Write-Host -NoNewline $chunk
             # Match the full line, not a partial hex value arriving in a chunk.
             if ($text.ToString() -match 'MEASURED_CYCLES_HEX=[0-9a-fA-F]{16}\r?\n' -or
-                $text.ToString() -match 'QingLong RV32IM boot OK, hash=f60ac131\r?\n') { break }
+                $text.ToString() -match 'AG RV32IM boot OK, hash=f60ac131\r?\n') { break }
         }
         Start-Sleep -Milliseconds 20
     }
@@ -35,6 +35,6 @@ try {
     Write-Host "Saved UART output: $path"
 }
 if (!$text.Length) { throw 'No UART data received. Check port, bitstream, KEY0 and board revision.' }
-if ($text.ToString() -notmatch 'MEASURED_CYCLES_HEX=[0-9a-fA-F]{16}\r?\n|QingLong RV32IM boot OK, hash=f60ac131\r?\n') {
+if ($text.ToString() -notmatch 'MEASURED_CYCLES_HEX=[0-9a-fA-F]{16}\r?\n|AG RV32IM boot OK, hash=f60ac131\r?\n') {
     throw 'UART capture timed out before a complete benchmark or smoke result.'
 }

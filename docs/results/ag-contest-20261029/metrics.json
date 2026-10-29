@@ -1,0 +1,12 @@
+{
+  "iterations": 6000,
+  "cycles": 1189859177,
+  "clock_hz": 102000000,
+  "seconds": 11.665286049019608,
+  "coremark": 514.346581368595,
+  "coremark_per_mhz": 5.042613542829363,
+  "luts": 7023,
+  "coremark_per_lut": 0.07323744573096896,
+  "crc_valid": true,
+  "boundary": "Current AG TCM SoC, no DDR/Cache, no ILA; frequency from nominal crystal and PLL, not external counter"
+}

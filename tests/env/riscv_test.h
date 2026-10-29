@@ -1,5 +1,5 @@
-#ifndef QINGLONG_RISCV_TEST_H
-#define QINGLONG_RISCV_TEST_H
+#ifndef AG_RISCV_TEST_H
+#define AG_RISCV_TEST_H
 #define RVTEST_RV32U
 #define RVTEST_RV64U
 #define TESTNUM gp

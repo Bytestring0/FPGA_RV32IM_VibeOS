@@ -1,11 +1,11 @@
-#include "Vqinglong_soc.h"
+#include "Vag_soc.h"
 #include "verilated.h"
 #include <cstdio>
 #include <cstdlib>
 
 int main(int argc, char **argv) {
     Verilated::commandArgs(argc, argv);
-    Vqinglong_soc top;
+    Vag_soc top;
     auto tick = [&]() { top.clk = 0; top.eval(); top.clk = 1; top.eval(); };
     auto check = [](bool condition, const char *reason) {
         if (!condition) { std::fprintf(stderr, "SoC UART FAIL: %s\n", reason); std::exit(1); }

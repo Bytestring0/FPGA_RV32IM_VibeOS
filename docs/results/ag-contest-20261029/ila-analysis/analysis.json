@@ -1,0 +1,27 @@
+{
+  "samples": 2048,
+  "clock_hz": 102000000,
+  "nominal_window_us": 20.07843137254902,
+  "first_retire_cycles": 1809,
+  "dual_retire_cycles": 477,
+  "no_retire_cycles": 239,
+  "retired_instructions": 2286,
+  "window_ipc": 1.1162109375,
+  "dual_retire_fraction": 0.23291015625,
+  "x_branch_flag_cycles": 489,
+  "x_pc_function_samples": {
+    "core_bench_list": 1754,
+    "crc16": 294
+  },
+  "first_sample": {
+    "sample": 0,
+    "time_ns": 0.0,
+    "x_pc": "00000588",
+    "m_pc": "00000494",
+    "retire_valid": 0,
+    "retire_second_valid": 0,
+    "x_dec_branch": 1,
+    "x_function": "core_bench_list"
+  },
+  "limits": "Immediate JTAG hardware capture; one short window, not whole-run IPC. x_pc/m_pc can persist during bubbles; branch flag is not a branch event. No dedicated hazard/mispredict/cache probes: zero-retire cycles cannot be assigned to individual causes."
+}

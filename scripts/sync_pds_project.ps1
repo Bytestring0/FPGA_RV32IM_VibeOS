@@ -26,8 +26,8 @@ $sourceNames = @(
         ForEach-Object { $_.Trim() } |
         Where-Object { $_ -and !$_.StartsWith('#') -and !$_.StartsWith('//') }
 )
-if ($sourceNames -notcontains 'rtl/qinglong_fpga_top.sv') {
-    $sourceNames += 'rtl/qinglong_fpga_top.sv'
+if ($sourceNames -notcontains 'rtl/ag_fpga_top.sv') {
+    $sourceNames += 'rtl/ag_fpga_top.sv'
 }
 $sourceNames = @($sourceNames | Select-Object -Unique)
 $utf8 = [Text.UTF8Encoding]::new($false)
@@ -49,7 +49,7 @@ $backupPath = Join-Path $backupDirectory 'RiscV.before_gui_sync.pds'
 if ((Test-Path -LiteralPath $projectPath) -and !(Test-Path -LiteralPath $backupPath)) {
     Copy-Item -LiteralPath $projectPath -Destination $backupPath
 }
-$combinedPath = Join-Path $generatedDirectory 'qinglong_all.sv'
+$combinedPath = Join-Path $generatedDirectory 'ag_all.sv'
 [IO.File]::WriteAllText($combinedPath, $combined.ToString(), $utf8)
 Copy-Item -LiteralPath $firmwarePath -Destination (Join-Path $projectRoot 'firmware.hex') -Force
 $projectContents = [IO.File]::ReadAllText($templatePath)
@@ -66,7 +66,7 @@ foreach ($fileMatch in [regex]::Matches($projectText, '\(_file "([^"]+)"')) {
     }
 }
 Write-Output "GUI project prepared: $projectPath"
-Write-Output "Top: qinglong_fpga_top; device: PG2L100H-6 FBG676; synthesis: ADS"
+Write-Output "Top: ag_fpga_top; device: PG2L100H-6 FBG676; synthesis: ADS"
 Write-Output "Combined $($sourceNames.Count) RTL sources into: $combinedPath"
 Write-Output "Firmware copied from: $firmwarePath"
 Write-Output 'Close the previously opened empty project without saving it, then reopen RiscV.pds.'

@@ -36,34 +36,34 @@ build/uart_soc.elf: sw/start.S tests/uart_soc.c sw/platform.h sw/link.ld | build
 ddr-firmware: build/ddr_smoke.hex
 build/ddr_smoke.elf: sw/start.S sw/ddr_smoke.c sw/platform.h sw/link.ld | build
 	$(CC) $(CFLAGS) $(LDFLAGS) -DCPU_HZ=102000000 sw/start.S sw/ddr_smoke.c -lgcc -o $@
-build/soc_uart/Vqinglong_soc: $(wildcard rtl/*.sv) sim/uart_soc_main.cpp Makefile FORCE | build
-	verilator $(VFLAGS) --top-module qinglong_soc -f rtl/files.f \
+build/soc_uart/Vag_soc: $(wildcard rtl/*.sv) sim/uart_soc_main.cpp Makefile FORCE | build
+	verilator $(VFLAGS) --top-module ag_soc -f rtl/files.f \
 	    "-GLOAD_WORD_ONLY=1'b$(LOAD_WORD_ONLY)" "-GMULH_PIPELINE=1'b$(MULH_PIPELINE)" \
 	    -GCLOCK_HZ=27000000 '-GINIT_FILE="build/uart_soc.hex"' \
 	    --Mdir build/soc_uart $(abspath sim/uart_soc_main.cpp)
 .PHONY: uart-soc
-uart-soc: build/uart_soc.hex build/soc_uart/Vqinglong_soc
-	build/soc_uart/Vqinglong_soc
+uart-soc: build/uart_soc.hex build/soc_uart/Vag_soc
+	build/soc_uart/Vag_soc
 build/%.bin: build/%.elf
 	$(OBJCOPY) -O binary $< $@
 build/%.hex: build/%.bin
 	python3 scripts/bin2hex.py $< $@
 .PHONY: FORCE
 FORCE:
-build/soc/Vqinglong_soc: $(wildcard rtl/*.sv) sim/soc_main.cpp Makefile FORCE | build
-	verilator $(VFLAGS) --top-module qinglong_soc -f rtl/files.f \
+build/soc/Vag_soc: $(wildcard rtl/*.sv) sim/soc_main.cpp Makefile FORCE | build
+	verilator $(VFLAGS) --top-module ag_soc -f rtl/files.f \
 	    "-GLOAD_WORD_ONLY=1'b$(LOAD_WORD_ONLY)" "-GMULH_PIPELINE=1'b$(MULH_PIPELINE)" \
 	    "-GSIM_FAST_UART=1'b1" "-GPREDICT_ENABLE=1'b$(PREDICT)" -GBTB_BITS=$(BTB_BITS) \
 	    "-GDUAL_ISSUE=1'b$(DUAL_ISSUE)" "-GLOAD_BYPASS=1'b$(LOAD_BYPASS)" \
 	    "-GEARLY_LSU=1'b$(EARLY_LSU)" \
 	    --Mdir build/soc $(abspath sim/soc_main.cpp)
-smoke: build/smoke.hex build/soc/Vqinglong_soc
+smoke: build/smoke.hex build/soc/Vag_soc
 	cp build/smoke.hex build/firmware.hex
-	build/soc/Vqinglong_soc
+	build/soc/Vag_soc
 lint:
-	verilator --lint-only -Wall -Wno-fatal --top-module qinglong_soc -f rtl/files.f
-sim: build/soc/Vqinglong_soc
-	build/soc/Vqinglong_soc
+	verilator --lint-only -Wall -Wno-fatal --top-module ag_soc -f rtl/files.f
+sim: build/soc/Vag_soc
+	build/soc/Vag_soc
 
 ITERATIONS ?= 10
 CPU_HZ ?= 27000000
@@ -76,7 +76,7 @@ CORE_SRC := $(addprefix third_party/coremark/,core_list_join.c core_main.c core_
 .PHONY: coremark-build deps isa
 deps:
 	bash scripts/fetch_deps.sh
-isa: build/soc/Vqinglong_soc
+isa: build/soc/Vag_soc
 	python3 scripts/run_isa.py
 coremark-build: | build
 	$(CC) $(CFLAGS) $(LDFLAGS) -Isw/coremark -Ithird_party/coremark \
@@ -88,16 +88,16 @@ coremark-build: | build
 	$(OBJCOPY) -O binary build/coremark.elf build/coremark.bin
 	python3 scripts/bin2hex.py build/coremark.bin build/coremark.hex
 	$(OBJDUMP) -d build/coremark.elf > build/coremark.dis
-coremark: coremark-build build/soc/Vqinglong_soc
+coremark: coremark-build build/soc/Vag_soc
 	cp build/coremark.hex build/firmware.hex
 	MAX_CYCLES=$(MAX_CYCLES) python3 scripts/run_coremark.py
 .PHONY: traps
 build/traps.elf: tests/trap_tests.S sw/link.ld | build
 	$(CC) $(CFLAGS) $(LDFLAGS) tests/trap_tests.S -o $@
 	$(OBJDUMP) -d $@ > build/traps.dis
-traps: build/traps.hex build/soc/Vqinglong_soc
+traps: build/traps.hex build/soc/Vag_soc
 	cp build/traps.hex build/firmware.hex
-	build/soc/Vqinglong_soc
+	build/soc/Vag_soc
 .PHONY: differential
 build/core/Vrv32_core: $(wildcard rtl/rv32*.sv) sim/core_main.cpp Makefile FORCE | build
 	verilator $(VFLAGS) --top-module rv32_core -f rtl/files.f \
@@ -111,15 +111,15 @@ differential: build/core/Vrv32_core
 .PHONY: interrupts
 build/interrupts.elf: tests/interrupt_tests.S sw/link.ld | build
 	$(CC) $(CFLAGS) $(LDFLAGS) tests/interrupt_tests.S -o $@
-interrupts: build/interrupts.hex build/soc/Vqinglong_soc
+interrupts: build/interrupts.hex build/soc/Vag_soc
 	cp build/interrupts.hex build/firmware.hex
-	IRQ_EXTERNAL=1 build/soc/Vqinglong_soc
+	IRQ_EXTERNAL=1 build/soc/Vag_soc
 .PHONY: dual-stress
 build/dual_stress.elf: tests/dual_issue_stress.S sw/link.ld | build
 	$(CC) $(CFLAGS) $(LDFLAGS) tests/dual_issue_stress.S -o $@
-dual-stress: build/dual_stress.hex build/soc/Vqinglong_soc
+dual-stress: build/dual_stress.hex build/soc/Vag_soc
 	cp build/dual_stress.hex build/firmware.hex
-	build/soc/Vqinglong_soc
+	build/soc/Vag_soc
 
 .PHONY: uart
 build/uart/Vuart_tx: rtl/uart_tx.sv sim/uart_main.cpp | build

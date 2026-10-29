@@ -4,15 +4,15 @@
 
 ## 为什么之前提示没有文件
 
-原来的 `RiscV.pds` 只保存了器件选择，设计源文件列表和约束文件列表都是空的，也没有指定 CPU 顶层。之前命令行综合使用的是 `build/pds/qinglong.pds`，因此打开原来的空工程时，PDS 并不知道新写的 RTL 文件。
+原来的 `RiscV.pds` 只保存了器件选择，设计源文件列表和约束文件列表都是空的，也没有指定 CPU 顶层。之前命令行综合使用的是 `build/pds/ag.pds`，因此打开原来的空工程时，PDS 并不知道新写的 RTL 文件。
 
 现在主工程引用以下文件：
 
 | 项目 | 设置 |
 | --- | --- |
 | 工程文件 | `D:\FPGA\RiscV\RiscV.pds` |
-| 顶层模块 | `qinglong_fpga_top` |
-| 设计源文件 | `fpga/generated/qinglong_all.sv` |
+| 顶层模块 | `ag_fpga_top` |
+| 设计源文件 | `fpga/generated/ag_all.sv` |
 | 逻辑/时序约束 | `fpga/timing.fdc` |
 | 初始化程序 | 工程根目录的 `firmware.hex` |
 | 综合工具 | PDS 自带 ADS，工程配置值 `selected_syn_tool_opt = 2` |
@@ -23,7 +23,7 @@
 
 1. 在 PDS 中关闭之前打开的空工程。若提示保存旧工程，不要把旧的空源文件列表重新保存到 `RiscV.pds`。
 2. 用 **File → Open Project** 重新打开 `D:\FPGA\RiscV\RiscV.pds`。
-3. 在设计源文件列表中确认出现 `qinglong_all.sv`，顶层确认是 `qinglong_fpga_top`。
+3. 在设计源文件列表中确认出现 `ag_all.sv`，顶层确认是 `ag_fpga_top`。
 4. 先运行 **Compile**，通过后运行 **Synthesize**。综合工具应选择 **ADS / Pango Synthesize Tool**。
 5. 需要布局布线报告时，继续运行 **Device Map → Place & Route → Report Timing**。
 
@@ -44,9 +44,9 @@ Set-Location D:\FPGA\RiscV
 .\scripts\sync_pds_project.ps1 -Firmware build\coremark.hex
 ```
 
-同步脚本会读取 `rtl/files.f`，补入板级顶层，将源文件按顺序合并到 `fpga/generated/qinglong_all.sv`，复制固件到根目录 `firmware.hex`，并恢复主工程的完整设置。它不会执行综合，也不会改动 `rtl/` 源码。
+同步脚本会读取 `rtl/files.f`，补入板级顶层，将源文件按顺序合并到 `fpga/generated/ag_all.sv`，复制固件到根目录 `firmware.hex`，并恢复主工程的完整设置。它不会执行综合，也不会改动 `rtl/` 源码。
 
-应修改 `rtl/*.sv`，然后重新运行同步脚本。不要直接修改 `fpga/generated/qinglong_all.sv`，下次同步会重新生成该文件。若新增一个 RTL 模块，将它按依赖顺序加入 `rtl/files.f`。
+应修改 `rtl/*.sv`，然后重新运行同步脚本。不要直接修改 `fpga/generated/ag_all.sv`，下次同步会重新生成该文件。若新增一个 RTL 模块，将它按依赖顺序加入 `rtl/files.f`。
 
 若固件还没有生成，可在 WSL Ubuntu 中构建：
 
@@ -71,7 +71,7 @@ GUI 主工程是 `RiscV.pds`，输出保存在主工程工作目录。命令行�
 .\scripts\build_fpga.ps1 -PlaceRoute
 ```
 
-它会在 `build/pds` 下重新生成独立的 `qinglong.pds`，便于保留可复现的综合与布局布线结果。两个入口采用相同 CPU RTL 和相同器件，但它们是两个不同的 PDS 工程；在一个工程中生成的报告不会自动出现在另一个工程的流程状态里。
+它会在 `build/pds` 下重新生成独立的 `ag.pds`，便于保留可复现的综合与布局布线结果。两个入口采用相同 CPU RTL 和相同器件，但它们是两个不同的 PDS 工程；在一个工程中生成的报告不会自动出现在另一个工程的流程状态里。
 
 ## 时钟约束和下载前需要核对的内容
 
@@ -79,7 +79,7 @@ GUI 主工程是 `RiscV.pds`，输出保存在主工程工作目录。命令行�
 
 根工程用于编译、综合和时序分析，不含板级引脚约束。本机已通过 `scripts/prepare_board.ps1` 生成完整板级工程，并在连接的 PG2L100H 开发板完成 27 MHz smoke 验证：三次 JTAG 下载、配置校验、COM12 的 UART 输出均通过。板级引脚为 D18 时钟、C22 复位、C24 UART TX，使用 LVCMOS33。详见[上板调试记录](上板调试记录.md)。
 
-上板时打开 `build/board27/qinglong_board.pds`，或运行：
+上板时打开 `build/board27/ag_board.pds`，或运行：
 
 ```powershell
 .\scripts\prepare_board.ps1 -ClockMHz 27 -Firmware build\smoke.hex -Build -Bitstream
@@ -94,7 +94,7 @@ GUI 主工程是 `RiscV.pds`，输出保存在主工程工作目录。命令行�
 | --- | --- |
 | 没有设计文件 / 顶层为空 | 同步主工程，关闭旧工程并重新打开 `RiscV.pds` |
 | `Synplify pro license is not set` | 本机改用 ADS；同步脚本已保存该选择 |
-| `decode_t is not declared` | 使用生成的单一 `qinglong_all.sv`，并开启 SystemVerilog |
+| `decode_t is not declared` | 使用生成的单一 `ag_all.sv`，并开启 SystemVerilog |
 | `SystemVerilog Enumeration is not supported yet` | 使用当前兼容版 RTL，不要切回未调整的旧副本 |
 | `firmware.hex` 找不到 | 先构建固件，再运行同步脚本；从主工程目录运行 |
 | 修改 RTL 后结果没变化 | 重新同步生成合并文件，然后在 PDS 中重新 Compile/Synthesize |

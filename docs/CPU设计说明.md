@@ -1,4 +1,4 @@
-# 青龙 QingLong CPU 设计说明
+# AG CPU 设计说明
 
 本工程是面向紫光同创赛题一的自主 SystemVerilog CPU 与最小 SoC。处理器采用 IF1、IF2、ID、EX、MEM、WB 六级顺序流水线，支持双发射、动态执行通道分配、分支预测和机器态异常中断。性能与资源的实际结果见 [性能与验证报告](性能与验证报告.md)，PDS 操作见 [PDS 使用说明](PDS使用说明.md)。
 
@@ -141,7 +141,7 @@ TCM 没有 Cache 一致性问题，但多读口会导致综合器复制 RAM，64
 
 PDS 使用单一合并编译单元，规避旧版 ADS 的 package、枚举和结构体端口兼容限制。原始模块仍在 rtl/ 独立维护；修改后运行 scripts/sync_pds_project.ps1。
 
-实板使用 `fpga/board/qinglong_board_system.sv`，通过 GPLL 将 D18 的 27 MHz 时钟倍频；KEY0 复位 CPU，PLL 失锁也使 CPU 保持复位。`scripts/prepare_board.ps1` 生成包含 PLL、已核对引脚、固件和哈希记录的独立工程，`scripts/program_board.ps1` 执行配置 RAM 下载、UART 采集和后续配置校验。根目录 `RiscV.pds` 仍用于无板级引脚约束的时序探索，不能直接替代实板工程。最高已验证板级配置、CoreMark/MHz、CoreMark/LUT、时序及编译条件统一记录于上板调试记录和性能报告。
+实板使用 `fpga/board/ag_board_system.sv`，通过 GPLL 将 D18 的 27 MHz 时钟倍频；KEY0 复位 CPU，PLL 失锁也使 CPU 保持复位。`scripts/prepare_board.ps1` 生成包含 PLL、已核对引脚、固件和哈希记录的独立工程，`scripts/program_board.ps1` 执行配置 RAM 下载、UART 采集和后续配置校验。根目录 `RiscV.pds` 仍用于无板级引脚约束的时序探索，不能直接替代实板工程。最高已验证板级配置、CoreMark/MHz、CoreMark/LUT、时序及编译条件统一记录于上板调试记录和性能报告。
 
 ## DDR 可选接口（2026-10-26）
 
@@ -155,7 +155,7 @@ DDR 集成参数 `PIPELINED_MMIO` 默认随 `DDR_ENABLE` 启用，将外设请�
 
 ## CPU PLL 频率与时钟约束
 
-板载输入为 27 MHz，但 PLL 输出不必是输入的整数倍。`qinglong_board_clock.sv` 使用 `Fout = Fin × RATIOM × RATIOF / RATIOI / RATIO0`：
+板载输入为 27 MHz，但 PLL 输出不必是输入的整数倍。`ag_board_clock.sv` 使用 `Fout = Fin × RATIOM × RATIOF / RATIOI / RATIO0`：
 
 | 配置 | RATIOM | RATIOF | RATIOI | RATIO0 | VCO / CPU 输出 |
 | --- | ---: | ---: | ---: | ---: | --- |

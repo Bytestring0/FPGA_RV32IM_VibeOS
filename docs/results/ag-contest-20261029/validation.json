@@ -1,0 +1,33 @@
+{
+  "rename_audit": {
+    "production_inputs": 75,
+    "changes": "Naming and default generated DDR-IP directory only; merged board RTL matches frozen tested input modulo naming"
+  },
+  "regression": {
+    "isa_programs": 70,
+    "randomized_differential_runs": 219,
+    "oracle_checked_instructions": 102240,
+    "second_lane_retirements": 20878,
+    "uart_unit_and_soc_waveforms_passed": true,
+    "ddr_bridge_checks_per_clock_ratio": 658,
+    "ddr_bridge_clock_ratios": 3,
+    "cache_unit_and_cache_soc_passed": true,
+    "short_coremark_cycles": 1983373,
+    "short_coremark_is_formal_score": false
+  },
+  "formal_board_test": {
+    "iterations": 6000,
+    "cycles": 1189859177,
+    "crc_valid": true,
+    "jtag_verified": true,
+    "ila_profile_same_cycles_and_crc": true
+  },
+  "preexisting_user_inputs_excluded": [
+    "cache_only.pds",
+    "tutorial/",
+    "\u7d2b\u5149.pdf",
+    "third_party/riscv-tests"
+  ],
+  "no_subagents_used": true,
+  "no_push_performed": true
+}

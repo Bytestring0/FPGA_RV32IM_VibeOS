@@ -1,0 +1,14 @@
+{
+  "base_commit": "9d95a7e3eb8337cd2b4b61024f0d43c2048fdde0",
+  "tool": "PDS 2022.2-SP6.1 build 138931",
+  "device": "PG2L100H-6IFBG676",
+  "board": "MES2L676-100HP",
+  "uart": "COM12 115200 8N1",
+  "programming": "volatile configuration RAM only",
+  "ila_capture": "JTAG immediate trigger, single 65-bit / 2048-point capture; raw vendor WDF retained",
+  "highest_tested_closed_mhz": 102,
+  "completed_comparison_target_mhz": 108,
+  "completed_comparison_setup_ns": -0.339,
+  "completed_comparison_failing_endpoints": 83,
+  "further_108mhz_implementation": "Cancelled by user after the first completed comparison; no further runs or programming"
+}
