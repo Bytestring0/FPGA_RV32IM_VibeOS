@@ -25,6 +25,10 @@ module qinglong_fpga_top #(
         .retire_second_valid(), .retire_second_pc(), .retire_second_insn(),
         .retire_second_data(), .retire_second_rd(), .dual_retire_count(),
         .trap_cause(), .trap_value(), .cycle_count(), .instret_count(),
-        .branch_count(), .mispredict_count(), .load_stall_count()
+        .branch_count(), .mispredict_count(), .load_stall_count(),
+        .ddr_ready(1'b0), .ddr_fault(1'b0),
+        .mem_req_valid(), .mem_req_ready(1'b0), .mem_req_addr(), .mem_req_write(),
+        .mem_req_wdata(), .mem_req_wstrb(), .mem_rsp_valid(1'b0), .mem_rsp_ready(),
+        .mem_rsp_data(256'b0), .mem_rsp_error(1'b0)
     );
 endmodule

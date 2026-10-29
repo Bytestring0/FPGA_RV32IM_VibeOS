@@ -1,0 +1,316 @@
+{
+  "board": "MES2L676-100HP",
+  "device": "PG2L100H-6IFBG676",
+  "clock_hz": 102000000,
+  "ddr_ui_hz": 125000000,
+  "ddr_mt_s": 1000,
+  "ddr_bytes": 1073741824,
+  "board_tested": false,
+  "mulh_pipeline": true,
+  "hold_optimization_margin_ps": 50,
+  "routing_passes": 1,
+  "word_load_bypass_only": false,
+  "cache_enabled": true,
+  "cache_bytes_each": 16384,
+  "source_sha256": "CBA48FFEE24C13344782549AD3624CE58960F0624B50C31DEA04E5D50372D981",
+  "constraint_sha256": "E5C0BD53BAAF29E64EE62A2A4F87A48775B7894E0E1C10BBBE66F6B0EFB5F855",
+  "firmware_sha256": "496A52EEE22F7C2AB6BE183EEDF4130B057EC1C170F26C51D071C77D415DD176",
+  "additional_sources": [
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ips2l_rst_sync_v1_3.vp",
+      "sha256": "64B8D83F15F2FF373E6B1040405C42051D8761BD1857DEC719C884C2EB59361A"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_wrlvl_v1_0.vp",
+      "sha256": "00C086BD729BE3AB8287F6EB786CFB3549C97AA92F8465C608B8FC2477DF3EDC"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_wrcal_v1_7.vp",
+      "sha256": "0A8CB0BB70BD40809260C50BCB85D092C16FEA5D9AB2E4FBBE647CCBD1BFB1B0"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_wdata_path_adj_v1_10.vp",
+      "sha256": "85F625ED4A09964442E8616074EEA9E4757E43B4217589BB9E2F289C9748B272"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_upcal_v1_0.vp",
+      "sha256": "AFBCA3503DA609F7951AD7FBEF386BD007F403C89F52377211BA521967C94455"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_training_ctrl_v1_0.vp",
+      "sha256": "777E8EE9D8D819FDCF04B39B5A5D6086C52369A7F19F04DBD0D06F7A7D3D6110"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_slice_rddata_align_v1_0.vp",
+      "sha256": "BEFB44F07D851524109A6DC8E17C5B8062694AA274ED8DBC4F7326B8FE1C443E"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_reset_ctrl_v1_3.vp",
+      "sha256": "17189B59ED5307C4A27EC35485B33AF5C98A89E6EE7F9C5D85AAED9C03A77163"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_rdcal_v1_10.vp",
+      "sha256": "6B4C7F3C24A4750AC69B4E7882617105C6E31F02DA712AAA87932B8561CCEA2B"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_main_ctrl_v1_10.vp",
+      "sha256": "39D5024D7364B441340B131D265D0648D8B7C1F92CC417424D7C584413C5F4A6"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_init_v1_0.vp",
+      "sha256": "817F9F32B2260A4C35AF446E89FF4C2D4B065381B25CB2020C538D22B4A45088"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_info_v1_0.vp",
+      "sha256": "0794201BE97885E7695A16B6C35848655B08C4BF191405D26417126512CE4AA8"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_gatecal_v1_10.vp",
+      "sha256": "B6859250CA098E81FF05BCAB08DFE8FFEE77648218E90C040A1DD3838A0671F2"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_gate_update_ctrl_v1_3.vp",
+      "sha256": "CE20EB3B9CBE3B392D8BE0AA1D6787247BC7B2D91AF36A1F734F35C9EB03D642"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_eyecal_v1_5.vp",
+      "sha256": "31977DD34339D163ECBD8B9949AC4B65F0EAA6FBCD9A75D787400AE73F7F51D2"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_drift_ctrl_v1_0.vp",
+      "sha256": "8EA99AC6DECF6FE14C0585B4F121D7A1ACC17290D7A1C68725D984E704E277BC"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_dqsi_rdel_cal_v1_3.vp",
+      "sha256": "EF7E57755AB7558B1B518AA73999384368F349EFE7077CF9283E0911E711AC1A"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_dqs_rddata_align_v1_10.vp",
+      "sha256": "C0CAB4287A7A7B6B720977C1C5F9259C5F48F8DA18E9A3CA1173A073B1CCF025"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_dqs_gate_coarse_cal_v1_0.vp",
+      "sha256": "950A0010929854894C2C92D9F3F8E9DCE0FEE6985FEE70D4160540A058853EDE"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_dll_update_ctrl_v1_3.vp",
+      "sha256": "BC4E8F402D2FB98920E050A3C1514D44EC959877217D7865A30B22B7DA73CAC6"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_dfi_v1_3.vp",
+      "sha256": "9828A1EF43A864D287A7A317910FE330BFC904F44E8F60C8773AAFA1D8C1534E"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_gpll_phase_v1_0.vp",
+      "sha256": "EF8EBE3742D23848BD2A1492D4901F886CE49AA98DBC295873B67E4116BA8524"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_data_slice_wrlvl_v1_10.vp",
+      "sha256": "871874F4AF0F068571416916898F83EB07052E6E015C5800FFDF65D67620CF7E"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_data_slice_wrcal_v1_10.vp",
+      "sha256": "B7A9757C252F74C4B57EB0FB74738C57E4EED3E669DDD7FFEECA1ACEDD330B2E"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_data_slice_v1_10.vp",
+      "sha256": "E13E33D97ECBFEA1838C4DD28E7F9F1C57DCB974606179523BE46BBA75344D50"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_data_slice_dqs_gate_cal_v1_10.vp",
+      "sha256": "8764275D4EEB8D1765B3A09ABA527D6D3BF3E46F5E1D17EEFC685D7E0DBE1520"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_cpd_ctrl_v1_3.vp",
+      "sha256": "56F52683ADBE720C7D43DA1A9F199F4AB3ADD3F3B5960E3F687F87F60267C161"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_cpd_lock_v1_0.vp",
+      "sha256": "A6696F8E79E2D132A6E76AD4997D5366D6C9CF8F05C60F77FEFF1B47B50D0090"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_control_path_adj_v1_10.vp",
+      "sha256": "8CDD7B9EC01C143882217B038CBF840D77E52EE3037E629E75E10B03FC223A38"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_calib_top_v1_10.vp",
+      "sha256": "04FAF434CEF120B5D712911DFC97C8F498901B0679FBA720B806F596D688BDED"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_calib_mux_v1_0.vp",
+      "sha256": "676E36319E7CE80B93E3543E255D53708D9FC71606587A6E692EAB1EC82ECAED"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_rst_debounce_v1_0.vp",
+      "sha256": "BFF7ED95C8D305DFB88E6002C6DE8453A21C72C03A5A0521A76DDD105598DC4D"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/ips2l_ddrphy_rst_clk_phase_adj_v1_0.vp",
+      "sha256": "DD1DBAE71726D968DF475FE7FBB2B7321411FA67786092C0DC2E065EDCF39382"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/pll/ips2l_ddrphy_gpll_v1_3.vp",
+      "sha256": "3FECC367573A4B5BD158E1A8FF106C5C401C5F180143E8E5ABE6BB068E5078D2"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/pll/ips2l_ddrphy_ppll_v1_0.vp",
+      "sha256": "34BB46106B84EAB147F130BD7526F1486D35CAEB40B0258CD59656E50D19DDDD"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_apb_cross_v1_2.vp",
+      "sha256": "62F7D55354A8AFE4D02BC6F6D6DC30FC8E9960D3B21709988B887ACC99D09CF5"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_calib_delay_v1_2.vp",
+      "sha256": "A52E992B9766B6CB22ED23AA01D1CC5AC9B6A429A8E49DE7A13AC51DD70E9784"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_cfg_apb_v1_2.vp",
+      "sha256": "482CB280A614F70209F1D07892FDD773A259D2CA0F23E8F38B85A9FAF00513B9"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_dcd_bm_v1_2.vp",
+      "sha256": "BFBD472DD8B427FE6B003DD510F73DB89F915AC92D31FE8A779C40F9D4E56BEE"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_dcd_rowaddr_v1_2.vp",
+      "sha256": "4AC4721747B13020E1895BE6265E55DF90968F05BEB8056279589039394BB9BE"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_dcd_sm_v1_2.vp",
+      "sha256": "D7E710E3ED4D1807FB0BDD4D84C264817247A4DA41123C72439C555573821F49"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_dcd_top_v1_2.vp",
+      "sha256": "26AB4E142F555602C023F62B19DF52056C6D51DA5052401254066CAE0655DDAA"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_dcp_back_ctrl_v1_2.vp",
+      "sha256": "FE7B340B41D80EC7428CC38329A41864BCF5C209A6310610D09C7BC8579E541F"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_dcp_buf_v1_2.vp",
+      "sha256": "DAB35FA172243ECBB5426A8EBCCC2C168368EA0A6EA0558C909B815D781B17D6"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_dcp_out_v1_2.vp",
+      "sha256": "9471082E23170B144DC619F7F7E08C94B8A03378F72DA388F744D6ACB728928B"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_dcp_top_v1_2.vp",
+      "sha256": "21B1F0E3B4660E1078B47000BFE50022346414F5D5E713AC9E522A4F39F76548"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_dfi_v1_2.vp",
+      "sha256": "ABF138D692E634FABE5F569B98D897DFECE8A8AE66CEE1DBA830A56D7E255DF1"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_lp_v1_2.vp",
+      "sha256": "7A80CCB1E053E5C9D8F389169359570F256D709FF2E4AD2C51FDA7A7A6A4239D"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_mrs_v1_2.vp",
+      "sha256": "F78133BC021A57CF469773DAAF102817FC37069447E8ACCC80AFA1F4B20B0AD6"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_prefetch_fifo_v1_2.vp",
+      "sha256": "EE3AA91E980FB3DD08231CF1806A28EDF759F4EA8248ADFD44407D607519B9E4"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_rdatapath_v1_2.vp",
+      "sha256": "72DD8ECE021F4EE74FD576C1628C4F7D3606EF632F0E68B9569A288A092A6B0F"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_reg_fifo2_v1_2.vp",
+      "sha256": "BC9CFF65E4002A51AF0C20C2F0A9B9F17DACDE5157B58691BBFB1C44348EE08A"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_ui_axi_v1_2a.vp",
+      "sha256": "145B69395412BE2553835F9278CDF1CB1703D3BEEB914ABF7D985E3C69F817FB"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_wdatapath_v1_2.vp",
+      "sha256": "DB648E90FF607CA2F9E2B5CCA048DE417439888D0B906288E0CEC7CF038D9DEE"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_wdp_align_v1_2.vp",
+      "sha256": "1645E9EB7FAC3C9C13CD3E0D7367F132293F9CEC16835CE188C6345993D2B730"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_wdp_dcp_v1_2.vp",
+      "sha256": "3F30BE0F49F78F09915743995C950FA6FF8DE5F14598EBC8802E73B5C6D140EE"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/ips2l_mcdq_wrapper_v1_2b.vp",
+      "sha256": "D35010F49BE551FB15AB2655CBEFFCAAAA74FDF3CCB0754B033FC979D615E805"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/syn_mod/ips2l_mcdq_com_timing_v1_2.vp",
+      "sha256": "E3F19C4BE6352AB64F07426973387F2876C540EE992F6EAC9D3F2D470B3D49C2"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/syn_mod/ips2l_mcdq_tfaw_timing_v1_2.vp",
+      "sha256": "C632619F042BEBB4F059DF7F20EEE90EB2B51B81210430CB37D01958AD3CD30F"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/syn_mod/ips2l_mcdq_tfaw_v1_2.vp",
+      "sha256": "AB87B7718BFFC4FB2A2B27765576187F09B5266BBCA7FC393C43C6DEC96FF379"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/syn_mod/ips2l_mcdq_timing_act2wr_pass_v1_2.vp",
+      "sha256": "1B3874B059923481F292BA382AD156F7DCDD9AD39DA6C86DDDD480290CCCE498"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/syn_mod/ips2l_mcdq_timing_act_pass_v1_2.vp",
+      "sha256": "9F32B6936E039C15F7B07B74480179D39D1B3787965E1B90BD067A7EDE7FDD4C"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/syn_mod/ips2l_mcdq_timing_pre_pass_v1_2.vp",
+      "sha256": "E40A64CAEC9725C231CD88DDE69973EAB3ACA38C9D2E66A2C5C0BBDDF3103AE0"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/syn_mod/ips2l_mcdq_timing_rd_pass_v1_2.vp",
+      "sha256": "78B1DE719A43EE0FC80E1A5464F7284439D91F1D4B3F83EF2AE5611920293988"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/syn_mod/ips2l_mcdq_timing_ref_pass_v1_2.vp",
+      "sha256": "C79DDE6F9A682C55AFF7BB89C4863F76A069B874FB154DFF7D3E4D4A7A88F9D1"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/syn_mod/ips2l_mcdq_timing_wr_pass_v1_2.vp",
+      "sha256": "EA3470CA984554D4908EC950314F9242042417C6C4C6B3FD05AC5D6DAAB98C90"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/syn_mod/ips2l_mcdq_trc_timing_v1_2.vp",
+      "sha256": "7234241E5968F91EC6E396794F0BB80F6C7D1BCA2038AA004D5078D3937953DA"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/distributed_fifo/ips2l_distributed_fifo_v1_0.vp",
+      "sha256": "D6C0B0D8560B0F22128B4883933944FC686FD7597CFEA0D6C545CC6AF56C0B7A"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/distributed_fifo/rtl/ips2l_distributed_fifo_ctr_v1_0.vp",
+      "sha256": "FE31C8F44BEA653AB20BB1830AD4F8ED41566E9CFEF354BD5E2D48C7682F353D"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/distributed_fifo/rtl/ips2l_distributed_fifo_v1_0_distributed_fifo_v1_0.vp",
+      "sha256": "867AC91A1485DFE613A81F372D788E784BBA8CD4B0497E56986135E92685BA73"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/mcdq_ctrl/distributed_fifo/rtl/ips2l_distributed_sdpram_v1_0_distributed_fifo_v1_0.vp",
+      "sha256": "3561BBBBD4E4432A538C3D20818D262B4F1E5517C48296F6B1B4CC8AFDD19AEF"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/qinglong_ddr3.v",
+      "sha256": "BF5D648A0D4F058155122729012C00251681CFB18C6AC0BF5D29024427E4D7AE"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/qinglong_ddr3_ddrphy_top.v",
+      "sha256": "B637DBE00D3899F01E50F8DBB07346BC7C930AEDE0DAB0C20320C0EA2B981295"
+    },
+    {
+      "path": "D:/FPGA/RiscV/build/ddr-board-ip/rtl/ddrphy/qinglong_ddr3_slice_top_v1_10.v",
+      "sha256": "003374BBA41BC3A85ECBE11D2B805CC622FC5E547437E5A4F9E57AE0B82B03FA"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+PASS DDR bridge checks=656 native_transactions=662 cpu_half_ns=4.901961
+- sim/ddr_bridge_tb.sv:186: Verilog $finish

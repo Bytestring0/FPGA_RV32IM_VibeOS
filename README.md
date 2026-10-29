@@ -2,9 +2,14 @@
 
 面向紫光同创赛题一的自主 SystemVerilog CPU 与最小 SoC。支持 RV32IM + Zicsr/Zifencei + Zba/Zbb、六级顺序流水线、动态通道交换双发射、四项指令队列、局部历史预测和返回地址栈、精确异常与机器态中断。
 
-当前在 **108 MHz 实验配置**上两次完成 8000 次 CoreMark performance 迭代，均为 **1,586,478,654 周期、544.602348 CoreMark、5.042614 CoreMark/MHz**；实现后 7124 LUT，对应 **0.076446 CoreMark/LUT**。CRC 和配置校验通过，但 setup WNS 仍为 **−0.346 ns**，尚未时序闭合。最高同时通过时序和实板验证的归档配置为 **81 MHz、408.451697 CoreMark**。频率依据板载 27 MHz 标称晶振及 GPLL 比例，未外接频率计校准。详见[性能与验证报告](docs/性能与验证报告.md)。
+2026-10-26 实板验证：**102 MHz、514.346581 CoreMark、5.042614 CoreMark/MHz、0.072556 CoreMark/LUT**，6000 轮 CRC 正确、JTAG 配置校验通过。对应最小 TCM SoC 为 7089 LUT，setup **+0.120 ns**、慢/快角 hold **+0.059/+0.041 ns**。这是目前同时通过时序与板测的最高频点；历史 108 MHz 实验仍未闭合。成绩不包含新增 DDR/AI 硬件的面积。详见[性能与验证报告](docs/性能与验证报告.md)。
+
+2026-10-28：**CPU 102 MHz + 板载 DDR3 1000 MT/s 已通过功能板测**，含校准、读写及 DDR 代码执行，UART 与 JTAG 校验通过。该镜像 CPU setup −1.022 ns，属于未闭合的实验配置；整机 12557 LUT、9232 FF，与上面的 TCM CoreMark 配置分开统计。见[实验板测记录](docs/results/board-ddr-102mhz-experimental/README.md)。
 
 ## 文档
+
+- [板载 DDR3 接入与验证](docs/板载DDR3接入与验证.md)：IP 配置修正、时钟/引脚、CPU 接口、自检和独立 PDS 工程。
+- [模型加速器整合与浏览器方案](docs/模型加速器整合与浏览器方案.md)：团队 W4A8 核心审查、模型候选，以及当前唯一确定的 AI 浏览器应用。
 
 - [CPU 设计说明](docs/CPU设计说明.md)：架构、双发射、旁路、总线、CSR、地址空间及 OS/AI 接入边界。
 - [青龙 OS 与即时应用设计](docs/青龙OS与即时应用设计.md)：简化 VibeOS 的方案，含 AI 计算器、AI 网页、生成式应用商店、应用脚本、DDR 与持久化；目前为设计稿。
@@ -27,7 +32,7 @@ Set-Location D:\FPGA\RiscV
 .\scripts\sync_pds_project.ps1
 ```
 
-该命令合并十个 RTL 文件到 fpga/generated/qinglong_all.sv，复制 smoke 固件到根目录 firmware.hex，并写入完整的 PDS 工程设置。只添加合并文件可规避旧版 PDS 的 package 兼容问题；不要同时添加原始模块。
+该命令按 rtl/files.f 合并 RTL 文件到 fpga/generated/qinglong_all.sv，复制 smoke 固件到根目录 firmware.hex，并写入完整的 PDS 工程设置。只添加合并文件可规避旧版 PDS 的 package 兼容问题；不要同时添加原始模块。
 
 独立命令行综合与布局布线：
 
@@ -36,7 +41,7 @@ Set-Location D:\FPGA\RiscV
 .\scripts\build_fpga.ps1 -PlaceRoute
 ```
 
-根工程顶层使用原始 27 MHz 时钟与对应 UART 分频。根工程约束为 110 MHz 时序探索目标，不包含板级引脚分配，也不会自动生成 PLL；实板请使用 `scripts/prepare_board.ps1` 生成的完整板级工程。当前 FPGA 最后下载的是 `build/board108-shiftdiv/` 实验镜像，已闭合的 81 MHz 镜像保留在 `build/board81-coremark/`。源码、固件和时序按各自 manifest 核对，不能混用。外部 Flash 固化及断电启动尚未执行。
+根工程顶层使用原始 27 MHz 时钟与对应 UART 分频。根工程约束为 110 MHz 时序探索目标，不包含板级引脚分配，也不会自动生成 PLL；实板请使用 `scripts/prepare_board.ps1` 生成的完整板级工程。102 MHz 基准镜像位于 `build/board102-payload-refine/`，DDR 集成工程由 `scripts/prepare_ddr_board.ps1` 单独生成。源码、固件和时序按各自 manifest 核对，不能混用。外部 Flash 固化及断电启动尚未执行。
 
 ## 编译与仿真
 
@@ -84,4 +89,9 @@ Make 参数控制仿真；PDS 使用 RTL 默认参数。各 SoC 测试共享 bui
 | build/ | 可重新生成的中间文件与实验日志 |
 | third_party/ | 固定版本基准/测试代码及许可证 |
 
-最小 SoC 集成 64 KiB TCM、UART TX、GPIO、定时器和软件中断。操作系统、AI 加速器、Cache/DDR、键盘/HDMI、UART RX 与持久化存储尚未实现；这些是后续自然语言交互 SoC 的工作。
+最小 SoC 集成 64 KiB TCM、UART TX、GPIO、定时器和软件中断。另有可选 DDR 集成：PDS HMIC_S IP、跨时钟桥，以及独立的两路 I/D Cache（板级各 16 KiB、32 字节行、D 写回/写分配、FENCE.I 维护）。Cache 已通过功能/性能仿真，并有 102 MHz 实验镜像通过 DDR、自修改代码、维护及 JTAG 板测；该镜像 14,603 LUT、setup −0.306 ns，尚未闭合。当前源码仍在优化，完整状态及冻结证据见 [Cache 设计与性能](docs/两路Cache设计与性能.md)。操作系统、AI 加速器系统整合、键盘/HDMI、UART RX 与持久化存储尚未实现。
+
+## RV 侧交付文档
+
+- [RV 侧接口文档](docs/RV侧接口文档.md)：端口协议、MMIO、DDR/Cache、异常中断和后续 AI 接入边界。
+- [赛题一 RV 侧完成情况与指标](docs/赛题一RV侧完成情况与指标.md)：逐条对照、分版本指标、原始证据和待验收事项。

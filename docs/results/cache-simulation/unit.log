@@ -1,0 +1,1 @@
+Cache PASS: 2-way hits, byte masks, dirty LRU eviction, FENCE coherence, backpressure, refill/writeback errors, random traffic; reads=397 writes=220 cycles=7788

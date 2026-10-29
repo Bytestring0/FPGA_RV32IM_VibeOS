@@ -9,6 +9,7 @@ module rv32_predictor #(
     input logic clk, rst, clear,
     input logic [31:0] pc, pc_second,
     output logic [31:0] next_pc, next_pc_second,
+    output logic next_pc_sequential,
     input logic update,
     input logic [31:0] update_pc, update_target,
     input logic update_conditional, update_taken,
@@ -48,12 +49,12 @@ module rv32_predictor #(
             end
         end
     end endgenerate
+    wire predict_override=valid[ri] && tags[ri]==pc[31:INDEX_BITS+2] && (!conditional[ri] || direction);
+    wire [31:0] predicted_target=(RAS_ENABLE && is_return[ri] && return_count!=0)?return_stack[return_top]:targets[ri];
     always_comb begin
-        next_pc = pc + 32'd4;
-        if (valid[ri] && tags[ri] == pc[31:INDEX_BITS+2] &&
-            (!conditional[ri] || direction))
-            next_pc = (RAS_ENABLE && is_return[ri] && return_count != 0) ?
-                      return_stack[return_top] : targets[ri];
+        next_pc=predict_override?predicted_target:pc+32'd4;
+        // Test the target before the 32-bit default/target selection.
+        next_pc_sequential=!predict_override || predicted_target==pc+32'd4;
         next_pc_second = pc_second + 32'd4;
         if (valid[ri_second] && tags[ri_second] == pc_second[31:INDEX_BITS+2] &&
             (!conditional[ri_second] || direction_second))

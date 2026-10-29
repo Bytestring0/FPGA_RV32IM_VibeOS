@@ -1,0 +1,19 @@
+{
+  "board": "MES2L676-100HP",
+  "device": "PG2L100H-6IFBG676",
+  "clock_hz": 102000000,
+  "firmware_origin": "D:\\FPGA\\RiscV\\build\\coremark-102mhz-performance.hex",
+  "firmware_sha256": "17B1CF490C8ADD6E75A5AE2DEC4212D0D57367C28900A6166D1AB33391F4DB56",
+  "source_sha256": "C64939B547155FD2BDEEE073AE965307A51874878B7877FA72B0CFBAFDB5C37F",
+  "constraint_sha256": "009B4E7EDBE44798826417F512B4C213C0288A68BBA1D397E21EDA856FB9F13E",
+  "board_tested": true,
+  "pnr_options": "pnr -gplace_seed 0 -fix_hold_violation_in_route TRUE -fix_hold_violation_threshold_for_clk_tree 200 -enable_route_constraint_iterate -route_constraint_iterate_times 3 -route_constraint_slack 0.1",
+  "bitstreams": [
+    {
+      "path": "D:\\FPGA\\RiscV\\build\\board102-payload-refine\\generate_bitstream\\qinglong_board_top.sbit",
+      "sha256": "D2161CDCF825F35A8EA9FA35AAF8FFD89DDB5C7658116C54CF45775C057B4E4D"
+    }
+  ],
+  "routed_timing_passed": true,
+  "board_test_date": "2026-10-26"
+}

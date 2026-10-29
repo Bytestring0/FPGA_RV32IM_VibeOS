@@ -1,0 +1,11 @@
+PASS DDR bridge checks=656 native_transactions=662 cpu_half_ns=4.901961
+- sim/ddr_bridge_tb.sv:186: Verilog $finish
+PASS DDR bridge checks=656 native_transactions=662 cpu_half_ns=3.100000
+- sim/ddr_bridge_tb.sv:186: Verilog $finish
+PASS DDR bridge checks=656 native_transactions=663 cpu_half_ns=7.300000
+- sim/ddr_bridge_tb.sv:186: Verilog $finish
+make: Nothing to be done for 'ddr-firmware'.
+Qinglong DDR3 smoke CPU=06146580
+DDR calibrated
+DDR PASS data16KiB byte halfword address-lines edge execute
+DDR SoC simulation exit=0 cycles=126002 transactions=8449

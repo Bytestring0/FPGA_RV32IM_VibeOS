@@ -1,0 +1,236 @@
+verilator --cc --exe --build -j 4 -O3 -CFLAGS -O3 -Wno-fatal -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-DECLFILENAME --top-module rv32_core -f rtl/files.f \
+    "-GLOAD_WORD_ONLY=1'b0" "-GMULH_PIPELINE=1'b1" \
+    "-GPREDICT_ENABLE=1'b1" -GBTB_BITS=8 \
+    "-GDUAL_ISSUE=1'b1" "-GLOAD_BYPASS=1'b1" \
+    "-GEARLY_LSU=1'b1" \
+    --Mdir build/core /mnt/d/FPGA/RiscV/sim/core_main.cpp
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:627:56: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'rv32_core'
+  627 |                     if ((fetch_pop == 0 && fetch_count == fi) ||
+      |                                                        ^~
+                      ... For warning description see https://verilator.org/warn/WIDTHEXPAND?v=5.020
+                      ... Use "/* verilator lint_off WIDTHEXPAND */" and lint_on around source to disable this message.
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:628:56: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'rv32_core'
+  628 |                         (fetch_pop == 1 && fetch_count == fi+1) ||
+      |                                                        ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:629:56: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'rv32_core'
+  629 |                         (fetch_pop == 2 && fetch_count == fi+2)) begin
+      |                                                        ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:637:57: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'rv32_core'
+  637 |                         ((fetch_pop == 0 && fetch_count == fi-1) ||
+      |                                                         ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:638:57: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'rv32_core'
+  638 |                          (fetch_pop == 1 && fetch_count == fi) ||
+      |                                                         ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:639:57: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'rv32_core'
+  639 |                          (fetch_pop == 2 && fetch_count == fi+1))) begin
+      |                                                         ^~
+make[1]: Entering directory '/mnt/d/FPGA/RiscV/build/core'
+g++  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -Os -c -o core_main.o /mnt/d/FPGA/RiscV/sim/core_main.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -c -o verilated.o /usr/share/verilator/include/verilated.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -c -o verilated_threads.o /usr/share/verilator/include/verilated_threads.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -x c++-header Vrv32_core__pch.h -o Vrv32_core__pch.h.fast.gch
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -x c++-header Vrv32_core__pch.h -o Vrv32_core__pch.h.slow.gch
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vrv32_core__pch.h.fast -c -o Vrv32_core.o Vrv32_core.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vrv32_core__pch.h.fast -c -o Vrv32_core___024root__DepSet_hdb738a35__0.o Vrv32_core___024root__DepSet_hdb738a35__0.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vrv32_core__pch.h.fast -c -o Vrv32_core___024root__DepSet_he96ce0be__0.o Vrv32_core___024root__DepSet_he96ce0be__0.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vrv32_core__pch.h.fast -c -o Vrv32_core___024root__DepSet_he96ce0be__1.o Vrv32_core___024root__DepSet_he96ce0be__1.cpp
+echo "" > Vrv32_core__ALL.verilator_deplist.tmp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vrv32_core__pch.h.slow -c -o Vrv32_core__ConstPool_0.o Vrv32_core__ConstPool_0.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vrv32_core__pch.h.slow -c -o Vrv32_core___024root__Slow.o Vrv32_core___024root__Slow.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vrv32_core__pch.h.slow -c -o Vrv32_core___024root__DepSet_hdb738a35__0__Slow.o Vrv32_core___024root__DepSet_hdb738a35__0__Slow.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vrv32_core__pch.h.slow -c -o Vrv32_core___024root__DepSet_he96ce0be__0__Slow.o Vrv32_core___024root__DepSet_he96ce0be__0__Slow.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vrv32_core__pch.h.slow -c -o Vrv32_core__Syms.o Vrv32_core__Syms.cpp
+Archive ar -rcs Vrv32_core__ALL.a Vrv32_core.o Vrv32_core___024root__DepSet_hdb738a35__0.o Vrv32_core___024root__DepSet_he96ce0be__0.o Vrv32_core___024root__DepSet_he96ce0be__1.o Vrv32_core__ConstPool_0.o Vrv32_core___024root__Slow.o Vrv32_core___024root__DepSet_hdb738a35__0__Slow.o Vrv32_core___024root__DepSet_he96ce0be__0__Slow.o Vrv32_core__Syms.o
+g++     core_main.o verilated.o verilated_threads.o Vrv32_core__ALL.a    -pthread -lpthread -latomic   -o Vrv32_core
+rm Vrv32_core__ALL.verilator_deplist.tmp
+make[1]: Leaving directory '/mnt/d/FPGA/RiscV/build/core'
+EXPECT_DUAL=1 python3 scripts/run_differential.py
+PASS rv32ui-add (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-addi (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-and (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-andi (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-auipc (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-beq (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-bge (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-bgeu (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-blt (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-bltu (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-bne (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-fence_i (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-jal (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-jalr (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-lb (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-lbu (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-ld_st (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-lh (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-lhu (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-lui (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-lw (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-or (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-ori (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-sb (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-sh (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-simple (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-sll (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-slli (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-slt (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-slti (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-sltiu (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-sltu (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-sra (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-srai (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-srl (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-srli (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-st_ld (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-sub (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-sw (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-xor (3 randomized bus seeds + retirement oracle)
+PASS rv32ui-xori (3 randomized bus seeds + retirement oracle)
+PASS rv32um-div (3 randomized bus seeds + retirement oracle)
+PASS rv32um-divu (3 randomized bus seeds + retirement oracle)
+PASS rv32um-mul (3 randomized bus seeds + retirement oracle)
+PASS rv32um-mulh (3 randomized bus seeds + retirement oracle)
+PASS rv32um-mulhsu (3 randomized bus seeds + retirement oracle)
+PASS rv32um-mulhu (3 randomized bus seeds + retirement oracle)
+PASS rv32um-rem (3 randomized bus seeds + retirement oracle)
+PASS rv32um-remu (3 randomized bus seeds + retirement oracle)
+PASS rv32uzba-sh1add (3 randomized bus seeds + retirement oracle)
+PASS rv32uzba-sh2add (3 randomized bus seeds + retirement oracle)
+PASS rv32uzba-sh3add (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-andn (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-clz (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-cpop (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-ctz (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-max (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-maxu (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-min (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-minu (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-orc_b (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-orn (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-rev8 (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-rol (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-ror (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-rori (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-sext_b (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-sext_h (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-xnor (3 randomized bus seeds + retirement oracle)
+PASS rv32uzbb-zext_h (3 randomized bus seeds + retirement oracle)
+PASS random-20261020 (3 randomized bus seeds + retirement oracle)
+PASS random-314159 (3 randomized bus seeds + retirement oracle)
+PASS random-271828 (3 randomized bus seeds + retirement oracle)
+219 differential runs passed; 102240 instructions checked; 20864 second-lane retirements
+verilator --cc --exe --build -j 4 -O3 -CFLAGS -O3 -Wno-fatal -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-DECLFILENAME --top-module qinglong_soc -f rtl/files.f \
+    "-GLOAD_WORD_ONLY=1'b0" "-GMULH_PIPELINE=1'b1" \
+    "-GSIM_FAST_UART=1'b1" "-GPREDICT_ENABLE=1'b1" -GBTB_BITS=8 \
+    "-GDUAL_ISSUE=1'b1" "-GLOAD_BYPASS=1'b1" \
+    "-GEARLY_LSU=1'b1" \
+    --Mdir build/soc /mnt/d/FPGA/RiscV/sim/soc_main.cpp
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:627:56: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'qinglong_soc.cpu'
+  627 |                     if ((fetch_pop == 0 && fetch_count == fi) ||
+      |                                                        ^~
+                      ... For warning description see https://verilator.org/warn/WIDTHEXPAND?v=5.020
+                      ... Use "/* verilator lint_off WIDTHEXPAND */" and lint_on around source to disable this message.
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:628:56: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'qinglong_soc.cpu'
+  628 |                         (fetch_pop == 1 && fetch_count == fi+1) ||
+      |                                                        ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:629:56: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'qinglong_soc.cpu'
+  629 |                         (fetch_pop == 2 && fetch_count == fi+2)) begin
+      |                                                        ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:637:57: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'qinglong_soc.cpu'
+  637 |                         ((fetch_pop == 0 && fetch_count == fi-1) ||
+      |                                                         ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:638:57: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'qinglong_soc.cpu'
+  638 |                          (fetch_pop == 1 && fetch_count == fi) ||
+      |                                                         ^~
+%Warning-WIDTHEXPAND: rtl/rv32_core.sv:639:57: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'fetch_count' generates 3 bits.
+                                             : ... note: In instance 'qinglong_soc.cpu'
+  639 |                          (fetch_pop == 2 && fetch_count == fi+1))) begin
+      |                                                         ^~
+make[1]: Entering directory '/mnt/d/FPGA/RiscV/build/soc'
+g++  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -Os -c -o soc_main.o /mnt/d/FPGA/RiscV/sim/soc_main.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -c -o verilated.o /usr/share/verilator/include/verilated.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -c -o verilated_threads.o /usr/share/verilator/include/verilated_threads.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -x c++-header Vqinglong_soc__pch.h -o Vqinglong_soc__pch.h.fast.gch
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -x c++-header Vqinglong_soc__pch.h -o Vqinglong_soc__pch.h.slow.gch
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vqinglong_soc__pch.h.fast -c -o Vqinglong_soc.o Vqinglong_soc.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vqinglong_soc__pch.h.fast -c -o Vqinglong_soc___024root__DepSet_he2c66829__0.o Vqinglong_soc___024root__DepSet_he2c66829__0.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vqinglong_soc__pch.h.fast -c -o Vqinglong_soc___024root__DepSet_hb8de73ba__0.o Vqinglong_soc___024root__DepSet_hb8de73ba__0.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vqinglong_soc__pch.h.fast -c -o Vqinglong_soc___024root__DepSet_hb8de73ba__1.o Vqinglong_soc___024root__DepSet_hb8de73ba__1.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vqinglong_soc__pch.h.slow -c -o Vqinglong_soc__ConstPool_0.o Vqinglong_soc__ConstPool_0.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vqinglong_soc__pch.h.slow -c -o Vqinglong_soc___024root__Slow.o Vqinglong_soc___024root__Slow.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vqinglong_soc__pch.h.slow -c -o Vqinglong_soc___024root__DepSet_he2c66829__0__Slow.o Vqinglong_soc___024root__DepSet_he2c66829__0__Slow.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vqinglong_soc__pch.h.slow -c -o Vqinglong_soc___024root__DepSet_hb8de73ba__0__Slow.o Vqinglong_soc___024root__DepSet_hb8de73ba__0__Slow.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -O3   -include Vqinglong_soc__pch.h.slow -c -o Vqinglong_soc__Syms.o Vqinglong_soc__Syms.cpp
+echo "" > Vqinglong_soc__ALL.verilator_deplist.tmp
+Archive ar -rcs Vqinglong_soc__ALL.a Vqinglong_soc.o Vqinglong_soc___024root__DepSet_he2c66829__0.o Vqinglong_soc___024root__DepSet_hb8de73ba__0.o Vqinglong_soc___024root__DepSet_hb8de73ba__1.o Vqinglong_soc__ConstPool_0.o Vqinglong_soc___024root__Slow.o Vqinglong_soc___024root__DepSet_he2c66829__0__Slow.o Vqinglong_soc___024root__DepSet_hb8de73ba__0__Slow.o Vqinglong_soc__Syms.o
+g++     soc_main.o verilated.o verilated_threads.o Vqinglong_soc__ALL.a    -pthread -lpthread -latomic   -o Vqinglong_soc
+rm Vqinglong_soc__ALL.verilator_deplist.tmp
+make[1]: Leaving directory '/mnt/d/FPGA/RiscV/build/soc'
+cp build/traps.hex build/firmware.hex
+build/soc/Vqinglong_soc
+
+SIM exit=0 cycles=1105 instret=426 branches=68 misses=1 load_stalls=0 dual_retire_count=52
+cp build/interrupts.hex build/firmware.hex
+IRQ_EXTERNAL=1 build/soc/Vqinglong_soc
+
+SIM exit=0 cycles=1254130450446 instret=4767413701308 branches=21 misses=4 load_stalls=0 dual_retire_count=17
+cp build/dual_stress.hex build/firmware.hex
+build/soc/Vqinglong_soc
+
+SIM exit=0 cycles=608 instret=318 branches=64 misses=5 load_stalls=0 dual_retire_count=73
+make coremark MARCH=rv32im_zicsr_zifencei_zba_zbb EXTRA_CFLAGS="-funroll-all-loops -finline-limit=1000 -frename-registers -mtune=sifive-7-series"
+make[1]: Entering directory '/mnt/d/FPGA/RiscV'
+riscv64-unknown-elf-gcc -march=rv32im_zicsr_zifencei_zba_zbb -mabi=ilp32 -O3 -ffreestanding -fno-builtin -ffunction-sections -fdata-sections -msmall-data-limit=0 -Wall -Wextra -funroll-all-loops -finline-limit=1000 -frename-registers -mtune=sifive-7-series -nostdlib -nostartfiles -Wl,--gc-sections -T sw/link.ld -Isw/coremark -Ithird_party/coremark \
+    -DCOMPILER_FLAGS='"-march=rv32im_zicsr_zifencei_zba_zbb -mabi=ilp32 -O3 -ffreestanding -fno-builtin -ffunction-sections -fdata-sections -msmall-data-limit=0 -Wall -Wextra -funroll-all-loops -finline-limit=1000 -frename-registers -mtune=sifive-7-series"' \
+    -DITERATIONS=10 -DCPU_HZ=102000000 -DTOTAL_DATA_SIZE=2000 \
+    -DVALIDATION_RUN=0 -DPERFORMANCE_RUN=1 \
+    sw/start.S third_party/coremark/core_list_join.c third_party/coremark/core_main.c third_party/coremark/core_matrix.c third_party/coremark/core_state.c third_party/coremark/core_util.c sw/coremark/core_portme.c sw/coremark/ee_printf.c \
+    -lgcc -o build/coremark.elf
+/usr/lib/gcc/riscv64-unknown-elf/13.2.0/../../../riscv64-unknown-elf/bin/ld: warning: build/coremark.elf has a LOAD segment with RWX permissions
+riscv64-unknown-elf-objcopy -O binary build/coremark.elf build/coremark.bin
+python3 scripts/bin2hex.py build/coremark.bin build/coremark.hex
+riscv64-unknown-elf-objdump -d build/coremark.elf > build/coremark.dis
+verilator --cc --exe --build -j 4 -O3 -CFLAGS -O3 -Wno-fatal -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-DECLFILENAME --top-module qinglong_soc -f rtl/files.f \
+    "-GLOAD_WORD_ONLY=1'b0" "-GMULH_PIPELINE=1'b1" \
+    "-GSIM_FAST_UART=1'b1" "-GPREDICT_ENABLE=1'b1" -GBTB_BITS=8 \
+    "-GDUAL_ISSUE=1'b1" "-GLOAD_BYPASS=1'b1" \
+    "-GEARLY_LSU=1'b1" \
+    --Mdir build/soc /mnt/d/FPGA/RiscV/sim/soc_main.cpp
+make[2]: Entering directory '/mnt/d/FPGA/RiscV/build/soc'
+make[2]: Nothing to be done for 'default'.
+make[2]: Leaving directory '/mnt/d/FPGA/RiscV/build/soc'
+cp build/coremark.hex build/firmware.hex
+MAX_CYCLES=2000000000 python3 scripts/run_coremark.py
+2K performance run parameters for coremark.
+CoreMark Size    : 666
+Total ticks      : 1983373
+Total time (secs): 0
+ERROR! Must execute for at least 10 secs for a valid result!
+Iterations       : 10
+Compiler version : GCC 13.2.0
+Compiler flags   : -march=rv32im_zicsr_zifencei_zba_zbb -mabi=ilp32 -O3 -ffreestanding -fno-builtin -ffunction-sections -fdata-sections -msmall-data-limit=0 -Wall -Wextra -funroll-all-loops -finline-limit=1000 -frename-registers -mtune=sifive-7-series
+Memory location  : 64 KiB dual-port FPGA TCM
+seedcrc          : 0xe9f5
+[0]crclist       : 0xe714
+[0]crcmatrix     : 0x1fd7
+[0]crcstate      : 0x8e3a
+[0]crcfinal      : 0xfcaf
+Errors detected
+MEASURED_CYCLES_HEX=00000000001e438d
+
+SIM exit=0 cycles=2000362 instret=2476105 branches=502373 misses=31985 load_stalls=0 dual_retire_count=615505
+All three algorithm CRCs match upstream reference values.
+Simulation throughput: 5.041916 iterations/Mcycle (CoreMark/MHz equivalent)
+Duration check: short run (<10 simulated seconds); functional/per-cycle comparison only.
+RTL simulation only; this is not a measured board clock or certified CoreMark score.

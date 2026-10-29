@@ -1,0 +1,12 @@
+{
+  "iterations": 6000,
+  "measured_cycles": 1189859177,
+  "supplied_clock_hz": 102000000,
+  "seconds": 11.665286049019608,
+  "coremark": 514.346581368595,
+  "coremark_per_mhz": 5.042613542829363,
+  "crcs_valid": true,
+  "implemented_luts": 7089,
+  "coremark_per_lut": 0.07255559054430738
+}
+Clock and bitstream provenance must be verified separately; this parser does not measure frequency.

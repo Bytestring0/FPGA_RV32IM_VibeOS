@@ -1,0 +1,18 @@
+{
+  "classification": "Offline routed timing closure and RTL simulation; not board tested",
+  "clock_hz": 102000000,
+  "setup_wns_ns": 0.12,
+  "slow_hold_ns": 0.059,
+  "fast_hold_ns": 0.041,
+  "luts": 7089,
+  "ff": 2445,
+  "drm36k": 48,
+  "dsp": 4,
+  "gpll": 1,
+  "iterations": 6000,
+  "simulated_cycles": 1189859177,
+  "coremark_per_mhz_simulation": 5.042613542829363,
+  "coremark_at_target_estimate": 514.346581368595,
+  "coremark_per_lut_estimate": 0.07255559054430738,
+  "board_tested": false
+}

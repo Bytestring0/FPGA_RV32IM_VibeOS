@@ -1,0 +1,8 @@
+Qinglong DDR3 smoke CPU=06146580
+DDR calibrated
+DDR PASS data16KiB byte halfword address-lines edge execute
+CPU MULH PASS signed mixed unsigned edges
+CPU MINMAX PASS signed unsigned equal edges
+CACHE_WORK_CYCLES=0000534d
+CACHE PASS DDR code warm-hit self-modify maintenance
+DDR SoC simulation exit=0 cycles=166067 transactions=10570

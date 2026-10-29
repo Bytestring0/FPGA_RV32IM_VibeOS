@@ -15,7 +15,9 @@ PREDICT ?= 1
 BTB_BITS ?= 8
 DUAL_ISSUE ?= 1
 LOAD_BYPASS ?= 1
+LOAD_WORD_ONLY ?= 0
 EARLY_LSU ?= 1
+MULH_PIPELINE ?= 0
 MAX_CYCLES ?= 2000000000
 # Firmware and simulator outputs are shared; keep these targets sequential.
 .NOTPARALLEL:
@@ -30,8 +32,13 @@ build/smoke.elf: sw/start.S sw/smoke.c sw/platform.h sw/link.ld | build
 	$(OBJDUMP) -d $@ > build/smoke.dis
 build/uart_soc.elf: sw/start.S tests/uart_soc.c sw/platform.h sw/link.ld | build
 	$(CC) $(CFLAGS) $(LDFLAGS) sw/start.S tests/uart_soc.c -lgcc -o $@
+.PHONY: ddr-firmware
+ddr-firmware: build/ddr_smoke.hex
+build/ddr_smoke.elf: sw/start.S sw/ddr_smoke.c sw/platform.h sw/link.ld | build
+	$(CC) $(CFLAGS) $(LDFLAGS) -DCPU_HZ=102000000 sw/start.S sw/ddr_smoke.c -lgcc -o $@
 build/soc_uart/Vqinglong_soc: $(wildcard rtl/*.sv) sim/uart_soc_main.cpp Makefile FORCE | build
 	verilator $(VFLAGS) --top-module qinglong_soc -f rtl/files.f \
+	    "-GLOAD_WORD_ONLY=1'b$(LOAD_WORD_ONLY)" "-GMULH_PIPELINE=1'b$(MULH_PIPELINE)" \
 	    -GCLOCK_HZ=27000000 '-GINIT_FILE="build/uart_soc.hex"' \
 	    --Mdir build/soc_uart $(abspath sim/uart_soc_main.cpp)
 .PHONY: uart-soc
@@ -45,6 +52,7 @@ build/%.hex: build/%.bin
 FORCE:
 build/soc/Vqinglong_soc: $(wildcard rtl/*.sv) sim/soc_main.cpp Makefile FORCE | build
 	verilator $(VFLAGS) --top-module qinglong_soc -f rtl/files.f \
+	    "-GLOAD_WORD_ONLY=1'b$(LOAD_WORD_ONLY)" "-GMULH_PIPELINE=1'b$(MULH_PIPELINE)" \
 	    "-GSIM_FAST_UART=1'b1" "-GPREDICT_ENABLE=1'b$(PREDICT)" -GBTB_BITS=$(BTB_BITS) \
 	    "-GDUAL_ISSUE=1'b$(DUAL_ISSUE)" "-GLOAD_BYPASS=1'b$(LOAD_BYPASS)" \
 	    "-GEARLY_LSU=1'b$(EARLY_LSU)" \
@@ -93,6 +101,7 @@ traps: build/traps.hex build/soc/Vqinglong_soc
 .PHONY: differential
 build/core/Vrv32_core: $(wildcard rtl/rv32*.sv) sim/core_main.cpp Makefile FORCE | build
 	verilator $(VFLAGS) --top-module rv32_core -f rtl/files.f \
+	    "-GLOAD_WORD_ONLY=1'b$(LOAD_WORD_ONLY)" "-GMULH_PIPELINE=1'b$(MULH_PIPELINE)" \
 	    "-GPREDICT_ENABLE=1'b$(PREDICT)" -GBTB_BITS=$(BTB_BITS) \
 	    "-GDUAL_ISSUE=1'b$(DUAL_ISSUE)" "-GLOAD_BYPASS=1'b$(LOAD_BYPASS)" \
 	    "-GEARLY_LSU=1'b$(EARLY_LSU)" \
@@ -118,3 +127,10 @@ build/uart/Vuart_tx: rtl/uart_tx.sv sim/uart_main.cpp | build
 	    rtl/uart_tx.sv --Mdir build/uart $(abspath sim/uart_main.cpp)
 uart: build/uart/Vuart_tx
 	build/uart/Vuart_tx
+
+.PHONY: cache-firmware cache-test
+cache-firmware: build/cache_smoke.hex
+build/cache_smoke.elf: sw/start.S sw/cache_smoke.c sw/ddr_smoke.c sw/platform.h sw/link.ld | build
+	$(CC) $(CFLAGS) $(LDFLAGS) -DCPU_HZ=102000000 sw/start.S sw/cache_smoke.c -lgcc -o $@
+cache-test:
+	bash scripts/test_cache.sh

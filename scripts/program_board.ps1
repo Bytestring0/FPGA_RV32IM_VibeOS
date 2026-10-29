@@ -22,6 +22,9 @@ $checks = @(
     @{Path=(Join-Path $profilePath 'firmware.hex'); Hash=$manifest.firmware_sha256},
     @{Path=$manifest.bitstreams[0].path; Hash=$manifest.bitstreams[0].sha256}
 )
+foreach ($source in @($manifest.additional_sources)) {
+    if ($null -ne $source) { $checks += @{Path=$source.path; Hash=$source.sha256} }
+}
 foreach ($check in $checks) {
     if ((Get-FileHash -LiteralPath $check.Path -Algorithm SHA256).Hash -ne $check.Hash) {
         throw "Build provenance mismatch: $($check.Path)"
@@ -44,6 +47,22 @@ if ($timingReport -notmatch 'Design Summary : All Constraints Met\.') {
     Write-Warning "EXPERIMENTAL frequency: setup WNS $($manifest.experimental_setup_wns_ns) ns. A successful run does not establish timing closure."
 }
 New-Item -ItemType Directory -Force -Path ([IO.Path]::GetDirectoryName($outputPath)) | Out-Null
+# Fabric Configuration User Guide 3.1 documents this headless server command.
+# Reuse a running server; a fresh Windows session need not open the PDS GUI.
+if (!(Get-NetTCPConnection -LocalPort 65420 -State Listen -ErrorAction SilentlyContinue)) {
+    $server = Start-Process -FilePath (Join-Path $PdsRoot 'bin\cdt_js.exe') `
+        -ArgumentList '-port','65420' -WorkingDirectory (Join-Path $PdsRoot 'bin') `
+        -WindowStyle Hidden -PassThru `
+        -RedirectStandardOutput "$outputPath.jtag-server.log" `
+        -RedirectStandardError "$outputPath.jtag-server.error.log"
+    $serverWait = [Diagnostics.Stopwatch]::StartNew()
+    while (!(Get-NetTCPConnection -LocalPort 65420 -State Listen -ErrorAction SilentlyContinue)) {
+        if ($server.HasExited -or $serverWait.Elapsed.TotalSeconds -ge 15) {
+            throw "JTAG server did not start; inspect $outputPath.jtag-server.error.log"
+        }
+        Start-Sleep -Milliseconds 250
+    }
+}
 $serial = [IO.Ports.SerialPort]::new($Port,115200,[IO.Ports.Parity]::None,8,[IO.Ports.StopBits]::One)
 $serial.Handshake = [IO.Ports.Handshake]::None
 $serial.DtrEnable = $false

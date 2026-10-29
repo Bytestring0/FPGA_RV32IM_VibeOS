@@ -192,7 +192,7 @@ endmodule
 // Source: rtl/rv32_alu.sv
 // Separate left/right shifters keep late forwarded operands off reversal muxes.
 // Zba/Zbb are only instantiated in the full execution lane.
-module rv32_alu #(parameter bit EXTENSIONS = 1) (
+module rv32_alu #(parameter bit EXTENSIONS = 1,parameter bit MINMAX_ENABLE=1) (
     input logic [4:0] op,
     input logic [31:0] a, b,
     output logic [31:0] result
@@ -249,10 +249,10 @@ module rv32_alu #(parameter bit EXTENSIONS = 1) (
             ALU_ANDN: result = EXTENSIONS ? a & ~b : 0;
             ALU_ORN: result = EXTENSIONS ? a | ~b : 0;
             ALU_XNOR: result = EXTENSIONS ? ~(a ^ b) : 0;
-            ALU_MIN: result = EXTENSIONS ? ($signed(a) < $signed(b) ? a : b) : 0;
-            ALU_MAX: result = EXTENSIONS ? ($signed(a) > $signed(b) ? a : b) : 0;
-            ALU_MINU: result = EXTENSIONS ? (a < b ? a : b) : 0;
-            ALU_MAXU: result = EXTENSIONS ? (a > b ? a : b) : 0;
+            ALU_MIN: result = EXTENSIONS && MINMAX_ENABLE ? ($signed(a) < $signed(b) ? a : b) : 0;
+            ALU_MAX: result = EXTENSIONS && MINMAX_ENABLE ? ($signed(a) > $signed(b) ? a : b) : 0;
+            ALU_MINU: result = EXTENSIONS && MINMAX_ENABLE ? (a < b ? a : b) : 0;
+            ALU_MAXU: result = EXTENSIONS && MINMAX_ENABLE ? (a > b ? a : b) : 0;
             ALU_ROL: result = EXTENSIONS ? shifted_left[63:32] : 0;
             ALU_ROR: result = EXTENSIONS ? shifted_right[31:0] : 0;
             ALU_CLZ, ALU_CTZ: result = EXTENSIONS ? {26'b0,leading_zeros(op == ALU_CTZ ? reverse_a : a)} : 0;
@@ -281,6 +281,7 @@ module rv32_predictor #(
     input logic clk, rst, clear,
     input logic [31:0] pc, pc_second,
     output logic [31:0] next_pc, next_pc_second,
+    output logic next_pc_sequential,
     input logic update,
     input logic [31:0] update_pc, update_target,
     input logic update_conditional, update_taken,
@@ -320,12 +321,12 @@ module rv32_predictor #(
             end
         end
     end endgenerate
+    wire predict_override=valid[ri] && tags[ri]==pc[31:INDEX_BITS+2] && (!conditional[ri] || direction);
+    wire [31:0] predicted_target=(RAS_ENABLE && is_return[ri] && return_count!=0)?return_stack[return_top]:targets[ri];
     always_comb begin
-        next_pc = pc + 32'd4;
-        if (valid[ri] && tags[ri] == pc[31:INDEX_BITS+2] &&
-            (!conditional[ri] || direction))
-            next_pc = (RAS_ENABLE && is_return[ri] && return_count != 0) ?
-                      return_stack[return_top] : targets[ri];
+        next_pc=predict_override?predicted_target:pc+32'd4;
+        // Test the target before the 32-bit default/target selection.
+        next_pc_sequential=!predict_override || predicted_target==pc+32'd4;
         next_pc_second = pc_second + 32'd4;
         if (valid[ri_second] && tags[ri_second] == pc_second[31:INDEX_BITS+2] &&
             (!conditional[ri_second] || direction_second))
@@ -401,12 +402,15 @@ module rv32_divider (
             prepare <= 0; negate_divisor <= 0;
         end else begin
             done <= 0;
+            // Idle operand capture is unconditional; start only controls the
+            // transaction state. Keep its late hazard/exception logic out of
+            // the wide operand registers' clock-enable chain.
+            if (!busy) begin quotient <= a; divisor <= b; end
             if (start && !busy) begin
                     // Capture raw operands before the absolute-value adders.
                     // Unsigned and nonnegative signed divides start directly.
                     // Zero/overflow operands follow the same iteration path,
                     // removing wide operand comparisons from the input enable.
-                    quotient <= a; divisor <= b;
                     prepare <= signed_op && (a[31] || b[31]);
                     negate_divisor <= signed_op && b[31];
                     remainder <= 0; count <= 0; busy <= 1;
@@ -546,9 +550,12 @@ module rv32_core #(
     parameter bit PREDICT_ENABLE = 1,
     parameter bit DUAL_ISSUE = 1,
     parameter bit LOAD_BYPASS = 1,
-    parameter bit EARLY_LSU = 1
+    parameter bit LOAD_WORD_ONLY = 0,
+    parameter bit EARLY_LSU = 1,
+    parameter bit MULH_PIPELINE = 0
 ) (
     input logic clk, rst,
+    output logic fence_i_o,
     output logic i_req_valid,
     input logic i_req_ready,
     output logic [31:0] i_req_addr,
@@ -585,6 +592,7 @@ module rv32_core #(
     logic [31:0] regs_lane0 [0:31], regs_lane1 [0:31];
     logic [31:0] regs_latest;
     logic [31:0] f_pc, prediction, prediction_second;
+    wire prediction_sequential;
     logic q_valid, q_killed;
     logic [31:0] q_pc, q_pred, q_pred_second;
     logic q_has_second;
@@ -600,30 +608,65 @@ module rv32_core #(
     // Small predecode travels with the FIFO. The issue/compaction decision
     // must not wait for the full instruction decoder's result multiplexer.
     logic [6:0] fetch_meta [0:3];
-    decode_t response_dec, response_dec_second;
-    function automatic [6:0] issue_metadata(input logic [86:0] bits_in);
-        decode_t d;
+    // Each packet carries its relation to its predecessor. Moving the FIFO
+    // moves these bits too; the first packet's predecessor is never examined.
+    logic [2:0] fetch_matches[0:3];
+    logic fetch_adjacent[0:3],fetch_sequential[0:3];
+    function automatic [6:0] issue_metadata(input logic [31:0] insn);
+        logic simple,writes,rs1,rs2,serial,control;
+        logic [6:0] op,f7;
+        logic [2:0] f3;
         begin
-        d = bits_in;
-        issue_metadata = {
-            !d.illegal && !d.serial && d.reg_write && d.alu <= ALU_COPY &&
-            !(d.load || d.store || d.mul || d.div || d.branch || d.jal || d.jalr),
-            d.illegal, d.serial, (d.branch || d.jal || d.jalr),
-            d.reg_write, d.use_rs1, d.use_rs2};
+            op=insn[6:0];f7=insn[31:25];f3=insn[14:12];
+            simple=0;writes=0;rs1=0;rs2=0;serial=0;control=0;
+            case(op)
+                7'h37,7'h17:begin simple=1;writes=1;end
+                7'h13:begin
+                    writes=1;rs1=1;
+                    simple=(f3!=1 && f3!=5) || (f3==1 && f7==0) || (f3==5 && (f7==0 || f7==7'h20));
+                end
+                7'h33:begin
+                    writes=1;rs1=1;rs2=1;
+                    simple=f7==0 || (f7==7'h20 && (f3==0 || f3==5));
+                end
+                7'h03:begin writes=1;rs1=1;end
+                7'h23:begin rs1=1;rs2=1;end
+                7'h63:begin rs1=1;rs2=1;control=1;end
+                7'h67:begin writes=1;rs1=1;control=1;end
+                7'h6f:begin writes=1;control=1;end
+                7'h0f,7'h73:serial=1;
+                default:begin end
+            endcase
+            // Only the auxiliary-lane whitelist must prove legality here.
+            // Full ID decode still handles illegal primary instructions; EX
+            // exceptions cancel their younger lane before it can retire.
+            issue_metadata={simple,1'b0,serial,control,writes,rs1,rs2};
         end
     endfunction
+    function automatic [2:0] register_matches(input logic [31:0] older,younger);
+        begin
+            register_matches={
+                older[11:7]!=0 && older[11:7]==younger[11:7],
+                older[11:7]!=0 && older[11:7]==younger[24:20],
+                older[11:7]!=0 && older[11:7]==younger[19:15]};
+        end
+    endfunction
+    wire [1:0] fetch_last=fetch_count[1:0]-2'd1;
+    wire [2:0] incoming_cross_matches=register_matches(fetch_insn[fetch_last],i_rsp_data[31:0]);
+    wire [2:0] incoming_pair_matches=register_matches(i_rsp_data[31:0],i_rsp_data[63:32]);
+    wire incoming_adjacent=fetch_pc[fetch_last]+32'd4==q_pc;
+    wire incoming_sequential=q_pred==q_pc+32'd4;
+    wire incoming_second_sequential=q_pred_second==q_pc+32'd8;
     wire [6:0] first_meta = fetch_meta[0], second_meta = fetch_meta[1];
-    wire pair_dependency = id_insn[11:7] != 0 &&
-        ((second_meta[1] && id_second_insn[19:15] == id_insn[11:7]) ||
-         (second_meta[0] && id_second_insn[24:20] == id_insn[11:7]) ||
-         (second_meta[2] && id_second_insn[11:7] == id_insn[11:7]));
+    wire pair_dependency = (second_meta[1] && fetch_matches[1][0]) ||
+         (second_meta[0] && fetch_matches[1][1]) || (second_meta[2] && fetch_matches[1][2]);
     integer fi;
     logic x_second_valid, m_second_valid, w_second_valid;
-    logic [31:0] x_second_insn, x_second_a, x_second_b;
+    logic [31:0] x_second_pc, x_second_insn, x_second_a, x_second_b;
     logic [31:0] m_second_insn, m_second_result, w_second_insn, w_second_result;
     logic [4:0] m_second_rd, w_second_rd;
     logic [31:0] a_second, b_second, alu_a_second, alu_b_second, alu_result_second;
-    logic pair_eligible, pair_issue, pair_normal, pair_swapped, x_swapped, m_swapped;
+    logic pair_eligible, pair_issue, pair_normal, pair_swap_candidate, pair_swapped, x_swapped, m_swapped;
     logic x_valid, x_error;
     logic [31:0] x_pc, x_insn, x_pred, x_a, x_b;
     logic m_valid, m_sent, m_exception;
@@ -633,7 +676,10 @@ module rv32_core #(
     logic [4:0] m_rd;
     logic [2:0] m_funct3;
     logic m_write_rd, m_load, m_store_en, m_csr_write, m_mret, m_serial;
-    logic m_mul;
+    logic m_mul,m_minmax;
+    wire x_minmax=x_dec.alu==ALU_MIN || x_dec.alu==ALU_MAX || x_dec.alu==ALU_MINU || x_dec.alu==ALU_MAXU;
+    wire minmax_less=m_funct3[0]?(m_result<m_store):($signed(m_result)<$signed(m_store));
+    wire [31:0] minmax_result=(minmax_less ^ m_funct3[1])?m_result:m_store;
     logic signed [32:0] m_mul_a, m_mul_b;
     // Four independent <=17x17 products avoid a four-APM cascade. MUL uses
     // the low product immediately; MULH variants register partial products
@@ -648,6 +694,8 @@ module rv32_core #(
     wire [15:0] product_middle_low = product_ll[31:16] + product_lh[15:0] + product_hl[15:0];
     wire [31:0] product_low = {product_middle_low, product_ll[15:0]};
     logic mul_high_ready;
+    logic mul_partial_ready;
+    logic [31:0] mul_high_result;
     logic [15:0] partial_ll_high;
     logic signed [33:0] partial_lh, partial_hl, partial_hh;
     wire signed [34:0] partial_middle = $signed({19'b0,partial_ll_high}) +
@@ -663,11 +711,18 @@ module rv32_core #(
     logic taken, x_exception;
     logic [31:0] x_cause, x_tval, x_result;
     logic signed [32:0] mul_a, mul_b;
+    wire load_bypass_ok=LOAD_BYPASS && (!LOAD_WORD_ONLY || m_funct3==2);
     logic hazard, x_go, x_ready, m_finish, m_ready, id_issue;
     logic mem_trap, irq_take, redirect, x_redirect;
     logic [31:0] redirect_pc;
     logic fetch_redirect, front_flush;
-    logic [31:0] fetch_redirect_pc;
+    wire [31:0] fetch_redirect_pc;
+    logic [31:0] redirect_fallthrough,redirect_trap_vector;
+    logic redirect_select_trap,redirect_select_taken,redirect_select_mret;
+    // train_target is already captured on x_go; use it as the taken candidate.
+    // Late branch comparison drives a one-bit register, never a 32-bit PC mux.
+    assign fetch_redirect_pc = redirect_select_trap ? redirect_trap_vector :
+        redirect_select_mret ? return_pc : redirect_select_taken ? train_target : redirect_fallthrough;
     logic i_accept, i_consume, d_accept;
     logic [31:0] load_shifted, mem_result;
     logic [31:0] csr_read_data, csr_source, csr_new;
@@ -677,6 +732,41 @@ module rv32_core #(
     logic div_busy, div_done, div_started, div_saved;
     logic [31:0] div_result, div_saved_result;
     logic div_start;
+    // Compare register indices one stage before forwarding data is consumed.
+    // Four operands: full rs1/rs2, auxiliary rs1/rs2. Valid/write/load checks
+    // remain in EX. Hazard/response checks prevent unfinished data from retiring.
+    logic [3:0] forward_m0, forward_m1, forward_w0, forward_w1;
+    wire [4:0] decode_rs [0:3];
+    wire [4:0] execute_rs [0:3];
+    assign decode_rs[0] = pair_swapped ? id_dec_second.rs1 : id_dec.rs1;
+    assign decode_rs[1] = pair_swapped ? id_dec_second.rs2 : id_dec.rs2;
+    assign decode_rs[2] = pair_swapped ? id_dec.rs1 : id_dec_second.rs1;
+    assign decode_rs[3] = pair_swapped ? id_dec.rs2 : id_dec_second.rs2;
+    assign execute_rs[0] = x_dec.rs1;
+    assign execute_rs[1] = x_dec.rs2;
+    assign execute_rs[2] = x_dec_second.rs1;
+    assign execute_rs[3] = x_dec_second.rs2;
+    for (genvar operand = 0; operand < 4; operand = operand + 1) begin : forward_compare
+        // When no instruction issues into an empty EX slot these bits are
+        // don't-care. On a stall compare the held EX source indices instead.
+        wire [4:0] next_rs = x_ready ? decode_rs[operand] : execute_rs[operand];
+        wire [4:0] next_m0_rd = m_ready ? x_dec.rd : m_rd;
+        wire [4:0] next_m1_rd = m_ready ? x_dec_second.rd : m_second_rd;
+        always_ff @(posedge clk) begin
+            if (rst) begin
+                forward_m0[operand] <= 0; forward_m1[operand] <= 0;
+                forward_w0[operand] <= 0; forward_w1[operand] <= 0;
+            end else begin
+                forward_m0[operand] <= next_rs != 0 && next_rs == next_m0_rd;
+                forward_m1[operand] <= next_rs != 0 && next_rs == next_m1_rd;
+                // WB is valid next cycle only when this MEM group finishes.
+                forward_w0[operand] <= next_rs != 0 &&
+                    (m_swapped ? next_rs == m_second_rd : next_rs == m_rd);
+                forward_w1[operand] <= next_rs != 0 &&
+                    (m_swapped ? (m_write_rd && next_rs == m_rd) : next_rs == m_second_rd);
+            end
+        end
+    end
     // Register resolved branch training before the BTB/history RAM writes.
     // This removes the WB-forward -> compare -> counter-update timing chain.
     // Predictions may observe one older training state; EX still checks every
@@ -709,14 +799,13 @@ module rv32_core #(
 
     rv32_decode decoder (.insn(id_insn), .decoded(id_dec));
     rv32_decode decoder_second (.insn(id_second_insn), .decoded(id_dec_second));
-    rv32_decode predecoder (.insn(i_rsp_data[31:0]), .decoded(response_dec));
-    rv32_decode predecoder_second (.insn(i_rsp_data[63:32]), .decoded(response_dec_second));
-    rv32_alu alu_full (.op(x_dec.alu), .a(alu_a), .b(alu_b), .result(alu_result));
+    rv32_alu #(.MINMAX_ENABLE(0)) alu_full (.op(x_dec.alu), .a(alu_a), .b(alu_b), .result(alu_result));
     rv32_alu #(.EXTENSIONS(0)) alu_aux (
         .op(x_dec_second.alu), .a(alu_a_second), .b(alu_b_second), .result(alu_result_second));
     rv32_predictor #(.INDEX_BITS(BTB_BITS)) predictor (
         .clk(clk), .rst(rst), .clear(x_go && x_dec.fence_i),
         .pc(f_pc), .next_pc(prediction),
+        .next_pc_sequential(prediction_sequential),
         .pc_second(f_pc + 32'd4), .next_pc_second(prediction_second),
         .update(train_valid), .update_pc(train_pc), .update_target(train_target),
         .update_conditional(train_conditional), .update_taken(train_taken),
@@ -743,34 +832,36 @@ module rv32_core #(
     );
 
     // Forwarding priority is newest (MEM), then WB. LOAD_BYPASS forwards a
-    // successful response in MEM; disabling it waits for the WB register.
+    // response data in MEM; disabling it waits for the WB register. The data
+    // mux may select an unfinished load, but hazard/m_ready keep EX stopped;
+    // mem_trap cancels side effects on an error. Response qualification must
+    // not be serialized before the ALU in this speculative data-only path.
     always_comb begin
         a = x_a; b = x_b;
-        if (w_valid && w_write_rd && w_rd != 0) begin
-            if (x_dec.rs1 == w_rd) a = w_result;
-            if (x_dec.rs2 == w_rd) b = w_result;
+        if (w_valid && w_write_rd) begin
+            if (forward_w0[0]) a = w_result;
+            if (forward_w0[1]) b = w_result;
         end
-        if (w_second_valid && w_second_rd != 0) begin
-            if (x_dec.rs1 == w_second_rd) a = w_second_result;
-            if (x_dec.rs2 == w_second_rd) b = w_second_result;
+        if (w_second_valid) begin
+            if (forward_w1[0]) a = w_second_result;
+            if (forward_w1[1]) b = w_second_result;
         end
-        if (m_valid && m_write_rd && m_rd != 0 && !m_mul &&
-            (!m_load || (LOAD_BYPASS && m_finish && !mem_trap))) begin
-            if (x_dec.rs1 == m_rd) a = m_load ? mem_result : m_result;
-            if (x_dec.rs2 == m_rd) b = m_load ? mem_result : m_result;
+        if (m_valid && m_write_rd && !m_mul && !m_minmax && (!m_load || load_bypass_ok)) begin
+            if (forward_m0[0]) a = m_load ? (LOAD_WORD_ONLY ? d_rsp_data : mem_result) : m_result;
+            if (forward_m0[1]) b = m_load ? (LOAD_WORD_ONLY ? d_rsp_data : mem_result) : m_result;
         end
-        if (m_second_valid && m_second_rd != 0) begin
-            if (x_dec.rs1 == m_second_rd) a = m_second_result;
-            if (x_dec.rs2 == m_second_rd) b = m_second_result;
+        if (m_second_valid) begin
+            if (forward_m1[0]) a = m_second_result;
+            if (forward_m1[1]) b = m_second_result;
         end
         if (x_dec.rs1 == 0) a = 0;
         if (x_dec.rs2 == 0) b = 0;
         hazard = m_valid && m_write_rd && m_rd != 0 &&
-                 ((m_load && !(LOAD_BYPASS && m_finish && !mem_trap)) || m_mul) &&
-                 ((x_dec.use_rs1 && x_dec.rs1 == m_rd) ||
-                  (x_dec.use_rs2 && x_dec.rs2 == m_rd) ||
-                  (x_second_valid && x_dec_second.use_rs1 && x_dec_second.rs1 == m_rd) ||
-                  (x_second_valid && x_dec_second.use_rs2 && x_dec_second.rs2 == m_rd));
+                 ((m_load && !(load_bypass_ok && m_finish && !mem_trap)) || m_mul || m_minmax) &&
+                 ((x_dec.use_rs1 && forward_m0[0]) ||
+                  (x_dec.use_rs2 && forward_m0[1]) ||
+                  (x_second_valid && x_dec_second.use_rs1 && forward_m0[2]) ||
+                  (x_second_valid && x_dec_second.use_rs2 && forward_m0[3]));
     end
     always_comb begin
         alu_a = x_dec.src_pc ? x_pc : a;
@@ -803,7 +894,10 @@ module rv32_core #(
         if (x_dec.jal || x_dec.jalr) x_result = x_pc + 32'd4;
         if (x_dec.csr) x_result = csr_read_data;
         if (x_dec.div) x_result = div_saved ? div_saved_result : div_result;
-        x_exception = 0; x_cause = 0; x_tval = 0;
+        // Payload selection depends on instruction class, not the late
+        // misalignment/taken decision. It is observed only on an exception.
+        x_tval = (x_dec.load || x_dec.store) ? memory_address : branch_target;
+        x_exception = 0; x_cause = 0;
         if (x_error) begin
             x_exception = 1; x_cause = 1; x_tval = x_pc;
         end else if (x_dec.illegal || (x_dec.csr && (!csr_legal || (csr_we && csr_readonly)))) begin
@@ -811,11 +905,11 @@ module rv32_core #(
         end else if (x_dec.ebreak) begin
             x_exception = 1; x_cause = 3; x_tval = x_pc;
         end else if (x_dec.ecall) begin
-            x_exception = 1; x_cause = 11;
+            x_exception = 1; x_cause = 11; x_tval = 0;
         end else if (taken && branch_target[1:0] != 0) begin
-            x_exception = 1; x_cause = 0; x_tval = branch_target;
+            x_exception = 1; x_cause = 0;
         end else if ((x_dec.load || x_dec.store) && memory_misaligned) begin
-            x_exception = 1; x_cause = x_dec.load ? 4 : 6; x_tval = memory_address;
+            x_exception = 1; x_cause = x_dec.load ? 4 : 6;
         end
     end
 
@@ -824,24 +918,26 @@ module rv32_core #(
     assign pair_normal = DUAL_ISSUE && id_second_valid &&
         !id_error && !id_second_error && !first_meta[5] && !first_meta[4] &&
         !first_meta[3] && second_meta[6] &&
-        id_pred == id_pc + 32'd4 && id_second_pred == id_pc + 32'd8 &&
+        fetch_sequential[0] && fetch_sequential[1] &&
         !(first_meta[2] && pair_dependency);
     // Dynamically route a simple older ALU to the auxiliary lane, leaving the
     // full lane available to a younger load/store, multiply, divide or branch.
     // Retire in program order and retain the older ALU if the younger faults.
-    assign pair_swapped = DUAL_ISSUE && id_second_valid && !pair_normal &&
+    assign pair_swap_candidate = DUAL_ISSUE && id_second_valid &&
         !id_error && !id_second_error && first_meta[6] &&
         !second_meta[5] && !second_meta[4] &&
-        id_pred == id_pc + 32'd4 &&
+        fetch_sequential[0] &&
         !pair_dependency;
-    assign pair_eligible = pair_normal || pair_swapped;
+    assign pair_swapped = pair_swap_candidate && !pair_normal;
+    // Admission does not need the lane-priority decision in its timing path.
+    assign pair_eligible = pair_normal || pair_swap_candidate;
     assign pair_issue = id_issue && pair_eligible;
     assign id_valid = fetch_count != 0;
     assign id_pc = fetch_pc[0];
     assign id_insn = fetch_insn[0];
     assign id_pred = fetch_pred[0];
     assign id_error = fetch_error[0];
-    assign id_second_valid = fetch_count >= 2 && fetch_pc[1] == fetch_pc[0] + 32'd4;
+    assign id_second_valid = fetch_count >= 2 && fetch_adjacent[1];
     assign id_second_insn = fetch_insn[1];
     assign id_second_pred = fetch_pred[1];
     assign id_second_error = fetch_error[1];
@@ -849,26 +945,25 @@ module rv32_core #(
     assign fetch_remaining = fetch_count - {1'b0, fetch_pop};
     always_comb begin
         a_second = x_second_a; b_second = x_second_b;
-        if (w_valid && w_write_rd && w_rd != 0) begin
-            if (x_dec_second.rs1 == w_rd) a_second = w_result;
-            if (x_dec_second.rs2 == w_rd) b_second = w_result;
+        if (w_valid && w_write_rd) begin
+            if (forward_w0[2]) a_second = w_result;
+            if (forward_w0[3]) b_second = w_result;
         end
-        if (w_second_valid && w_second_rd != 0) begin
-            if (x_dec_second.rs1 == w_second_rd) a_second = w_second_result;
-            if (x_dec_second.rs2 == w_second_rd) b_second = w_second_result;
+        if (w_second_valid) begin
+            if (forward_w1[2]) a_second = w_second_result;
+            if (forward_w1[3]) b_second = w_second_result;
         end
-        if (m_valid && m_write_rd && m_rd != 0 && !m_mul &&
-            (!m_load || (LOAD_BYPASS && m_finish && !mem_trap))) begin
-            if (x_dec_second.rs1 == m_rd) a_second = m_load ? mem_result : m_result;
-            if (x_dec_second.rs2 == m_rd) b_second = m_load ? mem_result : m_result;
+        if (m_valid && m_write_rd && !m_mul && !m_minmax && (!m_load || load_bypass_ok)) begin
+            if (forward_m0[2]) a_second = m_load ? (LOAD_WORD_ONLY ? d_rsp_data : mem_result) : m_result;
+            if (forward_m0[3]) b_second = m_load ? (LOAD_WORD_ONLY ? d_rsp_data : mem_result) : m_result;
         end
-        if (m_second_valid && m_second_rd != 0) begin
-            if (x_dec_second.rs1 == m_second_rd) a_second = m_second_result;
-            if (x_dec_second.rs2 == m_second_rd) b_second = m_second_result;
+        if (m_second_valid) begin
+            if (forward_m1[2]) a_second = m_second_result;
+            if (forward_m1[3]) b_second = m_second_result;
         end
         if (x_dec_second.rs1 == 0) a_second = 0;
         if (x_dec_second.rs2 == 0) b_second = 0;
-        alu_a_second = x_dec_second.src_pc ? (x_swapped ? x_pc - 32'd4 : x_pc + 32'd4) : a_second;
+        alu_a_second = x_dec_second.src_pc ? x_second_pc : a_second;
         alu_b_second = x_dec_second.src_imm ? x_dec_second.imm : b_second;
     end
 
@@ -881,7 +976,9 @@ module rv32_core #(
         m_ready = !m_valid || m_finish;
         load_shifted = d_rsp_data >> {m_addr[1:0], 3'b0};
         mem_result = m_result;
-        if (m_mul) mem_result = (m_funct3 == 0) ? product_low : product_high;
+        if(m_minmax) mem_result=minmax_result;
+        if (m_mul) mem_result = (m_funct3 == 0) ? product_low :
+                               (MULH_PIPELINE ? mul_high_result : product_high);
         if (m_load) begin
             case (m_funct3)
                 0: mem_result = {{24{load_shifted[7]}}, load_shifted[7:0]};
@@ -939,6 +1036,7 @@ module rv32_core #(
     assign x_redirect = x_go && !x_exception &&
                         ((taken ? branch_target != x_pred : (x_pc + 32'd4) != x_pred) ||
                          x_dec.fence_i || x_dec.mret);
+    assign fence_i_o = x_go && x_dec.fence_i && !mem_trap;
     assign trap_valid = mem_trap || irq_take;
     assign trap_pc = mem_trap ? m_pc : id_pc;
     assign trap_cause = mem_trap ? (m_exception ? m_cause : (m_load ? 32'd5 : 32'd7)) : irq_code;
@@ -970,19 +1068,21 @@ module rv32_core #(
             f_pc <= RESET_PC; q_valid <= 0; q_killed <= 0; q_pc <= 0; q_pred <= 0;
             q_pred_second <= 0; q_has_second <= 0;
             fetch_count <= 0;
-            fetch_redirect <= 0; fetch_redirect_pc <= 0;
+            fetch_redirect <= 0; redirect_fallthrough<=0;redirect_trap_vector<=0;
+            redirect_select_trap<=0;redirect_select_taken<=0;redirect_select_mret<=0;
             x_valid <= 0; x_dec <= '0; x_pc <= 0; x_insn <= 0; x_pred <= 0;
             x_second_valid <= 0; x_dec_second <= '0;
             x_swapped <= 0; m_swapped <= 0;
-            x_second_insn <= 0; x_second_a <= 0; x_second_b <= 0;
+            x_second_pc <= 0; x_second_insn <= 0; x_second_a <= 0; x_second_b <= 0;
             x_error <= 0; x_a <= 0; x_b <= 0;
             m_valid <= 0; m_sent <= 0; m_exception <= 0;
             m_pc <= 0; m_insn <= 0; m_addr <= 0; m_result <= 0; m_store <= 0;
             m_cause <= 0; m_tval <= 0; m_csr_data <= 0; m_csr_addr <= 0;
             m_rd <= 0; m_funct3 <= 0; m_write_rd <= 0; m_load <= 0; m_store_en <= 0;
-            m_csr_write <= 0; m_mret <= 0; m_serial <= 0; m_mul <= 0;
+            m_csr_write <= 0; m_mret <= 0; m_serial <= 0; m_mul <= 0;m_minmax<=0;
             m_mul_a <= 0; m_mul_b <= 0;
             mul_high_ready <= 0; partial_ll_high <= 0;
+            mul_partial_ready <= 0; mul_high_result <= 0;
             partial_lh <= 0; partial_hl <= 0; partial_hh <= 0;
             m_second_valid <= 0; m_second_rd <= 0; m_second_result <= 0; m_second_insn <= 0;
             w_valid <= 0; w_write_rd <= 0; w_serial <= 0;
@@ -993,11 +1093,27 @@ module rv32_core #(
             // No reset on x1..x31: ISA does not require their reset contents.
             // Startup initializes SP/GP. Avoid reset fanout across the register file.
         end else begin
-            if (m_ready) mul_high_ready <= 0;
-            else if (m_valid && m_mul && m_funct3 != 0 && !mul_high_ready) begin
+            // In the optional MULH pipeline, validity controls observation,
+            // not the DSP data clocks. Constant M/P enables avoid routing two
+            // opposite phase enables from one dual-output LUT to the APM.
+            if (MULH_PIPELINE) begin
                 partial_ll_high <= product_ll[31:16];
-                partial_lh <= product_lh; partial_hl <= product_hl; partial_hh <= product_hh;
-                mul_high_ready <= 1;
+                partial_lh <= product_lh;partial_hl <= product_hl;partial_hh <= product_hh;
+                mul_high_result <= product_high;
+            end
+            if (m_ready) begin mul_high_ready <= 0; mul_partial_ready <= 0; end
+            else if (m_valid && m_mul && m_funct3 != 0 && !mul_high_ready) begin
+                if (MULH_PIPELINE && mul_partial_ready) begin
+                    // Optional sum register isolates the MULH carry chain from
+                    // result selection and WB. Low-half MUL latency is unchanged.
+                    mul_high_ready <= 1;
+                end else begin
+                    if (!MULH_PIPELINE) begin
+                        partial_ll_high <= product_ll[31:16];
+                        partial_lh <= product_lh;partial_hl <= product_hl;partial_hh <= product_hh;
+                    end
+                    mul_partial_ready <= 1; mul_high_ready <= !MULH_PIPELINE;
+                end
             end
             if (w_valid && w_write_rd && w_rd != 0) begin
                 regs_lane0[w_rd] <= w_result; regs_latest[w_rd] <= 0;
@@ -1008,10 +1124,14 @@ module rv32_core #(
             // Register redirect data separately from its late enable, keeping
             // branch/exception decisions out of the fetch-PC arithmetic path.
             fetch_redirect <= redirect;
-            fetch_redirect_pc <= redirect_pc;
+            redirect_fallthrough <= x_pc + 32'd4;
+            redirect_trap_vector <= trap_vector;
+            redirect_select_trap <= trap_valid;
+            redirect_select_taken <= taken;
+            redirect_select_mret <= x_dec.mret;
             if (fetch_redirect) f_pc <= fetch_redirect_pc;
             else if (i_accept) begin
-                if (PREDICT_ENABLE && prediction != f_pc + 32'd4) f_pc <= prediction;
+                if (PREDICT_ENABLE && !prediction_sequential) f_pc <= prediction;
                 else if (DUAL_ISSUE)
                     f_pc <= PREDICT_ENABLE ? prediction_second : f_pc + 32'd8;
                 else f_pc <= f_pc + 32'd4;
@@ -1022,7 +1142,7 @@ module rv32_core #(
                 q_valid <= 1; q_killed <= redirect; q_pc <= f_pc;
                 q_pred <= PREDICT_ENABLE ? prediction : f_pc + 32'd4;
                 q_pred_second <= PREDICT_ENABLE ? prediction_second : f_pc + 32'd8;
-                q_has_second <= DUAL_ISSUE && (!PREDICT_ENABLE || prediction == f_pc + 32'd4);
+                q_has_second <= DUAL_ISSUE && (!PREDICT_ENABLE || prediction_sequential);
             end
             // Compact a four-entry instruction queue after consuming one or
             // two instructions. Pairing is independent of fetch-block borders.
@@ -1032,23 +1152,38 @@ module rv32_core #(
                     fetch_pc[fi] <= fetch_pc[fi+1]; fetch_insn[fi] <= fetch_insn[fi+1];
                     fetch_pred[fi] <= fetch_pred[fi+1]; fetch_error[fi] <= fetch_error[fi+1];
                     fetch_meta[fi] <= fetch_meta[fi+1];
+                    fetch_matches[fi]<=fetch_matches[fi+1];
+                    fetch_adjacent[fi]<=fetch_adjacent[fi+1];fetch_sequential[fi]<=fetch_sequential[fi+1];
                 end else if (fetch_pop == 2 && fi < 2) begin
                     fetch_pc[fi] <= fetch_pc[fi+2]; fetch_insn[fi] <= fetch_insn[fi+2];
                     fetch_pred[fi] <= fetch_pred[fi+2]; fetch_error[fi] <= fetch_error[fi+2];
                     fetch_meta[fi] <= fetch_meta[fi+2];
+                    fetch_matches[fi]<=fetch_matches[fi+2];
+                    fetch_adjacent[fi]<=fetch_adjacent[fi+2];fetch_sequential[fi]<=fetch_sequential[fi+2];
                 end
                 // A flush invalidates count, so the data registers may safely
                 // accept stale payloads. Avoid a late branch-to-array mux path.
                 if (i_consume && !q_killed) begin
-                    if (fetch_remaining == fi[2:0]) begin
+                    // Compare all pop counts in parallel instead of placing
+                    // subtraction and increment before each payload write mux.
+                    if ((fetch_pop == 0 && fetch_count == fi) ||
+                        (fetch_pop == 1 && fetch_count == fi+1) ||
+                        (fetch_pop == 2 && fetch_count == fi+2)) begin
                         fetch_pc[fi] <= q_pc; fetch_insn[fi] <= i_rsp_data[31:0];
                         fetch_pred[fi] <= q_pred; fetch_error[fi] <= i_rsp_error[0];
-                        fetch_meta[fi] <= issue_metadata(response_dec);
+                        fetch_meta[fi] <= issue_metadata(i_rsp_data[31:0]);
+                        fetch_matches[fi]<=incoming_cross_matches;
+                        fetch_adjacent[fi]<=incoming_adjacent;fetch_sequential[fi]<=incoming_sequential;
                     end
-                    if (q_has_second && fetch_remaining + 3'd1 == fi[2:0]) begin
+                    if (q_has_second && fi > 0 &&
+                        ((fetch_pop == 0 && fetch_count == fi-1) ||
+                         (fetch_pop == 1 && fetch_count == fi) ||
+                         (fetch_pop == 2 && fetch_count == fi+1))) begin
                         fetch_pc[fi] <= q_pc + 32'd4; fetch_insn[fi] <= i_rsp_data[63:32];
                         fetch_pred[fi] <= q_pred_second; fetch_error[fi] <= i_rsp_error[1];
-                        fetch_meta[fi] <= issue_metadata(response_dec_second);
+                        fetch_meta[fi] <= issue_metadata(i_rsp_data[63:32]);
+                        fetch_matches[fi]<=incoming_pair_matches;
+                        fetch_adjacent[fi]<=1;fetch_sequential[fi]<=incoming_second_sequential;
                     end
                 end
             end
@@ -1060,8 +1195,9 @@ module rv32_core #(
                 x_second_valid <= pair_issue && !redirect;
                 x_swapped <= pair_issue && pair_swapped;
                 if (id_issue) begin
+                    x_second_pc <= pair_swapped ? id_pc : fetch_pc[1];
                     if (pair_swapped) begin
-                        x_dec <= id_dec_second; x_pc <= id_pc + 32'd4; x_insn <= id_second_insn;
+                        x_dec <= id_dec_second; x_pc <= fetch_pc[1]; x_insn <= id_second_insn;
                         x_pred <= id_second_pred; x_error <= id_second_error;
                         x_a <= read_operand(id_dec_second.rs1); x_b <= read_operand(id_dec_second.rs2);
                         x_dec_second <= id_dec; x_second_insn <= id_insn;
@@ -1093,7 +1229,10 @@ module rv32_core #(
                 m_sent <= EARLY_LSU && d_accept;
                 if (x_go) begin
                     m_pc <= x_pc; m_insn <= x_insn; m_rd <= x_dec.rd;
-                    m_addr <= memory_address; m_result <= x_result; m_store <= b;
+                    // MIN/MAX reuse the existing operand payload registers.
+                    // Dependent EX waits for WB rather than chaining two ALUs.
+                    m_addr <= memory_address; m_result <= x_minmax?a:x_result; m_store <= b;
+                    m_minmax<=x_minmax;
                     m_funct3 <= x_dec.funct3;
                     m_write_rd <= x_dec.reg_write; m_load <= x_dec.load;
                     m_store_en <= x_dec.store; m_exception <= x_exception;
@@ -1165,8 +1304,112 @@ module uart_tx #(
 endmodule
 
 
+// Source: rtl/qinglong_extmem.sv
+// CPU-side adapter for the 1 GiB DDR window. One 32-byte transaction at a
+// time. Optional instruction stream buffer; backing I/D caches sit downstream.
+// Instruction fetches crossing a line use two transactions.
+module qinglong_extmem #(parameter bit I_BUFFER=0) (
+    input logic clk, rst, input logic invalidate_i,
+    output logic [31:0] i_buffer_hits,
+    input logic i_req_valid, output logic i_req_ready,
+    input logic [31:0] i_req_addr,
+    output logic i_rsp_valid, input logic i_rsp_ready,
+    output logic [63:0] i_rsp_data, output logic [1:0] i_rsp_error,
+    input logic d_req_valid, output logic d_req_ready,
+    input logic [31:0] d_req_addr, d_req_wdata,
+    input logic [3:0] d_req_wstrb, input logic d_req_write,
+    output logic d_rsp_valid, input logic d_rsp_ready,
+    output logic [31:0] d_rsp_data, output logic d_rsp_error,
+    output logic req_valid, input logic req_ready,
+    output logic [29:0] req_addr,
+    output logic req_write, output logic req_instruction, output logic [255:0] req_wdata,
+    output logic [31:0] req_wstrb,
+    input logic rsp_valid, output logic rsp_ready,
+    input logic [255:0] rsp_data, input logic rsp_error
+);
+    localparam logic [1:0] IDLE=0, SEND=1, WAIT_RSP=2;
+    logic [1:0] state;
+    logic prefer_i, owner_i, second_line, last_word;
+    logic [2:0] lane;
+    logic choose_i;
+    logic ib_valid;
+    logic [29:0] ib_addr;
+    logic [255:0] ib_data;
+    wire ib_hit=I_BUFFER && ib_valid && !invalidate_i && i_req_addr[31:30]==2'b10 &&
+        i_req_addr[1:0]==0 && i_req_addr[4:2]!=7 && i_req_addr[29:5]==ib_addr[29:5];
+    wire [255:0] shifted = rsp_data >> {lane, 5'b0};
+    // Registered round-robin grant: neither ready depends on the other
+    // request's address/valid. An idle unrequested turn costs at most one cycle.
+    wire eligible_i=i_req_valid && (!i_rsp_valid || (I_BUFFER && i_rsp_ready));
+    wire eligible_d=d_req_valid && !d_rsp_valid;
+    assign choose_i = eligible_i && (!eligible_d || prefer_i);
+    assign i_req_ready = !rst && state == IDLE && (!i_rsp_valid || (I_BUFFER && i_rsp_ready)) && choose_i;
+    assign d_req_ready = !rst && state == IDLE && !d_rsp_valid && !choose_i;
+    assign req_instruction = owner_i;
+    assign req_valid = !rst && state == SEND;
+    assign rsp_ready = !rst && state == WAIT_RSP;
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            ib_valid<=0;ib_addr<=0;ib_data<=0;i_buffer_hits<=0;
+            state <= IDLE; prefer_i <= 0; owner_i <= 0; second_line <= 0;
+            last_word <= 0; lane <= 0; req_addr <= 0; req_write <= 0;
+            req_wdata <= 0; req_wstrb <= 0;
+            i_rsp_valid <= 0; i_rsp_data <= 0; i_rsp_error <= 0;
+            d_rsp_valid <= 0; d_rsp_data <= 0; d_rsp_error <= 0;
+        end else begin
+            if(invalidate_i) ib_valid<=0;
+            if (i_rsp_ready) i_rsp_valid <= 0;
+            if (d_rsp_ready) d_rsp_valid <= 0;
+            if (state == IDLE && !i_rsp_valid && !d_rsp_valid)
+                prefer_i <= !prefer_i;
+            case (state)
+                IDLE: if ((i_req_valid && i_req_ready) || (d_req_valid && d_req_ready)) begin
+                    owner_i <= choose_i; prefer_i <= !choose_i; second_line <= 0;
+                    req_write <= !choose_i && d_req_write;
+                    req_wdata <= {8{d_req_wdata}};
+                    req_wstrb <= choose_i ? 32'b0 : ({28'b0, d_req_wstrb} << {d_req_addr[4:2], 2'b0});
+                    req_addr <= choose_i ? {i_req_addr[29:5],5'b0} : {d_req_addr[29:5],5'b0};
+                    lane <= choose_i ? i_req_addr[4:2] : d_req_addr[4:2];
+                    last_word <= i_req_addr[29:2] == 28'hfffffff;
+                    if(choose_i) i_rsp_error <= 0; else d_rsp_error <= 0;
+                    if(choose_i && ib_hit) begin
+                        i_rsp_valid<=1;i_rsp_error<=0;
+                        i_rsp_data<=ib_data >> {i_req_addr[4:2],5'b0};
+                        i_buffer_hits<=i_buffer_hits+1'b1;
+                    end else if (choose_i && (i_req_addr[31:30] != 2'b10 || i_req_addr[1:0] != 0)) begin
+                        i_rsp_valid <= 1; i_rsp_error <= 3; i_rsp_data <= 0;
+                    end else if (!choose_i && d_req_addr[31:30] != 2'b10) begin
+                        d_rsp_valid <= 1; d_rsp_error <= 1; d_rsp_data <= 0;
+                    end else state <= SEND;
+                end
+                SEND: if (req_ready) state <= WAIT_RSP;
+                WAIT_RSP: if (rsp_valid) begin
+                    state <= IDLE;
+                    if(owner_i && I_BUFFER && !invalidate_i && !rsp_error) begin
+                        ib_valid<=1;ib_addr<=req_addr;ib_data<=rsp_data;
+                    end
+                    if (!owner_i) begin
+                        d_rsp_valid <= 1; d_rsp_data <= shifted[31:0]; d_rsp_error <= rsp_error;
+                    end else if (second_line) begin
+                        i_rsp_valid <= 1; i_rsp_data[63:32] <= rsp_data[31:0];
+                        i_rsp_error[1] <= rsp_error;
+                    end else begin
+                        i_rsp_data <= shifted[63:0];
+                        i_rsp_error <= rsp_error ? 2'b11 : {last_word, 1'b0};
+                        if (lane == 7 && !last_word && !rsp_error) begin
+                            second_line <= 1; req_addr <= req_addr + 30'd32; state <= SEND;
+                        end else i_rsp_valid <= 1;
+                    end
+                end
+                default: state <= IDLE;
+            endcase
+        end
+    end
+endmodule
+
+
 // Source: rtl/qinglong_soc.sv
-// Minimal CPU integration platform. Unified dual-port TCM, no DDR/cache yet.
+// Dual-port TCM + optional uncached DDR window. Default remains TCM-only.
 module qinglong_soc #(
     parameter integer RAM_WORDS = 16384,
     parameter INIT_FILE = "build/firmware.hex",
@@ -1176,7 +1419,13 @@ module qinglong_soc #(
     parameter integer BTB_BITS = 8,
     parameter bit DUAL_ISSUE = 1,
     parameter bit LOAD_BYPASS = 1,
-    parameter bit EARLY_LSU = 1
+    parameter bit LOAD_WORD_ONLY = 0,
+    parameter bit EARLY_LSU = 1,
+    parameter bit DDR_ENABLE = 0,
+    parameter bit CACHE_ENABLE = DDR_ENABLE,
+    parameter integer CACHE_SET_BITS = 7,
+    parameter bit PIPELINED_MMIO = DDR_ENABLE,
+    parameter bit MULH_PIPELINE = 0
 ) (
     input logic clk, rst,
     input logic irq_external,
@@ -1196,7 +1445,13 @@ module qinglong_soc #(
     output logic trap_valid,
     output logic [31:0] trap_pc, trap_cause, trap_value,
     output logic [63:0] cycle_count, instret_count,
-    output logic [31:0] branch_count, mispredict_count, load_stall_count
+    output logic [31:0] branch_count, mispredict_count, load_stall_count,
+    input logic ddr_ready, ddr_fault,
+    output logic mem_req_valid, input logic mem_req_ready,
+    output logic [29:0] mem_req_addr, output logic mem_req_write,
+    output logic [255:0] mem_req_wdata, output logic [31:0] mem_req_wstrb,
+    input logic mem_rsp_valid, output logic mem_rsp_ready,
+    input logic [255:0] mem_rsp_data, input logic mem_rsp_error
 );
     localparam integer AW = $clog2(RAM_WORDS);
     logic [31:0] ram [0:RAM_WORDS-1];
@@ -1208,34 +1463,110 @@ module qinglong_soc #(
     logic [31:0] da, dd, drdata;
     logic [3:0] ds;
     logic [31:0] ram_i_data, ram_i_second, ram_d_data, mmio_data;
-    logic d_is_ram;
+    logic d_is_ram, d_is_ddr, i_is_ddr;
+    logic ddr_d_pending, ddr_d_write;
+    logic [31:0] ddr_d_addr, ddr_d_wdata;
+    logic [3:0] ddr_d_strb;
     logic [63:0] mtime, mtimecmp;
     logic msip;
     logic tx_ready, tx_valid;
     logic uart_wait;
+    logic mmio_pending;
+    logic [31:0] mmio_addr, mmio_wdata;
+    logic [3:0] mmio_strb;
+    logic mmio_write;
     logic [7:0] uart_data;
+    wire i_ext = DDR_ENABLE && ia[31:30] == 2'b10;
+    wire d_ext = DDR_ENABLE && da[31:30] == 2'b10;
+    wire mi_ready, md_ready, mi_valid, md_valid, md_error;
+    wire [1:0] mi_error;
+    wire [63:0] mi_data;
+    wire [31:0] md_data;
+    wire cpu_fence_i,cache_busy,cache_error;
+    logic cache_flush;
+    wire [31:0] cache_ihit,cache_imiss,cache_dhit,cache_dmiss,cache_wb,cache_ib_hit;
+    wire mmio_fire = PIPELINED_MMIO ? mmio_pending :
+        (dv && dr && !d_ext && da >= RAM_WORDS * 4);
+    wire [31:0] peripheral_addr = PIPELINED_MMIO ? mmio_addr : da;
+    wire [31:0] peripheral_data = PIPELINED_MMIO ? mmio_wdata : dd;
+    wire [3:0] peripheral_strb = PIPELINED_MMIO ? mmio_strb : ds;
+    wire peripheral_write = PIPELINED_MMIO ? mmio_write : dw;
     integer j;
     initial begin
         if (INIT_FILE != "") $readmemh(INIT_FILE, ram);
     end
-    assign ir = !irv || irr;
+    assign ir = i_ext ? mi_ready : (!irv || irr);
     // Accept the request before decoding a slow peripheral. A UART store
     // holds its response until TX accepts it; ready has no address/data path.
-    assign dr = (!drv || drr) && !uart_wait;
+    // Ready depends only on registered queue/response state, never on the
+    // newly generated address. DDR requests are decoupled by a one-entry slot.
+    assign dr = (!drv || drr) && !uart_wait && !mmio_pending && !ddr_d_pending;
     assign idata = {ram_i_second, ram_i_data};
-    assign drdata = d_is_ram ? ram_d_data : mmio_data;
+    // Capture the response source when accepting a request. The select is
+    // settled before RAM data arrives and does not depend on DDR rsp_valid.
+    assign drdata = DDR_ENABLE ?
+        (({32{d_is_ram}} & ram_d_data) | ({32{d_is_ddr}} & md_data) |
+         ({32{!d_is_ram && !d_is_ddr}} & mmio_data)) :
+        (d_is_ram ? ram_d_data : mmio_data);
     assign tx_valid = uart_wait;
+    generate if (DDR_ENABLE) begin : with_ddr
+        wire lv,lr,lwrite,linstr,rv,rr,re;
+        wire [29:0] la;
+        wire [255:0] ld,rd;
+        wire [31:0] ls;
+        qinglong_extmem #(.I_BUFFER(CACHE_ENABLE)) extmem (
+            .invalidate_i(cache_busy || cache_error),.i_buffer_hits(cache_ib_hit),
+            .clk(clk), .rst(rst),
+            .i_req_valid(iv && i_ext), .i_req_ready(mi_ready), .i_req_addr(ia),
+            .i_rsp_valid(mi_valid), .i_rsp_ready(irr), .i_rsp_data(mi_data), .i_rsp_error(mi_error),
+            .d_req_valid(ddr_d_pending), .d_req_ready(md_ready), .d_req_addr(ddr_d_addr),
+            .d_req_wdata(ddr_d_wdata), .d_req_wstrb(ddr_d_strb), .d_req_write(ddr_d_write),
+            .d_rsp_valid(md_valid), .d_rsp_ready(drr), .d_rsp_data(md_data), .d_rsp_error(md_error),
+            .req_valid(lv), .req_ready(lr), .req_addr(la), .req_instruction(linstr),
+            .req_write(lwrite), .req_wdata(ld), .req_wstrb(ls),
+            .rsp_valid(rv), .rsp_ready(rr), .rsp_data(rd), .rsp_error(re)
+        );
+        if (CACHE_ENABLE) begin : cached
+            qinglong_l1cache #(.SET_BITS(CACHE_SET_BITS)) l1 (
+                .clk(clk),.rst(rst),.maintenance_req(cpu_fence_i || cache_flush),
+                .maintenance_busy(cache_busy),.maintenance_error(cache_error),
+                .req_valid(lv),.req_ready(lr),.req_addr(la),.req_instruction(linstr),
+                .req_write(lwrite),.req_wdata(ld),.req_wstrb(ls),
+                .rsp_valid(rv),.rsp_ready(rr),.rsp_data(rd),.rsp_error(re),
+                .mem_req_valid(mem_req_valid),.mem_req_ready(mem_req_ready),.mem_req_addr(mem_req_addr),
+                .mem_req_write(mem_req_write),.mem_req_wdata(mem_req_wdata),.mem_req_wstrb(mem_req_wstrb),
+                .mem_rsp_valid(mem_rsp_valid),.mem_rsp_ready(mem_rsp_ready),.mem_rsp_data(mem_rsp_data),.mem_rsp_error(mem_rsp_error),
+                .i_hits(cache_ihit),.i_misses(cache_imiss),.d_hits(cache_dhit),.d_misses(cache_dmiss),.writebacks(cache_wb));
+        end else begin : uncached
+            assign mem_req_valid=lv;assign lr=mem_req_ready;assign mem_req_addr=la;
+            assign mem_req_write=lwrite;assign mem_req_wdata=ld;assign mem_req_wstrb=ls;
+            assign rv=mem_rsp_valid;assign mem_rsp_ready=rr;assign rd=mem_rsp_data;assign re=mem_rsp_error;
+            assign cache_busy=0;assign cache_error=0;assign cache_ihit=0;assign cache_imiss=0;
+            assign cache_dhit=0;assign cache_dmiss=0;assign cache_wb=0;
+        end
+    end else begin : without_ddr
+        assign cache_ib_hit=0;
+        assign mi_ready = 0; assign md_ready = 0; assign mi_valid = 0; assign md_valid = 0;
+        assign mi_error = 0; assign md_error = 0; assign mi_data = 0; assign md_data = 0;
+        assign cache_busy=0;assign cache_error=0;assign cache_ihit=0;assign cache_imiss=0;
+        assign cache_dhit=0;assign cache_dmiss=0;assign cache_wb=0;
+        assign mem_req_valid = 0; assign mem_req_addr = 0; assign mem_req_write = 0;
+        assign mem_req_wdata = 0; assign mem_req_wstrb = 0; assign mem_rsp_ready = 0;
+    end endgenerate
     uart_tx #(.CLOCK_HZ(CLOCK_HZ)) tx_unit (
         .clk(clk), .rst(rst), .valid(tx_valid), .data(uart_data), .ready(tx_ready), .tx(uart_tx_o)
     );
     rv32_core #(.PREDICT_ENABLE(PREDICT_ENABLE), .BTB_BITS(BTB_BITS),
-                .DUAL_ISSUE(DUAL_ISSUE), .LOAD_BYPASS(LOAD_BYPASS), .EARLY_LSU(EARLY_LSU)) cpu (
+                .DUAL_ISSUE(DUAL_ISSUE), .LOAD_BYPASS(LOAD_BYPASS), .LOAD_WORD_ONLY(LOAD_WORD_ONLY), .EARLY_LSU(EARLY_LSU),
+                .MULH_PIPELINE(MULH_PIPELINE)) cpu (
         .clk(clk), .rst(rst),
-        .i_req_valid(iv), .i_req_ready(ir), .i_req_addr(ia),
-        .i_rsp_valid(irv), .i_rsp_ready(irr), .i_rsp_data(idata), .i_rsp_error(ire),
+        .fence_i_o(cpu_fence_i), .i_req_valid(iv), .i_req_ready(ir), .i_req_addr(ia),
+        .i_rsp_valid(irv || mi_valid), .i_rsp_ready(irr),
+        .i_rsp_data(i_is_ddr ? mi_data : idata), .i_rsp_error(i_is_ddr ? mi_error : ire),
         .d_req_valid(dv), .d_req_ready(dr), .d_req_addr(da), .d_req_wdata(dd),
         .d_req_wstrb(ds), .d_req_write(dw),
-        .d_rsp_valid(drv), .d_rsp_ready(drr), .d_rsp_data(drdata), .d_rsp_error(dre),
+        .d_rsp_valid(drv || md_valid), .d_rsp_ready(drr),
+        .d_rsp_data(drdata), .d_rsp_error(d_is_ddr ? md_error : dre),
         .irq_software(msip), .irq_timer(mtime >= mtimecmp), .irq_external(irq_external),
         .retire_valid(retire_valid), .retire_pc(retire_pc), .retire_insn(retire_insn),
         .retire_data(retire_data), .retire_rd(retire_rd),
@@ -1255,8 +1586,10 @@ module qinglong_soc #(
             ram_i_data <= ram[ia[AW+1:2]];
         if (iv && ir && ia < RAM_WORDS * 4 - 4)
             ram_i_second <= ram[ia[AW+1:2] + 1'b1];
+        // Speculate reads while the response slot is free. Address range and
+        // request-valid stay on write enables only; held responses stay stable.
+        if (!drv || drr) ram_d_data <= ram[da[AW+1:2]];
         if (dv && dr && da < RAM_WORDS * 4) begin
-            ram_d_data <= ram[da[AW+1:2]];
             if (dw)
                 for (j = 0; j < 4; j = j + 1)
                     if (ds[j]) ram[da[AW+1:2]][8*j +: 8] <= dd[8*j +: 8];
@@ -1264,15 +1597,29 @@ module qinglong_soc #(
     end
     always_ff @(posedge clk) begin
         if (rst) begin
-            irv <= 0; ire <= 0; drv <= 0; dre <= 0; d_is_ram <= 0;
+            irv <= 0; ire <= 0; drv <= 0; dre <= 0; d_is_ram <= 0; d_is_ddr <= 0; i_is_ddr <= 0;
             mmio_data <= 0; gpio <= 0; done <= 0; exit_code <= 0;
             console_valid <= 0; console_data <= 0; mtime <= 0; mtimecmp <= '1; msip <= 0;
             uart_wait <= 0; uart_data <= 0;
+            ddr_d_pending <= 0; ddr_d_write <= 0; ddr_d_addr <= 0; ddr_d_wdata <= 0; ddr_d_strb <= 0;
+            cache_flush <= 0;
+            mmio_pending <= 0; mmio_addr <= 0; mmio_wdata <= 0; mmio_strb <= 0; mmio_write <= 0;
         end else begin
+            cache_flush <= 0;
             mtime <= mtime + 64'd1;
+            if (ddr_d_pending && md_ready) ddr_d_pending <= 0;
+            if (DDR_ENABLE && dv && dr && d_ext) begin
+                ddr_d_pending <= 1; ddr_d_addr <= da;
+                ddr_d_wdata <= dd; ddr_d_strb <= ds; ddr_d_write <= dw;
+            end
             console_valid <= 0;
+            if (iv && ir) i_is_ddr <= i_ext;
+            if (dv && dr) begin
+                d_is_ram <= da < RAM_WORDS * 4;
+                d_is_ddr <= d_ext;
+            end
             if (irr) irv <= 0;
-            if (iv && ir) begin
+            if (iv && ir && !i_ext) begin
                 irv <= 1;
                 ire <= {ia >= RAM_WORDS * 4 - 4, ia >= RAM_WORDS * 4};
             end
@@ -1281,47 +1628,276 @@ module qinglong_soc #(
                 uart_wait <= 0; drv <= 1;
                 console_valid <= 1; console_data <= uart_data;
             end
-            if (dv && dr) begin
-                drv <= 1; dre <= 0; d_is_ram <= da < RAM_WORDS * 4;
-                mmio_data <= 0;
-                if (da >= RAM_WORDS * 4) begin
-                    case (da)
-                        32'h10000000: begin
-                            mmio_data <= {31'b0, (tx_ready || SIM_FAST_UART)};
-                            if (dw && ds[0]) begin
-                                if (SIM_FAST_UART) begin
-                                    console_valid <= 1; console_data <= dd[7:0];
-                                end else begin
-                                    uart_wait <= 1; uart_data <= dd[7:0]; drv <= 0;
-                                end
+            if (mmio_pending) mmio_pending <= 0;
+            if (dv && dr && !d_ext) begin
+                drv <= 1; dre <= 0; mmio_data <= 0;
+                if (PIPELINED_MMIO && da >= RAM_WORDS * 4) begin
+                    // Accept the address before decoding peripheral registers.
+                    // The CPU waits for the response; TCM retains its fast path.
+                    mmio_pending <= 1; drv <= 0;
+                    mmio_addr <= da; mmio_wdata <= dd;
+                    mmio_strb <= ds; mmio_write <= dw;
+                end
+            end
+            if (mmio_fire) begin
+                drv <= 1; dre <= 0; mmio_data <= 0;
+                case (peripheral_addr)
+                    32'h10000000: begin
+                        mmio_data <= {31'b0, (tx_ready || SIM_FAST_UART)};
+                        if (peripheral_write && peripheral_strb[0]) begin
+                            if (SIM_FAST_UART) begin
+                                console_valid <= 1; console_data <= peripheral_data[7:0];
+                            end else begin
+                                uart_wait <= 1; uart_data <= peripheral_data[7:0]; drv <= 0;
                             end
                         end
-                        32'h10000004: if (dw && ds == 15) begin done <= 1; exit_code <= dd; end
-                        32'h10000008: begin
-                            mmio_data <= gpio;
-                            if (dw) for (j = 0; j < 4; j = j + 1)
-                                if (ds[j]) gpio[8*j +: 8] <= dd[8*j +: 8];
-                        end
-                        32'h10000100: mmio_data <= mtime[31:0];
-                        32'h10000104: mmio_data <= mtime[63:32];
-                        32'h10000108: begin
-                            mmio_data <= mtimecmp[31:0];
-                            if (dw && ds == 15) mtimecmp[31:0] <= dd;
-                        end
-                        32'h1000010c: begin
-                            mmio_data <= mtimecmp[63:32];
-                            if (dw && ds == 15) mtimecmp[63:32] <= dd;
-                        end
-                        32'h10000110: begin
-                            mmio_data <= {31'b0, msip};
-                            if (dw && ds[0]) msip <= dd[0];
-                        end
-                        default: dre <= 1;
-                    endcase
-                end
+                    end
+                    32'h10000004: if (peripheral_write && peripheral_strb == 15) begin done <= 1; exit_code <= peripheral_data; end
+                    32'h10000008: begin
+                        mmio_data <= gpio;
+                        if (peripheral_write) for (j = 0; j < 4; j = j + 1)
+                            if (peripheral_strb[j]) gpio[8*j +: 8] <= peripheral_data[8*j +: 8];
+                    end
+                    32'h10000100: mmio_data <= mtime[31:0];
+                    32'h10000104: mmio_data <= mtime[63:32];
+                    32'h10000108: begin
+                        mmio_data <= mtimecmp[31:0];
+                        if (peripheral_write && peripheral_strb == 15) mtimecmp[31:0] <= peripheral_data;
+                    end
+                    32'h1000010c: begin
+                        mmio_data <= mtimecmp[63:32];
+                        if (peripheral_write && peripheral_strb == 15) mtimecmp[63:32] <= peripheral_data;
+                    end
+                    32'h10000110: begin
+                        mmio_data <= {31'b0, msip};
+                        if (peripheral_write && peripheral_strb[0]) msip <= peripheral_data[0];
+                    end
+                    32'h10000200: begin
+                        // bit 0: calibrated and usable, bit 1: sticky fault,
+                        // bit 2: external-memory interface compiled in.
+                        if (DDR_ENABLE) begin
+                            mmio_data <= {26'b0, CACHE_ENABLE, cache_error, (cache_busy || cache_flush), 1'b1, ddr_fault, ddr_ready};
+                            if (peripheral_write) dre <= 1;
+                        end else dre <= 1;
+                    end
+                    32'h10000204: begin
+                        if(CACHE_ENABLE && DDR_ENABLE) begin
+                            mmio_data <= {30'b0,cache_error,(cache_busy || cache_flush)};
+                            if(peripheral_write && peripheral_strb[0] && peripheral_data[0]) cache_flush<=1;
+                        end else dre<=1;
+                    end
+                    32'h10000210: if(CACHE_ENABLE && DDR_ENABLE) mmio_data<=cache_ihit;else dre<=1;
+                    32'h10000214: if(CACHE_ENABLE && DDR_ENABLE) mmio_data<=cache_imiss;else dre<=1;
+                    32'h10000218: if(CACHE_ENABLE && DDR_ENABLE) mmio_data<=cache_dhit;else dre<=1;
+                    32'h1000021c: if(CACHE_ENABLE && DDR_ENABLE) mmio_data<=cache_dmiss;else dre<=1;
+                    32'h10000220: if(CACHE_ENABLE && DDR_ENABLE) mmio_data<=cache_wb;else dre<=1;
+                    32'h10000224: if(CACHE_ENABLE && DDR_ENABLE) mmio_data<=cache_ib_hit;else dre<=1;
+                    default: dre <= 1;
+                endcase
             end
         end
     end
+endmodule
+
+
+// Source: rtl/qinglong_l1cache.sv
+// Two independent 2-way caches. Synchronous line/tag reads infer block RAM.
+// One external 32-byte transaction at a time; D is write-back/write-allocate.
+module qinglong_l1cache #(parameter integer SET_BITS=7) (
+ input logic clk,rst, maintenance_req,
+ output logic maintenance_busy,maintenance_error,
+ input logic req_valid, output logic req_ready,
+ input logic req_instruction,req_write,
+ input logic [29:0] req_addr,
+ input logic [255:0] req_wdata,input logic [31:0] req_wstrb,
+ output logic rsp_valid,input logic rsp_ready,
+ output logic [255:0] rsp_data,output logic rsp_error,
+ output logic mem_req_valid,input logic mem_req_ready,
+ output logic [29:0] mem_req_addr,output logic mem_req_write,
+ output logic [255:0] mem_req_wdata,output logic [31:0] mem_req_wstrb,
+ input logic mem_rsp_valid,output logic mem_rsp_ready,
+ input logic [255:0] mem_rsp_data,input logic mem_rsp_error,
+ output logic [31:0] i_hits,i_misses,d_hits,d_misses,writebacks
+);
+ localparam integer SETS=1<<SET_BITS, TAG_BITS=25-SET_BITS;
+ localparam [3:0] IDLE=0,LOOKUP=1,WB_SEND=2,WB_WAIT=3,FILL_SEND=4,FILL_WAIT=5,SCAN_READ=6,SCAN_CHECK=7,RESET_SCAN=8;
+ logic [3:0] state;
+ logic [255:0] i_data0[0:SETS-1],i_data1[0:SETS-1],d_data0[0:SETS-1],d_data1[0:SETS-1];
+ logic [TAG_BITS-1:0] i_tag0[0:SETS-1],i_tag1[0:SETS-1],d_tag0[0:SETS-1],d_tag1[0:SETS-1];
+ // Small synchronous metadata RAMs replace resettable bitmaps and their
+ // variable-index write decoders. Reset walks the sets instead of resetting
+ // every bit, allowing RAM inference. Layout: I={LRU,V1,V0}, D={LRU,D1,D0,V1,V0}.
+ logic [2:0] i_meta[0:SETS-1],imr;
+ logic [4:0] d_meta[0:SETS-1],dmr;
+ logic [255:0] ir0,ir1,dr0,dr1,evict_data;
+ logic [TAG_BITS-1:0] it0,it1,dt0,dt1;
+ logic instruction,writing,victim,flushing,flush_pending;
+ logic store_commit,store_way;
+ wire [255:0] rd0=(instruction && !flushing)?ir0:dr0, rd1=(instruction && !flushing)?ir1:dr1;
+ wire [TAG_BITS-1:0] rt0=(instruction && !flushing)?it0:dt0, rt1=(instruction && !flushing)?it1:dt1;
+ logic [29:0] address,evict_addr;
+ logic [255:0] write_data;
+ logic [31:0] write_mask;
+ logic [SET_BITS-1:0] scan;
+ wire [SET_BITS-1:0] index=address[5+:SET_BITS];
+ wire [TAG_BITS-1:0] tag=address[29:5+SET_BITS];
+ wire valid0=(instruction && !flushing)?imr[0]:dmr[0];
+ wire valid1=(instruction && !flushing)?imr[1]:dmr[1];
+ wire read_lru=instruction?imr[2]:dmr[4];
+ wire hit0=valid0 && rt0==tag, hit1=valid1 && rt1==tag;
+ // Used only on a miss; hit-way selection stays independent of replacement.
+ wire chosen=!valid0?1'b0:!valid1?1'b1:read_lru;
+ function automatic [255:0] merge_bytes(input logic [255:0] old_data,new_data,input logic [31:0] mask);
+  integer b;
+  begin
+   for(b=0;b<32;b=b+1) merge_bytes[8*b+:8]=mask[b]?new_data[8*b+:8]:old_data[8*b+:8];
+  end
+ endfunction
+ assign maintenance_busy=flush_pending || flushing || state==RESET_SCAN;
+ assign req_ready=!rst && state==IDLE && !rsp_valid && !flush_pending;
+ assign mem_req_valid=!rst && (state==WB_SEND || state==FILL_SEND);
+ assign mem_req_write=state==WB_SEND;
+ assign mem_req_addr=state==WB_SEND?evict_addr:address;
+ assign mem_req_wdata=evict_data;
+ assign mem_req_wstrb=state==WB_SEND?32'hffffffff:32'b0;
+ assign mem_rsp_ready=!rst && (state==WB_WAIT || state==FILL_WAIT);
+ wire accept=req_valid && req_ready;
+ wire d_read=(accept && !req_instruction) || state==SCAN_READ;
+ wire [SET_BITS-1:0] d_read_index=state==SCAN_READ?scan:req_addr[5+:SET_BITS];
+ // A single read address per D array prevents PDS from replicating RAMs for
+ // demand lookup and maintenance. No reset of any line/tag/metadata array.
+ always_ff @(posedge clk) begin
+  if(accept && req_instruction) begin
+    imr<=i_meta[req_addr[5+:SET_BITS]];
+    ir0<=i_data0[req_addr[5+:SET_BITS]];ir1<=i_data1[req_addr[5+:SET_BITS]];
+    it0<=i_tag0[req_addr[5+:SET_BITS]];it1<=i_tag1[req_addr[5+:SET_BITS]];
+  end
+  if(d_read) begin
+   dmr<=d_meta[d_read_index];
+   dr0<=d_data0[d_read_index];dr1<=d_data1[d_read_index];
+   dt0<=d_tag0[d_read_index];dt1<=d_tag1[d_read_index];
+  end else if(state==WB_WAIT && mem_rsp_valid && !mem_rsp_error) begin
+   // Recheck the other way during maintenance without rereading the data.
+   if(victim) dmr[3]<=0;else dmr[2]<=0;
+  end
+ end
+ // Retire a hit store into the existing response-hold cycle. No next request
+ // can be accepted while rsp_valid is set, so the saved index/data remain
+ // stable. Tag compare no longer drives the synchronous data-RAM write port.
+ always_ff @(posedge clk) begin
+  if(!rst) begin
+   if(store_commit) begin
+    if(store_way) d_data1[index]<=merge_bytes(dr1,write_data,write_mask);
+    else d_data0[index]<=merge_bytes(dr0,write_data,write_mask);
+   end else if(state==FILL_WAIT && mem_rsp_valid && !mem_rsp_error && !instruction) begin
+    if(victim) d_data1[index]<=writing?merge_bytes(mem_rsp_data,write_data,write_mask):mem_rsp_data;
+    else d_data0[index]<=writing?merge_bytes(mem_rsp_data,write_data,write_mask):mem_rsp_data;
+   end
+  end
+ end
+ always_ff @(posedge clk) begin
+  if(rst) begin
+   state<=RESET_SCAN;
+   store_commit<=0;store_way<=0;
+   flush_pending<=0;flushing<=0;maintenance_error<=0;scan<=0;
+   rsp_valid<=0;rsp_data<=0;rsp_error<=0;
+   address<=0;instruction<=0;writing<=0;write_data<=0;write_mask<=0;
+   evict_addr<=0;evict_data<=0;victim<=0;
+   i_hits<=0;i_misses<=0;d_hits<=0;d_misses<=0;writebacks<=0;
+  end else begin
+   store_commit<=0;
+   if(rsp_ready) rsp_valid<=0;
+   if(maintenance_req) flush_pending<=1;
+   case(state)
+    RESET_SCAN: begin
+     i_meta[scan]<=0;d_meta[scan]<=0;
+     if(&scan) begin scan<=0;state<=IDLE;end
+     else scan<=scan+1'b1;
+    end
+    IDLE: begin
+     if(flush_pending && !rsp_valid) begin
+      flushing<=1;flush_pending<=0;scan<=0;state<=SCAN_READ;
+     end else if(req_valid && req_ready) begin
+      address<=req_addr;instruction<=req_instruction;writing<=req_write;
+      write_data<=req_wdata;write_mask<=req_wstrb;
+      rsp_error<=0;
+      if(maintenance_error || req_addr[4:0]!=0 || (req_instruction && req_write)) begin
+       rsp_valid<=1;rsp_error<=1;rsp_data<=0;
+      end else state<=LOOKUP;
+     end
+    end
+    LOOKUP: begin
+     if(hit0 || hit1) begin
+      if(instruction) begin
+       i_hits<=i_hits+1'b1;i_meta[index]<={hit0,imr[1:0]};
+      end else begin
+       d_hits<=d_hits+1'b1;
+       d_meta[index]<={hit0,dmr[3] || (writing && !hit0),dmr[2] || (writing && hit0),dmr[1:0]};
+       if(writing) begin
+        store_commit<=1;store_way<=!hit0;
+       end
+      end
+      rsp_data<=writing?merge_bytes(hit0?rd0:rd1,write_data,write_mask):(hit0?rd0:rd1);
+      rsp_valid<=1;rsp_error<=0;state<=IDLE;
+     end else begin
+      if(instruction) i_misses<=i_misses+1'b1;else d_misses<=d_misses+1'b1;
+      victim<=chosen;evict_addr<={chosen?rt1:rt0,index,5'b0};evict_data<=chosen?rd1:rd0;
+      if(!instruction && (chosen?(valid1&&dmr[3]):(valid0&&dmr[2]))) state<=WB_SEND;
+      else state<=FILL_SEND;
+     end
+    end
+    WB_SEND: if(mem_req_ready) state<=WB_WAIT;
+    WB_WAIT: if(mem_rsp_valid) begin
+     if(mem_rsp_error) begin
+      if(flushing) begin maintenance_error<=1;flushing<=0;end
+      else begin rsp_error<=1;rsp_data<=0;rsp_valid<=1;end
+      // Preserve dirty victim on failed writeback, never install the new line.
+      state<=IDLE;
+     end else begin
+      writebacks<=writebacks+1'b1;
+      if(flushing) begin
+       d_meta[scan]<=victim?{dmr[4],1'b0,dmr[2:0]}:{dmr[4:3],1'b0,dmr[1:0]};
+       state<=SCAN_CHECK;
+      end else begin
+       d_meta[index]<=victim?{dmr[4],1'b0,dmr[2:0]}:{dmr[4:3],1'b0,dmr[1:0]};
+       state<=FILL_SEND;
+      end
+     end
+    end
+    FILL_SEND: if(mem_req_ready) state<=FILL_WAIT;
+    FILL_WAIT: if(mem_rsp_valid) begin
+     rsp_valid<=1;rsp_error<=mem_rsp_error;
+     rsp_data<=mem_rsp_error?256'b0:(writing?merge_bytes(mem_rsp_data,write_data,write_mask):mem_rsp_data);
+     if(!mem_rsp_error) begin
+      if(instruction) begin
+       i_meta[index]<={!victim,victim?1'b1:valid1,victim?valid0:1'b1};
+       if(victim) begin i_data1[index]<=mem_rsp_data;i_tag1[index]<=tag;end
+       else begin i_data0[index]<=mem_rsp_data;i_tag0[index]<=tag;end
+      end else begin
+       d_meta[index]<={!victim,victim?writing:dmr[3],victim?dmr[2]:writing,victim?1'b1:valid1,victim?valid0:1'b1};
+       if(victim) d_tag1[index]<=tag;
+       else d_tag0[index]<=tag;
+      end
+     end
+     state<=IDLE;
+    end
+    SCAN_READ: state<=SCAN_CHECK;
+    SCAN_CHECK: begin
+     if((dmr[0]&&dmr[2]) || (dmr[1]&&dmr[3])) begin
+      victim<=!(dmr[0]&&dmr[2]);
+      evict_addr<={(dmr[0]&&dmr[2])?rt0:rt1,scan,5'b0};
+      evict_data<=(dmr[0]&&dmr[2])?rd0:rd1;
+      state<=WB_SEND;
+     end else begin
+      i_meta[scan]<=0;d_meta[scan]<=0;
+      if(&scan) begin flushing<=0;state<=IDLE;end
+      else begin scan<=scan+1'b1;state<=SCAN_READ;end
+     end
+    end
+    default:state<=IDLE;
+   endcase
+  end
+ end
 endmodule
 
 
@@ -1353,7 +1929,11 @@ module qinglong_fpga_top #(
         .retire_second_valid(), .retire_second_pc(), .retire_second_insn(),
         .retire_second_data(), .retire_second_rd(), .dual_retire_count(),
         .trap_cause(), .trap_value(), .cycle_count(), .instret_count(),
-        .branch_count(), .mispredict_count(), .load_stall_count()
+        .branch_count(), .mispredict_count(), .load_stall_count(),
+        .ddr_ready(1'b0), .ddr_fault(1'b0),
+        .mem_req_valid(), .mem_req_ready(1'b0), .mem_req_addr(), .mem_req_write(),
+        .mem_req_wdata(), .mem_req_wstrb(), .mem_rsp_valid(1'b0), .mem_rsp_ready(),
+        .mem_rsp_data(256'b0), .mem_rsp_error(1'b0)
     );
 endmodule
 

@@ -8,9 +8,12 @@ module rv32_core #(
     parameter bit PREDICT_ENABLE = 1,
     parameter bit DUAL_ISSUE = 1,
     parameter bit LOAD_BYPASS = 1,
-    parameter bit EARLY_LSU = 1
+    parameter bit LOAD_WORD_ONLY = 0,
+    parameter bit EARLY_LSU = 1,
+    parameter bit MULH_PIPELINE = 0
 ) (
     input logic clk, rst,
+    output logic fence_i_o,
     output logic i_req_valid,
     input logic i_req_ready,
     output logic [31:0] i_req_addr,
@@ -47,6 +50,7 @@ module rv32_core #(
     logic [31:0] regs_lane0 [0:31], regs_lane1 [0:31];
     logic [31:0] regs_latest;
     logic [31:0] f_pc, prediction, prediction_second;
+    wire prediction_sequential;
     logic q_valid, q_killed;
     logic [31:0] q_pc, q_pred, q_pred_second;
     logic q_has_second;
@@ -62,30 +66,65 @@ module rv32_core #(
     // Small predecode travels with the FIFO. The issue/compaction decision
     // must not wait for the full instruction decoder's result multiplexer.
     logic [6:0] fetch_meta [0:3];
-    decode_t response_dec, response_dec_second;
-    function automatic [6:0] issue_metadata(input logic [86:0] bits_in);
-        decode_t d;
+    // Each packet carries its relation to its predecessor. Moving the FIFO
+    // moves these bits too; the first packet's predecessor is never examined.
+    logic [2:0] fetch_matches[0:3];
+    logic fetch_adjacent[0:3],fetch_sequential[0:3];
+    function automatic [6:0] issue_metadata(input logic [31:0] insn);
+        logic simple,writes,rs1,rs2,serial,control;
+        logic [6:0] op,f7;
+        logic [2:0] f3;
         begin
-        d = bits_in;
-        issue_metadata = {
-            !d.illegal && !d.serial && d.reg_write && d.alu <= ALU_COPY &&
-            !(d.load || d.store || d.mul || d.div || d.branch || d.jal || d.jalr),
-            d.illegal, d.serial, (d.branch || d.jal || d.jalr),
-            d.reg_write, d.use_rs1, d.use_rs2};
+            op=insn[6:0];f7=insn[31:25];f3=insn[14:12];
+            simple=0;writes=0;rs1=0;rs2=0;serial=0;control=0;
+            case(op)
+                7'h37,7'h17:begin simple=1;writes=1;end
+                7'h13:begin
+                    writes=1;rs1=1;
+                    simple=(f3!=1 && f3!=5) || (f3==1 && f7==0) || (f3==5 && (f7==0 || f7==7'h20));
+                end
+                7'h33:begin
+                    writes=1;rs1=1;rs2=1;
+                    simple=f7==0 || (f7==7'h20 && (f3==0 || f3==5));
+                end
+                7'h03:begin writes=1;rs1=1;end
+                7'h23:begin rs1=1;rs2=1;end
+                7'h63:begin rs1=1;rs2=1;control=1;end
+                7'h67:begin writes=1;rs1=1;control=1;end
+                7'h6f:begin writes=1;control=1;end
+                7'h0f,7'h73:serial=1;
+                default:begin end
+            endcase
+            // Only the auxiliary-lane whitelist must prove legality here.
+            // Full ID decode still handles illegal primary instructions; EX
+            // exceptions cancel their younger lane before it can retire.
+            issue_metadata={simple,1'b0,serial,control,writes,rs1,rs2};
         end
     endfunction
+    function automatic [2:0] register_matches(input logic [31:0] older,younger);
+        begin
+            register_matches={
+                older[11:7]!=0 && older[11:7]==younger[11:7],
+                older[11:7]!=0 && older[11:7]==younger[24:20],
+                older[11:7]!=0 && older[11:7]==younger[19:15]};
+        end
+    endfunction
+    wire [1:0] fetch_last=fetch_count[1:0]-2'd1;
+    wire [2:0] incoming_cross_matches=register_matches(fetch_insn[fetch_last],i_rsp_data[31:0]);
+    wire [2:0] incoming_pair_matches=register_matches(i_rsp_data[31:0],i_rsp_data[63:32]);
+    wire incoming_adjacent=fetch_pc[fetch_last]+32'd4==q_pc;
+    wire incoming_sequential=q_pred==q_pc+32'd4;
+    wire incoming_second_sequential=q_pred_second==q_pc+32'd8;
     wire [6:0] first_meta = fetch_meta[0], second_meta = fetch_meta[1];
-    wire pair_dependency = id_insn[11:7] != 0 &&
-        ((second_meta[1] && id_second_insn[19:15] == id_insn[11:7]) ||
-         (second_meta[0] && id_second_insn[24:20] == id_insn[11:7]) ||
-         (second_meta[2] && id_second_insn[11:7] == id_insn[11:7]));
+    wire pair_dependency = (second_meta[1] && fetch_matches[1][0]) ||
+         (second_meta[0] && fetch_matches[1][1]) || (second_meta[2] && fetch_matches[1][2]);
     integer fi;
     logic x_second_valid, m_second_valid, w_second_valid;
-    logic [31:0] x_second_insn, x_second_a, x_second_b;
+    logic [31:0] x_second_pc, x_second_insn, x_second_a, x_second_b;
     logic [31:0] m_second_insn, m_second_result, w_second_insn, w_second_result;
     logic [4:0] m_second_rd, w_second_rd;
     logic [31:0] a_second, b_second, alu_a_second, alu_b_second, alu_result_second;
-    logic pair_eligible, pair_issue, pair_normal, pair_swapped, x_swapped, m_swapped;
+    logic pair_eligible, pair_issue, pair_normal, pair_swap_candidate, pair_swapped, x_swapped, m_swapped;
     logic x_valid, x_error;
     logic [31:0] x_pc, x_insn, x_pred, x_a, x_b;
     logic m_valid, m_sent, m_exception;
@@ -95,7 +134,10 @@ module rv32_core #(
     logic [4:0] m_rd;
     logic [2:0] m_funct3;
     logic m_write_rd, m_load, m_store_en, m_csr_write, m_mret, m_serial;
-    logic m_mul;
+    logic m_mul,m_minmax;
+    wire x_minmax=x_dec.alu==ALU_MIN || x_dec.alu==ALU_MAX || x_dec.alu==ALU_MINU || x_dec.alu==ALU_MAXU;
+    wire minmax_less=m_funct3[0]?(m_result<m_store):($signed(m_result)<$signed(m_store));
+    wire [31:0] minmax_result=(minmax_less ^ m_funct3[1])?m_result:m_store;
     logic signed [32:0] m_mul_a, m_mul_b;
     // Four independent <=17x17 products avoid a four-APM cascade. MUL uses
     // the low product immediately; MULH variants register partial products
@@ -110,6 +152,8 @@ module rv32_core #(
     wire [15:0] product_middle_low = product_ll[31:16] + product_lh[15:0] + product_hl[15:0];
     wire [31:0] product_low = {product_middle_low, product_ll[15:0]};
     logic mul_high_ready;
+    logic mul_partial_ready;
+    logic [31:0] mul_high_result;
     logic [15:0] partial_ll_high;
     logic signed [33:0] partial_lh, partial_hl, partial_hh;
     wire signed [34:0] partial_middle = $signed({19'b0,partial_ll_high}) +
@@ -125,11 +169,18 @@ module rv32_core #(
     logic taken, x_exception;
     logic [31:0] x_cause, x_tval, x_result;
     logic signed [32:0] mul_a, mul_b;
+    wire load_bypass_ok=LOAD_BYPASS && (!LOAD_WORD_ONLY || m_funct3==2);
     logic hazard, x_go, x_ready, m_finish, m_ready, id_issue;
     logic mem_trap, irq_take, redirect, x_redirect;
     logic [31:0] redirect_pc;
     logic fetch_redirect, front_flush;
-    logic [31:0] fetch_redirect_pc;
+    wire [31:0] fetch_redirect_pc;
+    logic [31:0] redirect_fallthrough,redirect_trap_vector;
+    logic redirect_select_trap,redirect_select_taken,redirect_select_mret;
+    // train_target is already captured on x_go; use it as the taken candidate.
+    // Late branch comparison drives a one-bit register, never a 32-bit PC mux.
+    assign fetch_redirect_pc = redirect_select_trap ? redirect_trap_vector :
+        redirect_select_mret ? return_pc : redirect_select_taken ? train_target : redirect_fallthrough;
     logic i_accept, i_consume, d_accept;
     logic [31:0] load_shifted, mem_result;
     logic [31:0] csr_read_data, csr_source, csr_new;
@@ -141,7 +192,7 @@ module rv32_core #(
     logic div_start;
     // Compare register indices one stage before forwarding data is consumed.
     // Four operands: full rs1/rs2, auxiliary rs1/rs2. Valid/write/load checks
-    // remain in EX, so unresolved loads and canceled instructions cannot bypass.
+    // remain in EX. Hazard/response checks prevent unfinished data from retiring.
     logic [3:0] forward_m0, forward_m1, forward_w0, forward_w1;
     wire [4:0] decode_rs [0:3];
     wire [4:0] execute_rs [0:3];
@@ -206,14 +257,13 @@ module rv32_core #(
 
     rv32_decode decoder (.insn(id_insn), .decoded(id_dec));
     rv32_decode decoder_second (.insn(id_second_insn), .decoded(id_dec_second));
-    rv32_decode predecoder (.insn(i_rsp_data[31:0]), .decoded(response_dec));
-    rv32_decode predecoder_second (.insn(i_rsp_data[63:32]), .decoded(response_dec_second));
-    rv32_alu alu_full (.op(x_dec.alu), .a(alu_a), .b(alu_b), .result(alu_result));
+    rv32_alu #(.MINMAX_ENABLE(0)) alu_full (.op(x_dec.alu), .a(alu_a), .b(alu_b), .result(alu_result));
     rv32_alu #(.EXTENSIONS(0)) alu_aux (
         .op(x_dec_second.alu), .a(alu_a_second), .b(alu_b_second), .result(alu_result_second));
     rv32_predictor #(.INDEX_BITS(BTB_BITS)) predictor (
         .clk(clk), .rst(rst), .clear(x_go && x_dec.fence_i),
         .pc(f_pc), .next_pc(prediction),
+        .next_pc_sequential(prediction_sequential),
         .pc_second(f_pc + 32'd4), .next_pc_second(prediction_second),
         .update(train_valid), .update_pc(train_pc), .update_target(train_target),
         .update_conditional(train_conditional), .update_taken(train_taken),
@@ -240,7 +290,10 @@ module rv32_core #(
     );
 
     // Forwarding priority is newest (MEM), then WB. LOAD_BYPASS forwards a
-    // successful response in MEM; disabling it waits for the WB register.
+    // response data in MEM; disabling it waits for the WB register. The data
+    // mux may select an unfinished load, but hazard/m_ready keep EX stopped;
+    // mem_trap cancels side effects on an error. Response qualification must
+    // not be serialized before the ALU in this speculative data-only path.
     always_comb begin
         a = x_a; b = x_b;
         if (w_valid && w_write_rd) begin
@@ -251,10 +304,9 @@ module rv32_core #(
             if (forward_w1[0]) a = w_second_result;
             if (forward_w1[1]) b = w_second_result;
         end
-        if (m_valid && m_write_rd && !m_mul &&
-            (!m_load || (LOAD_BYPASS && m_finish && !mem_trap))) begin
-            if (forward_m0[0]) a = m_load ? mem_result : m_result;
-            if (forward_m0[1]) b = m_load ? mem_result : m_result;
+        if (m_valid && m_write_rd && !m_mul && !m_minmax && (!m_load || load_bypass_ok)) begin
+            if (forward_m0[0]) a = m_load ? (LOAD_WORD_ONLY ? d_rsp_data : mem_result) : m_result;
+            if (forward_m0[1]) b = m_load ? (LOAD_WORD_ONLY ? d_rsp_data : mem_result) : m_result;
         end
         if (m_second_valid) begin
             if (forward_m1[0]) a = m_second_result;
@@ -263,7 +315,7 @@ module rv32_core #(
         if (x_dec.rs1 == 0) a = 0;
         if (x_dec.rs2 == 0) b = 0;
         hazard = m_valid && m_write_rd && m_rd != 0 &&
-                 ((m_load && !(LOAD_BYPASS && m_finish && !mem_trap)) || m_mul) &&
+                 ((m_load && !(load_bypass_ok && m_finish && !mem_trap)) || m_mul || m_minmax) &&
                  ((x_dec.use_rs1 && forward_m0[0]) ||
                   (x_dec.use_rs2 && forward_m0[1]) ||
                   (x_second_valid && x_dec_second.use_rs1 && forward_m0[2]) ||
@@ -324,24 +376,26 @@ module rv32_core #(
     assign pair_normal = DUAL_ISSUE && id_second_valid &&
         !id_error && !id_second_error && !first_meta[5] && !first_meta[4] &&
         !first_meta[3] && second_meta[6] &&
-        id_pred == id_pc + 32'd4 && id_second_pred == id_pc + 32'd8 &&
+        fetch_sequential[0] && fetch_sequential[1] &&
         !(first_meta[2] && pair_dependency);
     // Dynamically route a simple older ALU to the auxiliary lane, leaving the
     // full lane available to a younger load/store, multiply, divide or branch.
     // Retire in program order and retain the older ALU if the younger faults.
-    assign pair_swapped = DUAL_ISSUE && id_second_valid && !pair_normal &&
+    assign pair_swap_candidate = DUAL_ISSUE && id_second_valid &&
         !id_error && !id_second_error && first_meta[6] &&
         !second_meta[5] && !second_meta[4] &&
-        id_pred == id_pc + 32'd4 &&
+        fetch_sequential[0] &&
         !pair_dependency;
-    assign pair_eligible = pair_normal || pair_swapped;
+    assign pair_swapped = pair_swap_candidate && !pair_normal;
+    // Admission does not need the lane-priority decision in its timing path.
+    assign pair_eligible = pair_normal || pair_swap_candidate;
     assign pair_issue = id_issue && pair_eligible;
     assign id_valid = fetch_count != 0;
     assign id_pc = fetch_pc[0];
     assign id_insn = fetch_insn[0];
     assign id_pred = fetch_pred[0];
     assign id_error = fetch_error[0];
-    assign id_second_valid = fetch_count >= 2 && fetch_pc[1] == fetch_pc[0] + 32'd4;
+    assign id_second_valid = fetch_count >= 2 && fetch_adjacent[1];
     assign id_second_insn = fetch_insn[1];
     assign id_second_pred = fetch_pred[1];
     assign id_second_error = fetch_error[1];
@@ -357,10 +411,9 @@ module rv32_core #(
             if (forward_w1[2]) a_second = w_second_result;
             if (forward_w1[3]) b_second = w_second_result;
         end
-        if (m_valid && m_write_rd && !m_mul &&
-            (!m_load || (LOAD_BYPASS && m_finish && !mem_trap))) begin
-            if (forward_m0[2]) a_second = m_load ? mem_result : m_result;
-            if (forward_m0[3]) b_second = m_load ? mem_result : m_result;
+        if (m_valid && m_write_rd && !m_mul && !m_minmax && (!m_load || load_bypass_ok)) begin
+            if (forward_m0[2]) a_second = m_load ? (LOAD_WORD_ONLY ? d_rsp_data : mem_result) : m_result;
+            if (forward_m0[3]) b_second = m_load ? (LOAD_WORD_ONLY ? d_rsp_data : mem_result) : m_result;
         end
         if (m_second_valid) begin
             if (forward_m1[2]) a_second = m_second_result;
@@ -368,7 +421,7 @@ module rv32_core #(
         end
         if (x_dec_second.rs1 == 0) a_second = 0;
         if (x_dec_second.rs2 == 0) b_second = 0;
-        alu_a_second = x_dec_second.src_pc ? (x_swapped ? x_pc - 32'd4 : x_pc + 32'd4) : a_second;
+        alu_a_second = x_dec_second.src_pc ? x_second_pc : a_second;
         alu_b_second = x_dec_second.src_imm ? x_dec_second.imm : b_second;
     end
 
@@ -381,7 +434,9 @@ module rv32_core #(
         m_ready = !m_valid || m_finish;
         load_shifted = d_rsp_data >> {m_addr[1:0], 3'b0};
         mem_result = m_result;
-        if (m_mul) mem_result = (m_funct3 == 0) ? product_low : product_high;
+        if(m_minmax) mem_result=minmax_result;
+        if (m_mul) mem_result = (m_funct3 == 0) ? product_low :
+                               (MULH_PIPELINE ? mul_high_result : product_high);
         if (m_load) begin
             case (m_funct3)
                 0: mem_result = {{24{load_shifted[7]}}, load_shifted[7:0]};
@@ -439,6 +494,7 @@ module rv32_core #(
     assign x_redirect = x_go && !x_exception &&
                         ((taken ? branch_target != x_pred : (x_pc + 32'd4) != x_pred) ||
                          x_dec.fence_i || x_dec.mret);
+    assign fence_i_o = x_go && x_dec.fence_i && !mem_trap;
     assign trap_valid = mem_trap || irq_take;
     assign trap_pc = mem_trap ? m_pc : id_pc;
     assign trap_cause = mem_trap ? (m_exception ? m_cause : (m_load ? 32'd5 : 32'd7)) : irq_code;
@@ -470,19 +526,21 @@ module rv32_core #(
             f_pc <= RESET_PC; q_valid <= 0; q_killed <= 0; q_pc <= 0; q_pred <= 0;
             q_pred_second <= 0; q_has_second <= 0;
             fetch_count <= 0;
-            fetch_redirect <= 0; fetch_redirect_pc <= 0;
+            fetch_redirect <= 0; redirect_fallthrough<=0;redirect_trap_vector<=0;
+            redirect_select_trap<=0;redirect_select_taken<=0;redirect_select_mret<=0;
             x_valid <= 0; x_dec <= '0; x_pc <= 0; x_insn <= 0; x_pred <= 0;
             x_second_valid <= 0; x_dec_second <= '0;
             x_swapped <= 0; m_swapped <= 0;
-            x_second_insn <= 0; x_second_a <= 0; x_second_b <= 0;
+            x_second_pc <= 0; x_second_insn <= 0; x_second_a <= 0; x_second_b <= 0;
             x_error <= 0; x_a <= 0; x_b <= 0;
             m_valid <= 0; m_sent <= 0; m_exception <= 0;
             m_pc <= 0; m_insn <= 0; m_addr <= 0; m_result <= 0; m_store <= 0;
             m_cause <= 0; m_tval <= 0; m_csr_data <= 0; m_csr_addr <= 0;
             m_rd <= 0; m_funct3 <= 0; m_write_rd <= 0; m_load <= 0; m_store_en <= 0;
-            m_csr_write <= 0; m_mret <= 0; m_serial <= 0; m_mul <= 0;
+            m_csr_write <= 0; m_mret <= 0; m_serial <= 0; m_mul <= 0;m_minmax<=0;
             m_mul_a <= 0; m_mul_b <= 0;
             mul_high_ready <= 0; partial_ll_high <= 0;
+            mul_partial_ready <= 0; mul_high_result <= 0;
             partial_lh <= 0; partial_hl <= 0; partial_hh <= 0;
             m_second_valid <= 0; m_second_rd <= 0; m_second_result <= 0; m_second_insn <= 0;
             w_valid <= 0; w_write_rd <= 0; w_serial <= 0;
@@ -493,11 +551,27 @@ module rv32_core #(
             // No reset on x1..x31: ISA does not require their reset contents.
             // Startup initializes SP/GP. Avoid reset fanout across the register file.
         end else begin
-            if (m_ready) mul_high_ready <= 0;
-            else if (m_valid && m_mul && m_funct3 != 0 && !mul_high_ready) begin
+            // In the optional MULH pipeline, validity controls observation,
+            // not the DSP data clocks. Constant M/P enables avoid routing two
+            // opposite phase enables from one dual-output LUT to the APM.
+            if (MULH_PIPELINE) begin
                 partial_ll_high <= product_ll[31:16];
-                partial_lh <= product_lh; partial_hl <= product_hl; partial_hh <= product_hh;
-                mul_high_ready <= 1;
+                partial_lh <= product_lh;partial_hl <= product_hl;partial_hh <= product_hh;
+                mul_high_result <= product_high;
+            end
+            if (m_ready) begin mul_high_ready <= 0; mul_partial_ready <= 0; end
+            else if (m_valid && m_mul && m_funct3 != 0 && !mul_high_ready) begin
+                if (MULH_PIPELINE && mul_partial_ready) begin
+                    // Optional sum register isolates the MULH carry chain from
+                    // result selection and WB. Low-half MUL latency is unchanged.
+                    mul_high_ready <= 1;
+                end else begin
+                    if (!MULH_PIPELINE) begin
+                        partial_ll_high <= product_ll[31:16];
+                        partial_lh <= product_lh;partial_hl <= product_hl;partial_hh <= product_hh;
+                    end
+                    mul_partial_ready <= 1; mul_high_ready <= !MULH_PIPELINE;
+                end
             end
             if (w_valid && w_write_rd && w_rd != 0) begin
                 regs_lane0[w_rd] <= w_result; regs_latest[w_rd] <= 0;
@@ -508,10 +582,14 @@ module rv32_core #(
             // Register redirect data separately from its late enable, keeping
             // branch/exception decisions out of the fetch-PC arithmetic path.
             fetch_redirect <= redirect;
-            fetch_redirect_pc <= redirect_pc;
+            redirect_fallthrough <= x_pc + 32'd4;
+            redirect_trap_vector <= trap_vector;
+            redirect_select_trap <= trap_valid;
+            redirect_select_taken <= taken;
+            redirect_select_mret <= x_dec.mret;
             if (fetch_redirect) f_pc <= fetch_redirect_pc;
             else if (i_accept) begin
-                if (PREDICT_ENABLE && prediction != f_pc + 32'd4) f_pc <= prediction;
+                if (PREDICT_ENABLE && !prediction_sequential) f_pc <= prediction;
                 else if (DUAL_ISSUE)
                     f_pc <= PREDICT_ENABLE ? prediction_second : f_pc + 32'd8;
                 else f_pc <= f_pc + 32'd4;
@@ -522,7 +600,7 @@ module rv32_core #(
                 q_valid <= 1; q_killed <= redirect; q_pc <= f_pc;
                 q_pred <= PREDICT_ENABLE ? prediction : f_pc + 32'd4;
                 q_pred_second <= PREDICT_ENABLE ? prediction_second : f_pc + 32'd8;
-                q_has_second <= DUAL_ISSUE && (!PREDICT_ENABLE || prediction == f_pc + 32'd4);
+                q_has_second <= DUAL_ISSUE && (!PREDICT_ENABLE || prediction_sequential);
             end
             // Compact a four-entry instruction queue after consuming one or
             // two instructions. Pairing is independent of fetch-block borders.
@@ -532,23 +610,38 @@ module rv32_core #(
                     fetch_pc[fi] <= fetch_pc[fi+1]; fetch_insn[fi] <= fetch_insn[fi+1];
                     fetch_pred[fi] <= fetch_pred[fi+1]; fetch_error[fi] <= fetch_error[fi+1];
                     fetch_meta[fi] <= fetch_meta[fi+1];
+                    fetch_matches[fi]<=fetch_matches[fi+1];
+                    fetch_adjacent[fi]<=fetch_adjacent[fi+1];fetch_sequential[fi]<=fetch_sequential[fi+1];
                 end else if (fetch_pop == 2 && fi < 2) begin
                     fetch_pc[fi] <= fetch_pc[fi+2]; fetch_insn[fi] <= fetch_insn[fi+2];
                     fetch_pred[fi] <= fetch_pred[fi+2]; fetch_error[fi] <= fetch_error[fi+2];
                     fetch_meta[fi] <= fetch_meta[fi+2];
+                    fetch_matches[fi]<=fetch_matches[fi+2];
+                    fetch_adjacent[fi]<=fetch_adjacent[fi+2];fetch_sequential[fi]<=fetch_sequential[fi+2];
                 end
                 // A flush invalidates count, so the data registers may safely
                 // accept stale payloads. Avoid a late branch-to-array mux path.
                 if (i_consume && !q_killed) begin
-                    if (fetch_remaining == fi[2:0]) begin
+                    // Compare all pop counts in parallel instead of placing
+                    // subtraction and increment before each payload write mux.
+                    if ((fetch_pop == 0 && fetch_count == fi) ||
+                        (fetch_pop == 1 && fetch_count == fi+1) ||
+                        (fetch_pop == 2 && fetch_count == fi+2)) begin
                         fetch_pc[fi] <= q_pc; fetch_insn[fi] <= i_rsp_data[31:0];
                         fetch_pred[fi] <= q_pred; fetch_error[fi] <= i_rsp_error[0];
-                        fetch_meta[fi] <= issue_metadata(response_dec);
+                        fetch_meta[fi] <= issue_metadata(i_rsp_data[31:0]);
+                        fetch_matches[fi]<=incoming_cross_matches;
+                        fetch_adjacent[fi]<=incoming_adjacent;fetch_sequential[fi]<=incoming_sequential;
                     end
-                    if (q_has_second && fetch_remaining + 3'd1 == fi[2:0]) begin
+                    if (q_has_second && fi > 0 &&
+                        ((fetch_pop == 0 && fetch_count == fi-1) ||
+                         (fetch_pop == 1 && fetch_count == fi) ||
+                         (fetch_pop == 2 && fetch_count == fi+1))) begin
                         fetch_pc[fi] <= q_pc + 32'd4; fetch_insn[fi] <= i_rsp_data[63:32];
                         fetch_pred[fi] <= q_pred_second; fetch_error[fi] <= i_rsp_error[1];
-                        fetch_meta[fi] <= issue_metadata(response_dec_second);
+                        fetch_meta[fi] <= issue_metadata(i_rsp_data[63:32]);
+                        fetch_matches[fi]<=incoming_pair_matches;
+                        fetch_adjacent[fi]<=1;fetch_sequential[fi]<=incoming_second_sequential;
                     end
                 end
             end
@@ -560,8 +653,9 @@ module rv32_core #(
                 x_second_valid <= pair_issue && !redirect;
                 x_swapped <= pair_issue && pair_swapped;
                 if (id_issue) begin
+                    x_second_pc <= pair_swapped ? id_pc : fetch_pc[1];
                     if (pair_swapped) begin
-                        x_dec <= id_dec_second; x_pc <= id_pc + 32'd4; x_insn <= id_second_insn;
+                        x_dec <= id_dec_second; x_pc <= fetch_pc[1]; x_insn <= id_second_insn;
                         x_pred <= id_second_pred; x_error <= id_second_error;
                         x_a <= read_operand(id_dec_second.rs1); x_b <= read_operand(id_dec_second.rs2);
                         x_dec_second <= id_dec; x_second_insn <= id_insn;
@@ -593,7 +687,10 @@ module rv32_core #(
                 m_sent <= EARLY_LSU && d_accept;
                 if (x_go) begin
                     m_pc <= x_pc; m_insn <= x_insn; m_rd <= x_dec.rd;
-                    m_addr <= memory_address; m_result <= x_result; m_store <= b;
+                    // MIN/MAX reuse the existing operand payload registers.
+                    // Dependent EX waits for WB rather than chaining two ALUs.
+                    m_addr <= memory_address; m_result <= x_minmax?a:x_result; m_store <= b;
+                    m_minmax<=x_minmax;
                     m_funct3 <= x_dec.funct3;
                     m_write_rd <= x_dec.reg_write; m_load <= x_dec.load;
                     m_store_en <= x_dec.store; m_exception <= x_exception;

@@ -1,6 +1,6 @@
 // Separate left/right shifters keep late forwarded operands off reversal muxes.
 // Zba/Zbb are only instantiated in the full execution lane.
-module rv32_alu #(parameter bit EXTENSIONS = 1) (
+module rv32_alu #(parameter bit EXTENSIONS = 1,parameter bit MINMAX_ENABLE=1) (
     input logic [4:0] op,
     input logic [31:0] a, b,
     output logic [31:0] result
@@ -57,10 +57,10 @@ module rv32_alu #(parameter bit EXTENSIONS = 1) (
             ALU_ANDN: result = EXTENSIONS ? a & ~b : 0;
             ALU_ORN: result = EXTENSIONS ? a | ~b : 0;
             ALU_XNOR: result = EXTENSIONS ? ~(a ^ b) : 0;
-            ALU_MIN: result = EXTENSIONS ? ($signed(a) < $signed(b) ? a : b) : 0;
-            ALU_MAX: result = EXTENSIONS ? ($signed(a) > $signed(b) ? a : b) : 0;
-            ALU_MINU: result = EXTENSIONS ? (a < b ? a : b) : 0;
-            ALU_MAXU: result = EXTENSIONS ? (a > b ? a : b) : 0;
+            ALU_MIN: result = EXTENSIONS && MINMAX_ENABLE ? ($signed(a) < $signed(b) ? a : b) : 0;
+            ALU_MAX: result = EXTENSIONS && MINMAX_ENABLE ? ($signed(a) > $signed(b) ? a : b) : 0;
+            ALU_MINU: result = EXTENSIONS && MINMAX_ENABLE ? (a < b ? a : b) : 0;
+            ALU_MAXU: result = EXTENSIONS && MINMAX_ENABLE ? (a > b ? a : b) : 0;
             ALU_ROL: result = EXTENSIONS ? shifted_left[63:32] : 0;
             ALU_ROR: result = EXTENSIONS ? shifted_right[31:0] : 0;
             ALU_CLZ, ALU_CTZ: result = EXTENSIONS ? {26'b0,leading_zeros(op == ALU_CTZ ? reverse_a : a)} : 0;

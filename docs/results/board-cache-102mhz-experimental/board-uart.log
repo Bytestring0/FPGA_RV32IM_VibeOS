@@ -1,0 +1,7 @@
+Qinglong DDR3 smoke CPU=06146580
+DDR calibrated
+DDR PASS data16KiB byte halfword address-lines edge execute
+CPU MULH PASS signed mixed unsigned edges
+CACHE I_HIT=00000204 D_HIT=00001efd WB=00000231 IBUF_HIT=000005ce
+CACHE_WORK_CYCLES=000010f0
+CACHE PASS DDR code warm-hit self-modify maintenance

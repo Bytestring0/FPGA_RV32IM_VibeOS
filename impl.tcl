@@ -11,3 +11,9 @@ dev_map
 pnr 
 set_arch -family Logos2 -device PG2L100H -speedgrade -6 -package FBG676
 compile -top_module {qinglong_fpga_top} -system_verilog -top_module qinglong_fpga_top
+add_design "D:/FPGA/RiscV/rtl/qinglong_l1cache.sv"
+set_arch -family Logos2 -device PG2L100H -speedgrade -6 -package FBG676
+compile -top_module {qinglong_l1cache} -system_verilog -top_module qinglong_l1cache
+add_design "D:/FPGA/RiscV/rtl/qinglong_l1cache.sv"
+set_arch -family Logos2 -device PG2L100H -speedgrade -6 -package FBG676
+compile -top_module {qinglong_l1cache} -system_verilog -top_module qinglong_l1cache

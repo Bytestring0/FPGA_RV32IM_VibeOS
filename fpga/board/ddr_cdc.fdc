@@ -1,0 +1,11 @@
+# The mailbox data is held until the round-trip toggle acknowledgment.
+# No asynchronous clock-group cut between CPU and UI: it would hide payload delay.
+set_max_delay 8.0 -datapath_only -from [get_cells -hierarchical {bridge/hold_*}] -to [get_clocks ddrphy_sysclk]
+set_max_delay 8.0 -datapath_only -from [get_cells -hierarchical {bridge/return_*}] -to [get_clocks cpu_clk]
+set_false_path -hold -from [get_clocks cpu_clk] -to [get_clocks ddrphy_sysclk]
+set_false_path -hold -from [get_clocks ddrphy_sysclk] -to [get_clocks cpu_clk]
+# Cut only the asynchronous input of each synchronizer; stage-to-stage stays timed.
+set_false_path -from [get_clocks cpu_clk] -to [get_cells -hierarchical {bridge/req_sync*}]
+set_false_path -from [get_clocks ddrphy_sysclk] -to [get_cells -hierarchical {bridge/ack_sync* bridge/init_sync* bridge/fault_sync*}]
+# CPU PLL LOCK drives common asynchronous reset, never a datapath input.
+set_false_path -from [get_pins {clocking_unit/pll_mode.pll/LOCK}]

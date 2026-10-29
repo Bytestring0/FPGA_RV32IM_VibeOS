@@ -6,4 +6,6 @@ rtl/rv32_divider.sv
 rtl/rv32_csr.sv
 rtl/rv32_core.sv
 rtl/uart_tx.sv
+rtl/qinglong_extmem.sv
 rtl/qinglong_soc.sv
+rtl/qinglong_l1cache.sv

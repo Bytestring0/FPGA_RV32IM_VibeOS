@@ -1,0 +1,43 @@
+{
+  "source_idf_sha256": "48abcae82ed8a793cd44bbed0c116c6b0540bd556115b497b49f65fa8500195a",
+  "reference": "PDS Device Map pin table: build/ddr-ip/pnr/device_map/test_ddr_dmr.prt",
+  "configuration": "Logos2 HMIC_S 1.10, PG2L100H-6IFBG676, 2x4Gbit x16 DDR3, 125MHz input, 1000MT/s",
+  "corrections": [
+    {
+      "parameter": "A14_DQS_EN",
+      "pin": "N1",
+      "pad": "DIFFIO_R5_G1_08P_DQS",
+      "before": "false",
+      "after": "true"
+    },
+    {
+      "parameter": "A11_DQS_EN",
+      "pin": "P1",
+      "pad": "DIFFIO_R5_G2_14N_DQS",
+      "before": "false",
+      "after": "true"
+    },
+    {
+      "parameter": "CK_DQS_EN",
+      "pin": "U6",
+      "pad": "DIFFIO_R5_G3_20P_DQS",
+      "before": "false",
+      "after": "true"
+    },
+    {
+      "parameter": "A5_DQS_EN",
+      "pin": "M1",
+      "pad": "DIFFIO_R5_G1_08N_DQS",
+      "before": "false",
+      "after": "true"
+    },
+    {
+      "parameter": "CKE_DQS_EN",
+      "pin": "R1",
+      "pad": "DIFFIO_R5_G2_14P_DQS",
+      "before": "false",
+      "after": "true"
+    }
+  ],
+  "board_tested": false
+}

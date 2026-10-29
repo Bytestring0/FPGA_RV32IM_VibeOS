@@ -1,0 +1,15 @@
+make: Nothing to be done for 'cache-firmware'.
+Cache PASS: 2-way hits, byte masks, dirty LRU eviction, FENCE coherence, backpressure, refill/writeback errors, random traffic; reads=397 writes=220 cycles=7788
+Qinglong DDR3 smoke CPU=06146580
+DDR calibrated
+DDR PASS data16KiB byte halfword address-lines edge execute
+CACHE I_HIT=00000204 D_HIT=00001efd WB=00000231 IBUF_HIT=000005ce
+CACHE_WORK_CYCLES=000010f1
+CACHE PASS DDR code warm-hit self-modify maintenance
+DDR SoC simulation exit=0 cycles=95576 transactions=1232
+Qinglong DDR3 smoke CPU=06146580
+DDR calibrated
+DDR PASS data16KiB byte halfword address-lines edge execute
+CACHE_WORK_CYCLES=0000533a
+CACHE PASS DDR code warm-hit self-modify maintenance
+DDR SoC simulation exit=0 cycles=165144 transactions=10570

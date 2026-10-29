@@ -1,0 +1,5 @@
+OBSERVED: byte strobe writes the full N register (0x5678, not byte-merged 0x1278)
+OBSERVED: changing N from 2 to 1 while busy makes DONE assert after just one result
+OBSERVED: CLEAR_STATUS and another START do not recover the reader from S_ERROR; reset is required
+REVIEW PROBE PASS: three integration limitations reproduced on the pinned upstream RTL
+tests/accelerator_v1_contract_probe.sv:72: $finish called at 196000 (1ps)

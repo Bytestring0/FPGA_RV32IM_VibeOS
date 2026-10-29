@@ -1,0 +1,46 @@
+make coremark MARCH=rv32im_zicsr_zifencei_zba_zbb EXTRA_CFLAGS="-funroll-all-loops -finline-limit=1000 -frename-registers -mtune=sifive-7-series"
+make[1]: Entering directory '/mnt/d/FPGA/RiscV'
+riscv64-unknown-elf-gcc -march=rv32im_zicsr_zifencei_zba_zbb -mabi=ilp32 -O3 -ffreestanding -fno-builtin -ffunction-sections -fdata-sections -msmall-data-limit=0 -Wall -Wextra -funroll-all-loops -finline-limit=1000 -frename-registers -mtune=sifive-7-series -nostdlib -nostartfiles -Wl,--gc-sections -T sw/link.ld -Isw/coremark -Ithird_party/coremark \
+    -DCOMPILER_FLAGS='"-march=rv32im_zicsr_zifencei_zba_zbb -mabi=ilp32 -O3 -ffreestanding -fno-builtin -ffunction-sections -fdata-sections -msmall-data-limit=0 -Wall -Wextra -funroll-all-loops -finline-limit=1000 -frename-registers -mtune=sifive-7-series"' \
+    -DITERATIONS=10 -DCPU_HZ=102000000 -DTOTAL_DATA_SIZE=2000 \
+    -DVALIDATION_RUN=0 -DPERFORMANCE_RUN=1 \
+    sw/start.S third_party/coremark/core_list_join.c third_party/coremark/core_main.c third_party/coremark/core_matrix.c third_party/coremark/core_state.c third_party/coremark/core_util.c sw/coremark/core_portme.c sw/coremark/ee_printf.c \
+    -lgcc -o build/coremark.elf
+/usr/lib/gcc/riscv64-unknown-elf/13.2.0/../../../riscv64-unknown-elf/bin/ld: warning: build/coremark.elf has a LOAD segment with RWX permissions
+riscv64-unknown-elf-objcopy -O binary build/coremark.elf build/coremark.bin
+python3 scripts/bin2hex.py build/coremark.bin build/coremark.hex
+riscv64-unknown-elf-objdump -d build/coremark.elf > build/coremark.dis
+verilator --cc --exe --build -j 4 -O3 -CFLAGS -O3 -Wno-fatal -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-DECLFILENAME --top-module qinglong_soc -f rtl/files.f \
+    "-GMULH_PIPELINE=1'b1" \
+    "-GSIM_FAST_UART=1'b1" "-GPREDICT_ENABLE=1'b1" -GBTB_BITS=8 \
+    "-GDUAL_ISSUE=1'b1" "-GLOAD_BYPASS=1'b1" \
+    "-GEARLY_LSU=1'b1" \
+    --Mdir build/soc /mnt/d/FPGA/RiscV/sim/soc_main.cpp
+make[2]: Entering directory '/mnt/d/FPGA/RiscV/build/soc'
+make[2]: Nothing to be done for 'default'.
+make[2]: Leaving directory '/mnt/d/FPGA/RiscV/build/soc'
+cp build/coremark.hex build/firmware.hex
+MAX_CYCLES=2000000000 python3 scripts/run_coremark.py
+2K performance run parameters for coremark.
+CoreMark Size    : 666
+Total ticks      : 1983373
+Total time (secs): 0
+ERROR! Must execute for at least 10 secs for a valid result!
+Iterations       : 10
+Compiler version : GCC 13.2.0
+Compiler flags   : -march=rv32im_zicsr_zifencei_zba_zbb -mabi=ilp32 -O3 -ffreestanding -fno-builtin -ffunction-sections -fdata-sections -msmall-data-limit=0 -Wall -Wextra -funroll-all-loops -finline-limit=1000 -frename-registers -mtune=sifive-7-series
+Memory location  : 64 KiB dual-port FPGA TCM
+seedcrc          : 0xe9f5
+[0]crclist       : 0xe714
+[0]crcmatrix     : 0x1fd7
+[0]crcstate      : 0x8e3a
+[0]crcfinal      : 0xfcaf
+Errors detected
+MEASURED_CYCLES_HEX=00000000001e438d
+
+SIM exit=0 cycles=2000362 instret=2476105 branches=502373 misses=31985 load_stalls=0 dual_retire_count=615505
+All three algorithm CRCs match upstream reference values.
+Simulation throughput: 5.041916 iterations/Mcycle (CoreMark/MHz equivalent)
+Duration check: short run (<10 simulated seconds); functional/per-cycle comparison only.
+RTL simulation only; this is not a measured board clock or certified CoreMark score.
+make[1]: Leaving directory '/mnt/d/FPGA/RiscV'
