@@ -2,7 +2,13 @@
 
 更新于 2026-10-28。开发板 MES2L676-100HP，器件 PG2L100H-6IFBG676。使用 **PDS 自带 Logos2 HMIC_S 1.10（DDR3 Interface）**，没有自行实现 DDR 控制器或 PHY。
 
-## 当前进度与验证边界
+## 2026-10-29 最新闭合版
+
+完整 CPU + I/D Cache + 板载 DDR3 工程 `build/ddr-soc102-cache16-latealu-mc/qinglong_board.pds` 已获得最终 All Constraints Met：CPU 102 MHz setup +0.056 ns、hold +0.136/+0.099 ns；DDR UI 125 MHz setup +2.216 ns。两路 I/D Cache 各 16 KiB，整机 14618 LUT、10521 FF、66.5 DRM36K 等效。采用 PDS HMIC_S 1.10 与原有 DDR3 1000 MT/s 配置。
+
+本次没有连接 FPGA，位流是待上板 DDR/Cache 自检版；复现和接板命令见 [闭合版归档](results/offline-ddr-cache-102mhz/README.md)。以下记录保留历史开发过程。
+
+## 历史进度与验证边界
 
 - 原控制器确实已经生成：`build/ddr-ip/` 的 10 月 26 日生成日志为 0 error、0 warning。但旧工程布局报 `Place-0004`，生成成功不能等同于可以上板。
 - 修正五处 DQS 专用脚标志后，`build/ddr-board-ip/pnr/` 独立厂商示例完成布局布线，报告 **All Constraints Met**。DDR 用户时钟 125 MHz 的内部 setup WNS 为 +2.716 ns；这是独立示例的结果，不能继承给 SoC。见[归档](results/ddr-ip-1000mts/README.md)。

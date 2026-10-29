@@ -1,0 +1,21 @@
+
+#Iteration time: 1
+#last_iteration_critical_path_worst_slack: -0.131 ns.
+def_route -prior_net {soc/md_data [13]} -load {soc/N26_13_2/gateop:I2;}
+def_route -prior_net {soc/_N90461} -load {soc/N26_29_5/gateop:I4;}
+def_route -prior_net {soc/da [30]} -load {soc/N127_mux15_19/gateop:I3;}
+def_route -prior_net {_N2} -load {soc/N492/LUT6_inst_1:I5;}
+def_route -prior_net {_N2} -load {soc/N497/LUT6_inst:I5;}
+def_route -prior_net {_N2} -load {soc/N1297/gateop:I4;}
+def_route -prior_net {soc/cpu/_N39522} -load {soc/cpu/N502_15[5]_1/LUT6_inst:I4;}
+def_route -prior_net {soc/_N40642} -load {soc/cpu/N853_10[5]/LUT6_inst:I5;}
+def_route -prior_net {soc/cpu/a [5]} -load {soc/ddr_d_addr[5]/opit_0_AQ:I2;}
+def_route -prior_net {soc/cpu/_N14799} -load {soc/ddr_d_addr[8]/opit_0_AQ:CIN;}
+def_route -prior_net {soc/cpu/_N14803} -load {soc/ddr_d_addr[12]/opit_0_AQ:CIN;}
+def_route -prior_net {soc/cpu/_N14807} -load {soc/ddr_d_addr[16]/opit_0_AQ:CIN;}
+def_route -prior_net {soc/cpu/_N14811} -load {soc/ddr_d_addr[20]/opit_0_AQ:CIN;}
+def_route -prior_net {soc/cpu/_N14815} -load {soc/ddr_d_addr[24]/opit_0_AQ:CIN;}
+def_route -prior_net {soc/cpu/_N14819} -load {soc/ddr_d_addr[28]/opit_0_AQ:CIN;}
+def_route -prior_net {soc/N1297} -load {soc/ram_1_2/gopdrm_36k:WEA[0];}
+def_route -prior_net {soc/N497} -load {soc/ram_2_0/gopdrm_36k:WEA[0];}
+def_route -prior_net {_N12} -load {soc/ram_10_0/gopdrm_36k:WEA[0];}

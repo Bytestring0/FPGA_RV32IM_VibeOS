@@ -1,0 +1,11 @@
+{
+  "board-source.sv": "0e33cdbe491190b02c042228d5a7e66bff668740d2a9c556c43a88f602d33861",
+  "cache-firmware.hex": "43e23a87ab3c36d356967d71919cca684afaec943b13b436586655ad1a344e09",
+  "cache.log": "3421ced67ab3f072c5d5e0a0314a6e8cfe99ff192537ff8be404e03d23e288a9",
+  "coremark-firmware.hex": "c232f35315ac7b8ea76cd25f8917145707f69b90ce4d2bdc19e1deef8a32253e",
+  "coremark.log": "4683c62326d5f588b93bc74ad0a411ca564063f0d06e9c8dc23aa157fbc59e82",
+  "differential-summary.txt": "e7fb7aa20ef3c0d86deb74314581ef7f0872cd4907b6745c74e70202cd4c78a9",
+  "differential.log": "e0c73113a0306fbceb89430ce32e0f92b29f62f561e4d04a66e2de6c1a7b7603",
+  "rv32_alu.sv": "bbbe7a9d66d9ad67ac5cb3f218cae11ef2c261e12f01997484b07edf1aeea82a",
+  "rv32_core.sv": "d0680a52c7488087ea29d46ec3726ba928e7df610b3eb96ca131968bb94b2988"
+}

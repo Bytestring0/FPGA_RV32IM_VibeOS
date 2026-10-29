@@ -6,6 +6,8 @@
 
 2026-10-28：**CPU 102 MHz + 板载 DDR3 1000 MT/s 已通过功能板测**，含校准、读写及 DDR 代码执行，UART 与 JTAG 校验通过。该镜像 CPU setup −1.022 ns，属于未闭合的实验配置；整机 12557 LUT、9232 FF，与上面的 TCM CoreMark 配置分开统计。见[实验板测记录](docs/results/board-ddr-102mhz-experimental/README.md)。
 
+2026-10-29 最新离线结果：**完整 CPU + 两路 I/D Cache（各 16 KiB）+ 板载 DDR3 已在 102 MHz / DDR UI 125 MHz 下闭合时序**，最终报告 All Constraints Met；CPU setup +0.056 ns、slow/fast hold +0.136/+0.099 ns，整机 14618 LUT。短仿真 CoreMark 等效 5.041916/MHz。此版尚未重新板测，不继承上述历史成绩。见[闭合证据与复现](docs/results/offline-ddr-cache-102mhz/README.md)、[RV 接口](docs/RV侧接口文档.md)、[赛题完成情况与指标](docs/赛题一RV侧完成情况与指标.md)。
+
 ## 文档
 
 - [板载 DDR3 接入与验证](docs/板载DDR3接入与验证.md)：IP 配置修正、时钟/引脚、CPU 接口、自检和独立 PDS 工程。

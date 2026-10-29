@@ -6,7 +6,7 @@
 
 RV32、小端、ILP32 ABI，复位 PC 为 0；IF1/IF2/ID/EX/MEM/WB 六级，顺序双发射、顺序提交。支持 RV32I/M/Zicsr/Zifencei/Zba/Zbb，不支持 C/A、MMU、S/U 特权级或 Linux。推荐裸机编译参数 `-march=rv32im_zicsr_zifencei -mabi=ilp32`；使用扩展时追加 `_zba_zbb`。工具名可为提供 RV32 multilib 的 riscv64-unknown-elf-gcc，不代表生成 RV64 程序。
 
-`clk` 为 CPU 时钟，`rst` 高有效同步复位。通用核默认 MULH_PIPELINE=0；DDR 板级候选使用 1。MULH/MULHSU/MULHU 结果在 WB 可供消费者使用。MIN/MAX/MINU/MAXU 在已有 MEM 级计算，相邻消费者等待 WB。硬件没有内存保护，后续脚本运行时必须进行软件地址和指令限制。
+`clk` 为 CPU 时钟，`rst` 高有效同步复位。通用核默认 MULH_PIPELINE=0；DDR 板级候选使用 1。MULH/MULHSU/MULHU 结果在 WB 可供消费者使用。MIN/MAX/MINU/MAXU、ROL/ROR/RORI、CLZ/CTZ/CPOP 在已有 MEM 级计算，相邻消费者等待 WB；普通移位和整数运算仍在 EX 级。硬件没有内存保护，后续脚本运行时必须进行软件地址和指令限制。
 
 ## 2. CPU 请求/响应接口
 
@@ -69,4 +69,4 @@ DMA 读 CPU 数据前：软件停止修改缓冲区、执行 fence、请求全 C
 
 ## 7. 复现入口
 
-`make check` 为 CPU 回归，`make cache-test` 为 Cache/DDR SoC 检查。`scripts/prepare_ddr_board.ps1` 生成包含全部源文件的 PDS 工程；只有最终时序通过才允许正常生成位流。`-CpuLogicRegion xmin,xmax,ymin,ymax` 使用 floorplan 坐标，`-PlacementSeed` 指定布局种子。实际通过的版本必须同时保存源码、固件、约束、报告和哈希，不能用另一个 profile 的报告证明当前 RTL。
+`make check` 为 CPU 回归，`make cache-test` 为 Cache/DDR SoC 检查。`scripts/prepare_ddr_board.ps1` 生成包含全部源文件的 PDS 工程；只有最终时序通过才允许正常生成位流。`-CpuLogicRegion xmin,xmax,ymin,ymax` 使用 floorplan 坐标，`-PlacementSeed` 指定布局种子，`-OptimizeMultiCorner` 显式启用多工艺角时序优化。实际通过的版本必须同时保存源码、固件、约束、报告和哈希，不能用另一个 profile 的报告证明当前 RTL。

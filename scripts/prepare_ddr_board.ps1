@@ -8,6 +8,7 @@ param(
     [ValidateRange(0,500)][int]$CongestionIterations = 0,
     [switch]$DumpCongestion,
     [switch]$DisableControlChain,
+    [switch]$OptimizeMultiCorner,
     [ValidateRange(0,1024)][int[]]$CpuLogicRegion = @(),
     [ValidateRange(0,65535)][int]$PlacementSeed = 0,
     [ValidateRange(0,200)][int]$HoldMarginPs = 50,
@@ -78,6 +79,7 @@ if ($RoutingTimeoutMinutes -gt 0) { $routeCommand += " -action_timeout $RoutingT
 if ($CongestionIterations -gt 0) { $routeCommand += " -congest_overlap_limit $CongestionIterations" }
 if ($DumpCongestion) { $routeCommand += ' -dump_router_congestion_plot TRUE' }
 if ($DisableControlChain) { $routeCommand += ' -share_router_control_signal FALSE' }
+if ($OptimizeMultiCorner) { $routeCommand += ' -optimize_multi_corner_timing' }
 if ($RoutingPasses -gt 1) {
     $routeCommand += " -enable_route_constraint_iterate -route_constraint_iterate_times $RoutingPasses -route_constraint_slack 0.1"
 }
@@ -91,6 +93,7 @@ $manifest = [ordered]@{
     hold_optimization_margin_ps=$HoldMarginPs; routing_passes=$RoutingPasses; word_load_bypass_only=[bool]$WordLoadBypassOnly; cache_enabled=(!$NoCache); cache_bytes_each=(64*(1 -shl $CacheSetBits))
     routing_timeout_minutes=$RoutingTimeoutMinutes; congestion_iterations=$CongestionIterations; dump_congestion=[bool]$DumpCongestion
     shared_control_chain=(!$DisableControlChain)
+    optimize_multi_corner_timing=[bool]$OptimizeMultiCorner
     cpu_logic_region=@($CpuLogicRegion)
     placement_seed=$PlacementSeed
     source_sha256=(Get-FileHash (Join-Path $out 'qinglong_board.sv')).Hash

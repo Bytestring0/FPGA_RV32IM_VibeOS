@@ -134,10 +134,14 @@ module rv32_core #(
     logic [4:0] m_rd;
     logic [2:0] m_funct3;
     logic m_write_rd, m_load, m_store_en, m_csr_write, m_mret, m_serial;
-    logic m_mul,m_minmax;
-    wire x_minmax=x_dec.alu==ALU_MIN || x_dec.alu==ALU_MAX || x_dec.alu==ALU_MINU || x_dec.alu==ALU_MAXU;
-    wire minmax_less=m_funct3[0]?(m_result<m_store):($signed(m_result)<$signed(m_store));
-    wire [31:0] minmax_result=(minmax_less ^ m_funct3[1])?m_result:m_store;
+    logic m_mul,m_late_alu;
+    logic [4:0] m_alu_op;
+    wire x_late_alu = x_dec.alu==ALU_MIN || x_dec.alu==ALU_MAX ||
+        x_dec.alu==ALU_MINU || x_dec.alu==ALU_MAXU ||
+        x_dec.alu==ALU_ROL || x_dec.alu==ALU_ROR ||
+        x_dec.alu==ALU_CLZ || x_dec.alu==ALU_CTZ || x_dec.alu==ALU_CPOP;
+    wire [31:0] late_alu_result;
+    rv32_late_alu mem_alu (.op(m_alu_op), .a(m_result), .b(m_store), .result(late_alu_result));
     logic signed [32:0] m_mul_a, m_mul_b;
     // Four independent <=17x17 products avoid a four-APM cascade. MUL uses
     // the low product immediately; MULH variants register partial products
@@ -257,7 +261,7 @@ module rv32_core #(
 
     rv32_decode decoder (.insn(id_insn), .decoded(id_dec));
     rv32_decode decoder_second (.insn(id_second_insn), .decoded(id_dec_second));
-    rv32_alu #(.MINMAX_ENABLE(0)) alu_full (.op(x_dec.alu), .a(alu_a), .b(alu_b), .result(alu_result));
+    rv32_alu #(.MINMAX_ENABLE(0), .LATE_OPS_ENABLE(0)) alu_full (.op(x_dec.alu), .a(alu_a), .b(alu_b), .result(alu_result));
     rv32_alu #(.EXTENSIONS(0)) alu_aux (
         .op(x_dec_second.alu), .a(alu_a_second), .b(alu_b_second), .result(alu_result_second));
     rv32_predictor #(.INDEX_BITS(BTB_BITS)) predictor (
@@ -304,7 +308,7 @@ module rv32_core #(
             if (forward_w1[0]) a = w_second_result;
             if (forward_w1[1]) b = w_second_result;
         end
-        if (m_valid && m_write_rd && !m_mul && !m_minmax && (!m_load || load_bypass_ok)) begin
+        if (m_valid && m_write_rd && !m_mul && !m_late_alu && (!m_load || load_bypass_ok)) begin
             if (forward_m0[0]) a = m_load ? (LOAD_WORD_ONLY ? d_rsp_data : mem_result) : m_result;
             if (forward_m0[1]) b = m_load ? (LOAD_WORD_ONLY ? d_rsp_data : mem_result) : m_result;
         end
@@ -315,7 +319,7 @@ module rv32_core #(
         if (x_dec.rs1 == 0) a = 0;
         if (x_dec.rs2 == 0) b = 0;
         hazard = m_valid && m_write_rd && m_rd != 0 &&
-                 ((m_load && !(load_bypass_ok && m_finish && !mem_trap)) || m_mul || m_minmax) &&
+                 ((m_load && !(load_bypass_ok && m_finish && !mem_trap)) || m_mul || m_late_alu) &&
                  ((x_dec.use_rs1 && forward_m0[0]) ||
                   (x_dec.use_rs2 && forward_m0[1]) ||
                   (x_second_valid && x_dec_second.use_rs1 && forward_m0[2]) ||
@@ -411,7 +415,7 @@ module rv32_core #(
             if (forward_w1[2]) a_second = w_second_result;
             if (forward_w1[3]) b_second = w_second_result;
         end
-        if (m_valid && m_write_rd && !m_mul && !m_minmax && (!m_load || load_bypass_ok)) begin
+        if (m_valid && m_write_rd && !m_mul && !m_late_alu && (!m_load || load_bypass_ok)) begin
             if (forward_m0[2]) a_second = m_load ? (LOAD_WORD_ONLY ? d_rsp_data : mem_result) : m_result;
             if (forward_m0[3]) b_second = m_load ? (LOAD_WORD_ONLY ? d_rsp_data : mem_result) : m_result;
         end
@@ -434,7 +438,7 @@ module rv32_core #(
         m_ready = !m_valid || m_finish;
         load_shifted = d_rsp_data >> {m_addr[1:0], 3'b0};
         mem_result = m_result;
-        if(m_minmax) mem_result=minmax_result;
+        if(m_late_alu) mem_result=late_alu_result;
         if (m_mul) mem_result = (m_funct3 == 0) ? product_low :
                                (MULH_PIPELINE ? mul_high_result : product_high);
         if (m_load) begin
@@ -537,7 +541,7 @@ module rv32_core #(
             m_pc <= 0; m_insn <= 0; m_addr <= 0; m_result <= 0; m_store <= 0;
             m_cause <= 0; m_tval <= 0; m_csr_data <= 0; m_csr_addr <= 0;
             m_rd <= 0; m_funct3 <= 0; m_write_rd <= 0; m_load <= 0; m_store_en <= 0;
-            m_csr_write <= 0; m_mret <= 0; m_serial <= 0; m_mul <= 0;m_minmax<=0;
+            m_csr_write <= 0; m_mret <= 0; m_serial <= 0; m_mul <= 0; m_late_alu <= 0; m_alu_op <= 0;
             m_mul_a <= 0; m_mul_b <= 0;
             mul_high_ready <= 0; partial_ll_high <= 0;
             mul_partial_ready <= 0; mul_high_result <= 0;
@@ -689,8 +693,11 @@ module rv32_core #(
                     m_pc <= x_pc; m_insn <= x_insn; m_rd <= x_dec.rd;
                     // MIN/MAX reuse the existing operand payload registers.
                     // Dependent EX waits for WB rather than chaining two ALUs.
-                    m_addr <= memory_address; m_result <= x_minmax?a:x_result; m_store <= b;
-                    m_minmax<=x_minmax;
+                    m_addr <= memory_address;
+                    m_result <= x_late_alu ? alu_a : x_result;
+                    m_store <= x_late_alu ? alu_b : b;
+                    m_alu_op <= x_dec.alu;
+                    m_late_alu<=x_late_alu;
                     m_funct3 <= x_dec.funct3;
                     m_write_rd <= x_dec.reg_write; m_load <= x_dec.load;
                     m_store_en <= x_dec.store; m_exception <= x_exception;

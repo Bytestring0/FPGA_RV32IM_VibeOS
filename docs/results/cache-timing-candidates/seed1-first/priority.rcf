@@ -1,0 +1,31 @@
+#last_iteration_critical_path_worst_slack: -0.461 ns.
+def_route -prior_net {I_ips_ddr_top/u_ddrphy_top/ddrphy_slice_top/i_dqs_group[3].ddrphy_data_slice/I_ips_ddr_top/debug_data [274]} -load {I_ips_ddr_top/u_ddrphy_top/ddrphy_slice_top/i_dqs_group[3].ddrphy_data_slice/ddrphy_wdata_path_adj/adj_wrdata_mask_3[69]/LUT6_inst:I0;}
+def_route -prior_net {I_ips_ddr_top/u_ddrphy_top/ddrphy_slice_top/i_dqs_group[3].ddrphy_data_slice/adj_wrdq [56]} -load {I_ips_ddr_top/u_ddrphy_top/ddrphy_slice_top/i_dqs_group[3].ddrphy_data_slice/dq_loop[7].u_iobuf_dq/opit_1:TX_DATA[0];}
+def_route -prior_net {soc/ram_d_data [7]} -load {soc/N26_7_4/gateop:I4;}
+def_route -prior_net {soc/cpu/_N26581} -load {soc/cpu/N469[15]_2/gateop:I2;}
+def_route -prior_net {soc/cpu/N13439} -load {soc/cpu/N486_11[14]/LUT6D_inst:I0;}
+def_route -prior_net {soc/cpu/_N30478} -load {soc/cpu/N486_15[10]_1/LUT6_inst:I2;}
+def_route -prior_net {soc/cpu/a [10]} -load {soc/cpu/N523[10]/gateop:I1;}
+def_route -prior_net {soc/cpu/_N30480} -load {soc/cpu/N523[12]_2_muxf7:B0;}
+def_route -prior_net {soc/cpu/a [15]} -load {soc/cpu/N523[15]/LUT6D_inst:I1;}
+def_route -prior_net {soc/cpu/_N16395} -load {soc/cpu/N628_35[13]/LUT6_inst:I0;}
+def_route -prior_net {soc/cpu/_N16689} -load {soc/cpu/N628_41[19]/LUT6_inst:I3;}
+def_route -prior_net {soc/cpu/alu_full/pop32 [2]} -load {soc/cpu/N628_46[2]_muxf7:B3;}
+def_route -prior_net {soc/cpu/_N25928} -load {soc/cpu/N628_60[2]/LUT6_inst:I0;}
+def_route -prior_net {soc/cpu/_N25587} -load {soc/cpu/N628_60[13]_muxf8:D2;}
+def_route -prior_net {soc/cpu/_N25785} -load {soc/cpu/N628_60[19]_muxf8:C2;}
+def_route -prior_net {soc/drdata [7]} -load {soc/cpu/N809_4_100[7]/gateop:I0;}
+def_route -prior_net {soc/cpu/N809 [7]} -load {soc/cpu/N837_9[2]/LUT6_inst:I1;}
+def_route -prior_net {soc/cpu/N809 [7]} -load {soc/cpu/N837_9[4]/LUT6_inst:I1;}
+def_route -prior_net {soc/cpu/_N92893} -load {soc/cpu/N837_9[7]_1/gateop:I2;}
+def_route -prior_net {soc/cpu/_N26387} -load {soc/cpu/N3973_9[13]/gateop:I3;}
+def_route -prior_net {soc/cpu/forward_w0 [0]} -load {soc/cpu/N13439/LUT6D_inst:I3;}
+def_route -prior_net {soc/cpu/alu_a [15]} -load {soc/cpu/alu_full/N12_1_13/LUT6_inst_LUT6DL5:I2;}
+def_route -prior_net {soc/cpu/alu_full/_N16331} -load {soc/cpu/alu_full/N12_2_13/gateop:I0;}
+def_route -prior_net {soc/cpu/alu_a [12]} -load {soc/cpu/alu_full/N16_0_45/LUT6D_inst:I0;}
+def_route -prior_net {soc/cpu/alu_full/_N16555} -load {soc/cpu/alu_full/N16_2_51/LUT6_inst:I0;}
+def_route -prior_net {soc/cpu/alu_a [10]} -load {soc/cpu/alu_full/pop8_sum2[1]_7_muxf7:B1;}
+def_route -prior_net {soc/cpu/alu_full/pop8[1] [2]} -load {soc/cpu/alu_full/pop16_sum2[0]_3/gateop:I3;}
+def_route -prior_net {soc/cpu/alu_full/pop16[0] [2]} -load {soc/cpu/alu_full/pop32_3/gateop:I2;}
+def_route -prior_net {soc/cpu/_N26376} -load {soc/cpu/m_result[2]/opit_0_L6Q:I1;}
+def_route -prior_net {soc/cpu/_N26393} -load {soc/cpu/m_result[19]/opit_0_L7Q:A3;}

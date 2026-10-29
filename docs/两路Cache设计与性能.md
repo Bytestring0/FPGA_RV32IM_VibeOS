@@ -2,7 +2,9 @@
 
 2026-10-28～29。赛题一 PDF 物理页 10 的高阶任务要求两路组相联 I/D Cache。本工程此前只有 TCM 和无缓存 DDR；本次实现独立的两路 I Cache 与 D Cache，并保留无缓存开关。
 
-当前已有 Cache 实验镜像通过 102 MHz 配置下的完整板测和 JTAG 校验，资源为 14,603 LUT，CPU setup 尚余 −0.306 ns，**仍在闭合时序**；原始证据见 [实验板测归档](results/board-cache-102mhz-experimental/README.md)。当前优化源码的映射为 14,387 LUT，功能和周期检查通过，最终时序另行核对，不能继承实验镜像的板测状态。
+最新完整 SoC 已离线闭合：CPU 102 MHz setup +0.056 ns、slow/fast hold +0.136/+0.099 ns，DDR UI 125 MHz setup +2.216 ns，14618 LUT。见 [最终闭合证据](results/offline-ddr-cache-102mhz/README.md)。本版尚未重新板测。
+
+此前 Cache 实验镜像已通过 102 MHz 配置下的板测和 JTAG 校验，但仍有 setup −0.306 ns，资源 14603 LUT；见 [历史实验板测](results/board-cache-102mhz-experimental/README.md)。新旧版本的板测、时序与资源不能混用。
 
 ## 配置与结构
 
@@ -95,7 +97,7 @@ CPU 关键路径优化后，219 组随机背压差分检查通过；短程 CoreM
 
 ## 102 MHz 时序闭合进度（2026-10-29）
 
-所有候选均保持 CPU 102 MHz、DDR UI 125 MHz、两路 I/D Cache 每侧 16 KiB。没有为消除违例增加功能路径 false path、multicycle 或放宽时钟。CPU setup 当前最佳 −0.306 ns，慢角/快角 hold 分别 +0.081/+0.052 ns；DDR UI setup +1.357 ns，其他时钟、跨域受约束路径、恢复/移除及脉宽检查通过。上述结果来自 `build/ddr-soc102-cache16-refine/place_route/route_constraint_ite_2`，不是最新 RTL 的闭合证明。
+所有候选均保持 CPU 102 MHz、DDR UI 125 MHz、两路 I/D Cache 每侧 16 KiB。没有为消除违例增加功能路径 false path、multicycle 或放宽时钟。该阶段 CPU setup 最佳 −0.306 ns，慢角/快角 hold 分别 +0.081/+0.052 ns；DDR UI setup +1.357 ns，其他时钟、跨域受约束路径、恢复/移除及脉宽检查通过。上述结果来自 `build/ddr-soc102-cache16-refine/place_route/route_constraint_ite_2`，不是最新 RTL 的闭合证明。
 
 继续累积关键网络布线优先级的候选 `cache16-priority` 为 −0.493 ns、20 个违例端点，不能代替最佳结果。其最差路径约 70% 延迟来自布线。当前正比较 CPU 局部布局与路由收敛策略；局部布局使用 PDS 的 floorplan 坐标，限定 CLMA/CLMS，保留 DSP 和 DRM 的自动布局。已检查器件映射输出，`def_region` 和 CPU 叶节点的 `def_inst_region` 确实生成，不能仅凭 FDC 被读取就认定约束生效。
 
@@ -120,3 +122,9 @@ wsl -d Ubuntu-24.04 -- bash -lc 'cd /mnt/d/FPGA/RiscV && make cache-test'
 ```
 
 缓存自检固件先打印 DDR PASS，再执行代码热身、自修改和维护检查，因此必须等待最终的 CACHE PASS 后再做 JTAG 校验。默认构建脚本会阻止未通过时序的镜像作为正常配置下载。
+
+## 2026-10-29 当前闭合结果
+
+上面的负裕量记录均为历史候选。将旋转、CLZ/CTZ/CPOP 移到已有 MEM 级，保持完整 Load 旁路；种子 2 + 多工艺角优化 + 优先布线第 2 轮获得 `All Constraints Met`：CPU 102 MHz setup +0.056 ns，slow/fast hold +0.136/+0.099 ns；DDR UI 125 MHz setup +2.216 ns，其他受约束路径检查通过。资源 14618 LUT、10521 FF、66.5 DRM36K 等效、4 DSP、3 GPLL、2 PPLL。
+
+短 CoreMark 保持 1983373 周期、等效 5.041916/MHz；完整 Cache SoC 自检保持 96006 周期、1232 次外部事务、热代码 4336 周期。本轮未连接 FPGA，不能把离线时序与仿真作为本版板测成绩。最终证据见 `results/offline-ddr-cache-102mhz` 与 `results/rv-late-alu-simulation`。
