@@ -1,0 +1,35 @@
+{
+  "scope": "actual tensor RTL, DDR simulation; no FPGA timing/board/model-quality proof",
+  "passed": true,
+  "fixture_counts": {
+    "fixtures.json": 342,
+    "fixtures_extended.json": 28,
+    "fixtures_raw_w4.json": 42
+  },
+  "sources": {
+    "rtl/npu_tensor_v2.sv": "9ed69c36277f81102ab77840bc7fd93258fecc2f0b5f522c87e3d40d345408d5",
+    "sim/test_tensor_v2.cpp": "514f2d25eb5565411d9409cd8e13edf8ccabf2496d6a0e675ef7c6262f9c92cf",
+    "sw/npu_tensor_reference.c": "a1004951227b9f6aadaa1f3b345929ae565ad956cc2216c3297761b6d4f4c1dc",
+    "sw/npu_fixed_math.c": "4e5c015c513121a30c7ee1555cfedafc06803c07d5cb6bf0470317da16f59037",
+    "sw/npu_tensor_v2.h": "016f9c9dee0fff9709589d7f15e56ff32c2504c937c3a9d769d2917607a4beaf",
+    "sw/npu_fixed_lut_generated.h": "5fa41491aefbb2a17d414718e32bc8d903e2e5c40458e6eafb6952c6abe9456f",
+    "sw/npu_fixed_lut_q16_generated.h": "e0fac387fdee6dd750b7bba1d3a6c11c0d52f3fc382d1780c2fc2d07aa16365b",
+    "tools/run_tensor_v2_rtl.py": "b34f808dc0322276ad9613ee99bdfac5e5512126d0b670a81188ba340a550bdc"
+  },
+  "npu_tensor_reference.log": {
+    "returncode": 0,
+    "seconds": 0.249
+  },
+  "npu_fixed_math.log": {
+    "returncode": 0,
+    "seconds": 0.152
+  },
+  "build.log": {
+    "returncode": 0,
+    "seconds": 41.901
+  },
+  "simulation.log": {
+    "returncode": 0,
+    "seconds": 8.859
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "scope": "external immutable assets; not committed",
+  "files": {
+    "HEADW4.BIN": {
+      "bytes": 387717632,
+      "sha256": "8098c9e888efdca25cf09588037e862730c0cc9e64aceef82d23a7c3f9453532",
+      "sd_short_name": "HEADW4  BIN",
+      "local_source": "AI加速器/npu/system/build/npu_optimization_20261102/head_candidate/HEADW4.BIN"
+    },
+    "CPU_RAW.BIN": {
+      "bytes": 509561536,
+      "sha256": "168f02aee67afee5b56edb8683c98f5fa97dae5c48dad720984a4c1ff2e5262d",
+      "sd_short_name": "CPU_RAW BIN",
+      "local_source": "AI加速器/npu/system/build/operator_candidate/CPU_RAW.BIN"
+    },
+    "TENSOR_HEAD.JSON": {
+      "bytes": 740171,
+      "sha256": "37d8371580043b99166df40358ec1de778d9a6dc8953598e9cebf55a5035ab30",
+      "sd_short_name": "HDTENSORJSN",
+      "local_source": "AI加速器/npu/system/build/npu_optimization_20261102/head_candidate/TENSOR_HEAD.JSON"
+    },
+    "TOKEN.BIN": {
+      "bytes": 13291892,
+      "sha256": "66df043b96ef2ccaa8d6e24148b0dc03eb022e8f461a88fdc527c178cbe4aa45",
+      "sd_short_name": "TOKEN   BIN",
+      "local_source": "AI加速器/npu/system/integration/agent_runtime_20261101/assets/TOKEN.BIN"
+    }
+  }
+}

@@ -1,4 +1,6 @@
 # ============================================================
+# NPU implementation runs are generated locally, never part of a source handoff.
+/npu_system_pds/
 # AG RISC-V CPU —— 版本控制忽略规则
 # 原则：源码、约束、文档、验收证据入库；可再生成的中间产物、
 #       工具日志、二进制镜像、大体积第三方克隆不入库。

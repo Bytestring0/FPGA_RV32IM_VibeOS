@@ -2,6 +2,9 @@
 
 适用源码：`rtl/rv32_core.sv`、`ag_soc.sv`、`ag_extmem.sv`、`ag_l1cache.sv`、`ag_hmic_bridge.sv`。2026-10-29。本文区分已经连通的硬件接口与后续 AI 接口规划。
 
+> 2026-10-30 增量：`ag_soc` 已新增默认关闭的 `EXT_MMIO_ENABLE` 与独立 `ext_req/ext_rsp` 外设队列，供新 [AG/NPU/DDR/SD 整机](../AI加速器/npu/system/README.md) 使用。新整机的DMA NPU为`0x10004000`、SD为`0x10005000`；CPU-only与历史位流不因此自动获得这些地址。真实模型、实板/ILA及整机时序状态见[新整机验收](../NPU_HANDOFF.md)，下面第6节保留的是此前CPU交付边界。
+
+
 ## 1. CPU 与软件约定
 
 RV32、小端、ILP32 ABI，复位 PC 为 0；IF1/IF2/ID/EX/MEM/WB 六级，顺序双发射、顺序提交。支持 RV32I/M/Zicsr/Zifencei/Zba/Zbb，不支持 C/A、MMU、S/U 特权级或 Linux。推荐裸机编译参数 `-march=rv32im_zicsr_zifencei -mabi=ilp32`；使用扩展时追加 `_zba_zbb`。工具名可为提供 RV32 multilib 的 riscv64-unknown-elf-gcc，不代表生成 RV64 程序。

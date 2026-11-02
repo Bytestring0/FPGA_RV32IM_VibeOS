@@ -1,0 +1,391 @@
+{
+  "format": "cpu-npu-optimization-status-20261102",
+  "engineering_validation_passed": false,
+  "deployment_ready": false,
+  "quality_approved": false,
+  "board_verified": false,
+  "validation": {
+    "tensor_rtl": true,
+    "cpu_final": true,
+    "cpu_single_dual": true,
+    "driver_async": true,
+    "agent_contract": true,
+    "agent_sanitizer": true,
+    "agent_rv32_compile": true,
+    "cache_range": true,
+    "sd_primary": true,
+    "head_quant_reuse": true,
+    "sd_final_fat_stats": true,
+    "model_firmware": true,
+    "agent_firmware": true,
+    "agent_artifacts": true,
+    "fsm_equivalent": true,
+    "stream_contract": true,
+    "same_source": true,
+    "pds_flow_completed": true,
+    "internal_timing_closed": false,
+    "cdc_audit": true
+  },
+  "identities": {
+    "current_tensor_rtl": [],
+    "cpu_final_compiled_rtl": [],
+    "pds_current_rtl": [],
+    "model_firmware_current_sources": [],
+    "agent_firmware_current_sources": [],
+    "pds_agent_firmware_match": true,
+    "agent_contract_current_sources": [],
+    "agent_sanitizer_current_sources": [],
+    "agent_rv32_compile_current_sources": []
+  },
+  "evidence": {
+    "tensor_rtl": {
+      "path": "AI加速器/npu/system/build/continuation_20261102_pack_diag_final/report.json",
+      "sha256": "c54e84627896da8a1e961dc4920f78367f909f8e5b57ecfb907978c78131f99c"
+    },
+    "cpu_final": {
+      "path": "AI加速器/npu/system/build/tensor_system_v2_packdiag_final_20261102/verified_report.json",
+      "sha256": "f34dba1fc72c8930b48dadf2a7f2e4f83a577a2961bb6659e6cc20e340d4fb94"
+    },
+    "cpu_single_dual": {
+      "path": "AI加速器/npu/system/build/tensor_system_v2_queue4_final_20261102/report.json",
+      "sha256": "186828ae29d88e4fbb5ecbe8eafc9b1a4ef69bced00d32b31a2ad6ae35a1df6b"
+    },
+    "driver_async": {
+      "path": "AI加速器/npu/system/build/tensor_async_driver_20261102/validation/report.json",
+      "sha256": "2c6ccfd93a410f7a0a71f2084b68ff7d9d9352a7d1bc2033b6e928641f1fa175"
+    },
+    "model_fsm": {
+      "path": "AI加速器/npu/system/build/continuation_20261102_fsm_contract/report.json",
+      "sha256": "8873125485dcb9e297fc568af6e74bf75c78e92f387a7a3be72a6e721c512010"
+    },
+    "head_quant_reuse": {
+      "path": "AI加速器/npu/system/build/continuation_20261102_head_quant/report.json",
+      "sha256": "88ea77782ebd8607ae68114946f7a1e375b195e07e0f3faad79e6268afea5b9b"
+    },
+    "model_execution": {
+      "path": "AI加速器/npu/system/build/continuation_20261102_head_quant/model/report.json",
+      "sha256": "85d6b55fc6de93d259002b1de365999d7256cf114f846e6729c2e65b3c7ca8c0"
+    },
+    "agent_contract": {
+      "path": "AI加速器/npu/system/build/agent_cooperative_20261102/validation_host.json",
+      "sha256": "b833202d5a1773ed8a4055e434eea4b858a0c7522415cf3f5ef03dcb1d25445b"
+    },
+    "agent_sanitizer": {
+      "path": "AI加速器/npu/system/build/agent_cooperative_20261102/validation_sanitizer.json",
+      "sha256": "eee39d2a401ef148b0b95b2f6ea7debab4c1b311bbc15c04d52c67f206a53a8a"
+    },
+    "agent_rv32_compile": {
+      "path": "AI加速器/npu/system/build/agent_cooperative_20261102/validation_rv32.json",
+      "sha256": "2f17055da9a42c720121c4747d3452d48c1b828d897413f3e32e1f973fbcddb1"
+    },
+    "cache_range": {
+      "path": "AI加速器/npu/system/build/continuation_20261102_cache_range/repair_report.json",
+      "sha256": "271abc614cdd79815d98c4fdf8700d7eba8bb3b9f1634a5cd3feaea59339b477"
+    },
+    "sd_primary": {
+      "path": "AI加速器/npu/system/build/sd_cold_20261102/repair_report.json",
+      "sha256": "9711b2613bad1fbc5c3f1cecf7ecdbafe60c5defcfbfb8a84c5c4aa8e2a07853"
+    },
+    "sd_final_fat_stats": {
+      "path": "AI加速器/npu/system/build/sd_cold_20261102/stats_fat/report.json",
+      "sha256": "353e9c17912669cc8ed991387b7488156b91643080c1cc27b60c690fd83c22a8"
+    },
+    "stream_loader": {
+      "path": "AI加速器/npu/system/build/continuation_20261102_stream_sha/final_report.json",
+      "sha256": "c81cab3700412b83f09ce9429d31e025eb8439ce69520820ffa105e549800ded"
+    },
+    "model_firmware": {
+      "path": "AI加速器/npu/system/build/continuation_20261102_model_headreuse/report.json",
+      "sha256": "5e6624869a94033c349b20d8018cd51ae1626615627aaadc5773d1daa417dc73"
+    },
+    "agent_firmware": {
+      "path": "AI加速器/npu/system/build/tensor_agent_cooperative_headreuse_20261102/report.json",
+      "sha256": "8d2d5353206ed8df9d064d472b14679851c5ec2b869d9687f61f96e6b8067f9e"
+    },
+    "agent_artifacts": {
+      "path": "AI加速器/npu/system/build/tensor_agent_cooperative_headreuse_20261102/artifact_review.json",
+      "sha256": "49405dfe336063889a2c2583db960548f9ee8e6c96e552bcdee0b4f8c4e637f7"
+    },
+    "pds": {
+      "path": "npu_system_pds/tensor_v2_agent_packdiag_synth81/report.json",
+      "sha256": "16a46d32e9426e642dc649b3d34d0079f35213830fe367f2a9cbbf19a9f86ec2"
+    },
+    "prior_pnr": {
+      "path": "npu_system_pds/tensor_v2_agent_queue4_seed4_81/report.json",
+      "sha256": "8b5d8b058e4f7e789080fad70c5f138a272af2465fd55bed36880d62e986a340"
+    }
+  },
+  "historical_failure_preserved": {
+    "integer_agent_quality": {
+      "path": "AI加速器/npu/system/build/tensor_v2/agent_quality_run1/report.json",
+      "reason": "duplicate XML closing tag rejected by strict normalizer; no tool executed"
+    },
+    "stream_host_build": {
+      "passed": false,
+      "reason": "concurrent intermediate model edit; later complete firmware/host links independently passed"
+    }
+  },
+  "limits": [
+    "Official full-model calibration and heldout quality unapproved",
+    "No board throughput/cold-load/UI100ms claim",
+    "Cooperative model layers remain coarse units",
+    "Weight prefetch/double-buffer and multi-token weight reuse not implemented",
+    "SD is SPI/PIO with hardware CRC, not SD DMA/native4bit",
+    "Whole-callchain worst-case stack and real highwater unproven",
+    "Full-context prefix API exists but is not enabled in this Agent layout: needs70541504B, total free68725188B and largest gap50602016B",
+    "APPRES.BIN must be staged for Agent DDR-resource firmware; no card writes performed"
+  ],
+  "metrics": {
+    "model_logit_rel_l2": 0.197283585,
+    "model_argmax_reference": 220,
+    "model_argmax_candidate": 13,
+    "agent_static_tcm_bytes": 120032,
+    "cpu_profiles": {
+      "single": {
+        "result": {
+          "done": true,
+          "exit_code": 0,
+          "cycles": 2628102,
+          "retired": 1174209,
+          "dual_retired": 0,
+          "trap": false,
+          "last_pc": 68,
+          "peripheral_requests": 3571,
+          "legacy_completions": 0,
+          "dma_completions": 3,
+          "ddr_reads": 2723,
+          "ddr_writes": 1139,
+          "ddr_backpressure": 1856,
+          "sd_clock_edges": 0
+        },
+        "bus": {
+          "tensor_completions": 26,
+          "overlap_cycles": 3185,
+          "tensor_requests": 1012,
+          "matrix_requests": 670,
+          "cpu_requests": 2180,
+          "ddr_outstanding": 4,
+          "peak_pending": 2
+        },
+        "summary": {
+          "jobs": 26,
+          "checked_words": 13840,
+          "opcodes": 20,
+          "matrix_jobs": 3,
+          "reference_on_target": false
+        },
+        "cases": [
+          {
+            "index": 0,
+            "opcode": 1,
+            "name": "op1",
+            "cycles": 93
+          },
+          {
+            "index": 1,
+            "opcode": 2,
+            "name": "op2",
+            "cycles": 233
+          },
+          {
+            "index": 2,
+            "opcode": 3,
+            "name": "op3",
+            "cycles": 245
+          },
+          {
+            "index": 3,
+            "opcode": 4,
+            "name": "op4",
+            "cycles": 106
+          },
+          {
+            "index": 4,
+            "opcode": 5,
+            "name": "op5",
+            "cycles": 98
+          },
+          {
+            "index": 5,
+            "opcode": 6,
+            "name": "op6",
+            "cycles": 103
+          },
+          {
+            "index": 6,
+            "opcode": 7,
+            "name": "op7",
+            "cycles": 102
+          },
+          {
+            "index": 7,
+            "opcode": 8,
+            "name": "op8",
+            "cycles": 1601
+          },
+          {
+            "index": 8,
+            "opcode": 9,
+            "name": "op9",
+            "cycles": 732
+          },
+          {
+            "index": 9,
+            "opcode": 10,
+            "name": "op10",
+            "cycles": 268
+          },
+          {
+            "index": 10,
+            "opcode": 11,
+            "name": "op11",
+            "cycles": 792
+          },
+          {
+            "index": 11,
+            "opcode": 12,
+            "name": "op12",
+            "cycles": 1060
+          },
+          {
+            "index": 12,
+            "opcode": 12,
+            "name": "op12_second_state_step",
+            "cycles": 1072
+          },
+          {
+            "index": 13,
+            "opcode": 13,
+            "name": "op13",
+            "cycles": 2710
+          },
+          {
+            "index": 14,
+            "opcode": 13,
+            "name": "op13_second_state_step",
+            "cycles": 2745
+          },
+          {
+            "index": 15,
+            "opcode": 14,
+            "name": "op14",
+            "cycles": 3185
+          },
+          {
+            "index": 16,
+            "opcode": 15,
+            "name": "op15",
+            "cycles": 717
+          },
+          {
+            "index": 17,
+            "opcode": 16,
+            "name": "op16",
+            "cycles": 65
+          },
+          {
+            "index": 18,
+            "opcode": 17,
+            "name": "op17",
+            "cycles": 907
+          },
+          {
+            "index": 19,
+            "opcode": 18,
+            "name": "op18",
+            "cycles": 923
+          },
+          {
+            "index": 20,
+            "opcode": 20,
+            "name": "delta_q24_first",
+            "cycles": 2705
+          },
+          {
+            "index": 21,
+            "opcode": 20,
+            "name": "delta_q24_second_state_step",
+            "cycles": 2676
+          },
+          {
+            "index": 22,
+            "opcode": 8,
+            "name": "delta_q24_to_norm_q48_epsilon",
+            "cycles": 1609
+          },
+          {
+            "index": 23,
+            "opcode": 3,
+            "name": "mul_rne_saturation",
+            "cycles": 257
+          },
+          {
+            "index": 24,
+            "opcode": 15,
+            "name": "quant_zero",
+            "cycles": 89
+          },
+          {
+            "index": 25,
+            "opcode": 19,
+            "name": "matrix_v1_to_reduce_raw_w4",
+            "cycles": 186
+          }
+        ],
+        "wrong_expected": {
+          "done": true,
+          "exit_code": 10,
+          "cycles": 22996,
+          "retired": 16656,
+          "dual_retired": 0,
+          "trap": false,
+          "last_pc": 68,
+          "peripheral_requests": 35,
+          "legacy_completions": 0,
+          "dma_completions": 0,
+          "ddr_reads": 69,
+          "ddr_writes": 6,
+          "ddr_backpressure": 37,
+          "sd_clock_edges": 0
+        },
+        "skip_cache": {
+          "done": true,
+          "exit_code": 10,
+          "cycles": 20389,
+          "retired": 14390,
+          "dual_retired": 0,
+          "trap": false,
+          "last_pc": 68,
+          "peripheral_requests": 36,
+          "legacy_completions": 0,
+          "dma_completions": 0,
+          "ddr_reads": 66,
+          "ddr_writes": 2,
+          "ddr_backpressure": 29,
+          "sd_clock_edges": 0
+        }
+      }
+    },
+    "pds_resources": {
+      "luts": 32961.0,
+      "registers": 18428.0,
+      "latches": 0.0,
+      "drm36k": 142.0,
+      "apms": 102.0
+    },
+    "pds_synthesis_timing": {
+      "requested_mhz": 81.0001,
+      "estimated_mhz": 81.6883,
+      "setup_slack_ns": 0.104
+    },
+    "pds_routed_timing": {
+      "cpu_requested_mhz": 81.0001,
+      "cpu_estimated_mhz": 68.2837,
+      "cpu_setup_wns_ns": -2.299,
+      "ddr_phy_fast_hold_worst_ns": -0.744,
+      "report_sha256": "a3c22f1ac27dfdc6c893763f16300bc648f7989a108fbd160d71b2bb9ec6fb5c",
+      "applies_to_current_source": false,
+      "historical_only": true
+    }
+  }
+}

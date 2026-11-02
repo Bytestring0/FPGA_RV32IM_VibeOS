@@ -1,3 +1,5 @@
+> **2026-11-02 NPU 集成交接：** 当前矩阵/tensor 加速器、Cache/DDR 集成修改、完整 Agent 构建和后续优化入口见 [NPU_HANDOFF.md](NPU_HANDOFF.md)。最新整机时序、板端吞吐和模型质量仍待验收。
+
 # AG：六级流水线双发射 RISC-V CPU
 
 面向紫光同创赛题一的自主 SystemVerilog CPU 与最小 SoC。支持 RV32IM + Zicsr/Zifencei + Zba/Zbb、六级顺序流水线、动态通道交换双发射、四项指令队列、局部历史预测和返回地址栈、精确异常与机器态中断。

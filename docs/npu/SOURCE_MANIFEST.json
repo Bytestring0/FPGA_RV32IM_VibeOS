@@ -1,0 +1,1454 @@
+{
+  "scope": "Only files added/modified for this handoff; inherited CPU files remain in base history.",
+  "base_cpu_commit": "f7f87ead59bc527861084e847b5975e9929bb152",
+  "hash_semantics": "SHA256 of indexed Git blob bytes; text checkout newline conversion can differ on Windows.",
+  "self_excluded": true,
+  "files": {
+    ".gitattributes": {
+      "git_blob_sha256": "8174993f50942b6eb8ee152793d0f8313d8d2b6e2364ad0af533c0445dec104f",
+      "bytes": 418
+    },
+    ".gitignore": {
+      "git_blob_sha256": "c3ded1f0969512e4ae3db38d900606b08839f3ebb87c560c65ea16ffce05ae6d",
+      "bytes": 2510
+    },
+    "AI加速器/.gitignore": {
+      "git_blob_sha256": "e8a39ee50a840e29f418e985b16a55fba731cb6dbc91388e5f0942b5783f570a",
+      "bytes": 62
+    },
+    "AI加速器/npu/rtl/npu_bram.sv": {
+      "git_blob_sha256": "a64600de9688775c0328432c41588d7db42b1ddce6287591151d928b5c248247",
+      "bytes": 1268,
+      "original_source": {
+        "source": "AI加速器/npu/rtl/npu_bram.sv",
+        "source_sha256": "a64600de9688775c0328432c41588d7db42b1ddce6287591151d928b5c248247"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/rtl/npu_bram_top.sv": {
+      "git_blob_sha256": "54a24b48ea90c76b172c4c2d4a9d0807c6683918f239dc63227fdb282e22ca81",
+      "bytes": 12641,
+      "original_source": {
+        "source": "AI加速器/npu/rtl/npu_bram_top.sv",
+        "source_sha256": "54a24b48ea90c76b172c4c2d4a9d0807c6683918f239dc63227fdb282e22ca81"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/README.md": {
+      "git_blob_sha256": "988cd6060d7250e877722c0bb14d30c7699459672872332ebbe20ae01cccaab0",
+      "bytes": 928
+    },
+    "AI加速器/npu/system/config/TENSOR_HEAD.JSON": {
+      "git_blob_sha256": "37d8371580043b99166df40358ec1de778d9a6dc8953598e9cebf55a5035ab30",
+      "bytes": 740171
+    },
+    "AI加速器/npu/system/config/model_assets.json": {
+      "git_blob_sha256": "d2853efc787c4a269d167ac7857f466ada122138390c43a7ca4ae422d7c62c18",
+      "bytes": 1176
+    },
+    "AI加速器/npu/system/integration/agent_protocol_20261102/analysis/protocol-r4-original-system.txt": {
+      "git_blob_sha256": "d2b3a9f3acb4cbc5e1ecb05a5a6cadec1b94a38bd6eb60b64768ec37e59f4e1a",
+      "bytes": 6652,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_protocol_20261102/analysis/protocol-r4-original-system.txt",
+        "source_sha256": "d2b3a9f3acb4cbc5e1ecb05a5a6cadec1b94a38bd6eb60b64768ec37e59f4e1a"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/ag_agent.c": {
+      "git_blob_sha256": "a5ca5015282ba26a49835282a3795a648b08acd66f7e595f5c8ca848c485737c",
+      "bytes": 16366,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/ag_agent.c",
+        "source_sha256": "a5ca5015282ba26a49835282a3795a648b08acd66f7e595f5c8ca848c485737c"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/ag_agent.h": {
+      "git_blob_sha256": "ce869c8d40c29e88285192d21eaaef52337c5776a759eb46f71ae38d71d40191",
+      "bytes": 1936,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/ag_agent.h",
+        "source_sha256": "ce869c8d40c29e88285192d21eaaef52337c5776a759eb46f71ae38d71d40191"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/ag_loop.c": {
+      "git_blob_sha256": "fddea52254ad2f1269313c7801ccbd83e4f6c94a0013e23dd09243d92af37e88",
+      "bytes": 11716,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/ag_loop.c",
+        "source_sha256": "fddea52254ad2f1269313c7801ccbd83e4f6c94a0013e23dd09243d92af37e88"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/ag_loop.h": {
+      "git_blob_sha256": "b8a183ab721fe9f4a081ae5bfcb2e59c20227a24e133fcbab9e1589506c9e414",
+      "bytes": 3098,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/ag_loop.h",
+        "source_sha256": "b8a183ab721fe9f4a081ae5bfcb2e59c20227a24e133fcbab9e1589506c9e414"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/ag_services.h": {
+      "git_blob_sha256": "36b58bace63e96fb46cb7e6ab5570d017930d7fa9e6910cc8c4946dcfddddd75",
+      "bytes": 1344,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/ag_services.h",
+        "source_sha256": "36b58bace63e96fb46cb7e6ab5570d017930d7fa9e6910cc8c4946dcfddddd75"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/desktop_pc_bridge.h": {
+      "git_blob_sha256": "6cb368da303aa14eabfb4e111e7760db5b8f56c0469e814f2d4317511932dd09",
+      "bytes": 1237,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/desktop_pc_bridge.h",
+        "source_sha256": "6cb368da303aa14eabfb4e111e7760db5b8f56c0469e814f2d4317511932dd09"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/qw_agent_protocol_backend.c": {
+      "git_blob_sha256": "1aca462d9c917a42f01e12c283e4d026623b7cac4e0d92a524b693359fc55b5b",
+      "bytes": 27715,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/qw_agent_protocol_backend.c",
+        "source_sha256": "1aca462d9c917a42f01e12c283e4d026623b7cac4e0d92a524b693359fc55b5b"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/qw_agent_protocol_backend.h": {
+      "git_blob_sha256": "2ae74b1717da967d334d5cc28665f928cd082d00e8c4e1fdad634af631929ea3",
+      "bytes": 7572,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/qw_agent_protocol_backend.h",
+        "source_sha256": "2ae74b1717da967d334d5cc28665f928cd082d00e8c4e1fdad634af631929ea3"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/qw_model_backend.h": {
+      "git_blob_sha256": "2f5680c5a10dc024a09b44b74c4fa726828446353e2c3080a464cb2217c91915",
+      "bytes": 3326,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/qw_model_backend.h",
+        "source_sha256": "2f5680c5a10dc024a09b44b74c4fa726828446353e2c3080a464cb2217c91915"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/qw_tool_normalize.c": {
+      "git_blob_sha256": "0a21f984505d479c8c60ca2b63bb8eae48453393efadec5e6368a6dd24413a7a",
+      "bytes": 15482,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/qw_tool_normalize.c",
+        "source_sha256": "0a21f984505d479c8c60ca2b63bb8eae48453393efadec5e6368a6dd24413a7a"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/qw_tool_normalize.h": {
+      "git_blob_sha256": "c65fd44229953151230ec2609eb98d4c0ecf608eb2076e6677ff6e43a11ab21c",
+      "bytes": 2419,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/agent/qw_tool_normalize.h",
+        "source_sha256": "c65fd44229953151230ec2609eb98d4c0ecf608eb2076e6677ff6e43a11ab21c"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/freestanding_include/string.h": {
+      "git_blob_sha256": "d4452007c335333a12142659efdde5ae25e3a721fbe3fc79151c0449f230a0b6",
+      "bytes": 357,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/freestanding_include/string.h",
+        "source_sha256": "d4452007c335333a12142659efdde5ae25e3a721fbe3fc79151c0449f230a0b6"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_checkpoint.c": {
+      "git_blob_sha256": "5022b365afae5a80c18bea8444bfc3cbb309e455bef342812b2824bba3c347fe",
+      "bytes": 9540,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_checkpoint.c",
+        "source_sha256": "5022b365afae5a80c18bea8444bfc3cbb309e455bef342812b2824bba3c347fe"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_checkpoint.h": {
+      "git_blob_sha256": "207c045ab5a2ae8663e1ff21cd15c4014f3f1fc25b3e9027a0d33ebb59c70d68",
+      "bytes": 526,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_checkpoint.h",
+        "source_sha256": "207c045ab5a2ae8663e1ff21cd15c4014f3f1fc25b3e9027a0d33ebb59c70d68"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_forward.c": {
+      "git_blob_sha256": "b9d1d185c07fde4694d62796ef5ccb1744ce6dc1aac6698785d28e1b94b3df50",
+      "bytes": 16379,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_forward.c",
+        "source_sha256": "c31b7e436e1a567eb94c17ec2c9d9ef4ecefca0cfe629446292b57cc983368c4"
+      },
+      "text_unchanged_from_original": false
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_head.h": {
+      "git_blob_sha256": "54aac5d7d37479017c32be2af73748d4fd5f51448a051ed9cfa2dbfe75dc9e42",
+      "bytes": 2068,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_head.h",
+        "source_sha256": "54aac5d7d37479017c32be2af73748d4fd5f51448a051ed9cfa2dbfe75dc9e42"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_int_head.c": {
+      "git_blob_sha256": "05a5a97c4eea92bb040472674e287d1000f068f9c4f66fed8bc3980183573875",
+      "bytes": 9497,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_int_head.c",
+        "source_sha256": "05a5a97c4eea92bb040472674e287d1000f068f9c4f66fed8bc3980183573875"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_int_head.h": {
+      "git_blob_sha256": "85ae371000db803588d4cfc672dab3e6d23ab454ddb3809f59eecc0409a05616",
+      "bytes": 2968,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_int_head.h",
+        "source_sha256": "85ae371000db803588d4cfc672dab3e6d23ab454ddb3809f59eecc0409a05616"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_int_sample.c": {
+      "git_blob_sha256": "84a90f2efd81cef4e5127151691a5417f2ee3cd2342d7c8405b09223669cf0e2",
+      "bytes": 881,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_int_sample.c",
+        "source_sha256": "84a90f2efd81cef4e5127151691a5417f2ee3cd2342d7c8405b09223669cf0e2"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_int_sample.h": {
+      "git_blob_sha256": "6d30adb71b11bb7a85f7ae04219d2c095a8048ab7e823e1f44a0c84d5b0b56ef",
+      "bytes": 751,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_int_sample.h",
+        "source_sha256": "6d30adb71b11bb7a85f7ae04219d2c095a8048ab7e823e1f44a0c84d5b0b56ef"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_internal.h": {
+      "git_blob_sha256": "9710b6bfe1d61ca5ebcaa118c34c231690a3ab18cf871b8875ab3487d6cba067",
+      "bytes": 2159,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_internal.h",
+        "source_sha256": "9710b6bfe1d61ca5ebcaa118c34c231690a3ab18cf871b8875ab3487d6cba067"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_json.c": {
+      "git_blob_sha256": "d3171a104e723e3b9335b3cac5f09d165e134fd50eaf54d54f7a2db2e32160c7",
+      "bytes": 2987,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_json.c",
+        "source_sha256": "d3171a104e723e3b9335b3cac5f09d165e134fd50eaf54d54f7a2db2e32160c7"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_json.h": {
+      "git_blob_sha256": "cd95cd5c5a08dd0813155690d944b3945d88e677a8b67520b3ceba4ca191e7e0",
+      "bytes": 399,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_json.h",
+        "source_sha256": "cd95cd5c5a08dd0813155690d944b3945d88e677a8b67520b3ceba4ca191e7e0"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_libm.c": {
+      "git_blob_sha256": "a412435393a829258c98e77a3e107815de40181f6be04cf9369365fb3b932a8f",
+      "bytes": 2472,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_libm.c",
+        "source_sha256": "a412435393a829258c98e77a3e107815de40181f6be04cf9369365fb3b932a8f"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_libm.h": {
+      "git_blob_sha256": "c8c767dc0c91b621af27438a9254aaef6e28c652c2177012ab27c10c74120b6f",
+      "bytes": 696,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_libm.h",
+        "source_sha256": "c8c767dc0c91b621af27438a9254aaef6e28c652c2177012ab27c10c74120b6f"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_load.c": {
+      "git_blob_sha256": "bc043c4c4587e0fb02ba1a99ff48b75a3befdc50c174c980addb460acc69ea75",
+      "bytes": 13887,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_load.c",
+        "source_sha256": "bc043c4c4587e0fb02ba1a99ff48b75a3befdc50c174c980addb460acc69ea75"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_lut_ops.c": {
+      "git_blob_sha256": "8d80b885740083e1a4f4f8ca88a2cf6f142f24c406dd517202afdacf84ecd28d",
+      "bytes": 4804,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_lut_ops.c",
+        "source_sha256": "8d80b885740083e1a4f4f8ca88a2cf6f142f24c406dd517202afdacf84ecd28d"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_lut_ops.h": {
+      "git_blob_sha256": "9bb8df32c21c2c232636af454d57e93d6b95744dbab2ef2483d7f562fa08f5dc",
+      "bytes": 2277,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_lut_ops.h",
+        "source_sha256": "9bb8df32c21c2c232636af454d57e93d6b95744dbab2ef2483d7f562fa08f5dc"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_math.c": {
+      "git_blob_sha256": "7b2e3e9c4184177efa0f5464b45db188d83b38f2c48e46ca7fb93b908e0aa07b",
+      "bytes": 2770,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_math.c",
+        "source_sha256": "7b2e3e9c4184177efa0f5464b45db188d83b38f2c48e46ca7fb93b908e0aa07b"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_math.h": {
+      "git_blob_sha256": "c3861e7b9c58194b3369db750ebe6bd397c0dfd8ffa4968c017fd28149c73515",
+      "bytes": 625,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_math.h",
+        "source_sha256": "c3861e7b9c58194b3369db750ebe6bd397c0dfd8ffa4968c017fd28149c73515"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_prefix_cache.c": {
+      "git_blob_sha256": "c1d50d3d4372ddc97d3c2159811b879ee0d538cf3483b43c90e4bc5802483300",
+      "bytes": 8554,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_prefix_cache.c",
+        "source_sha256": "c1d50d3d4372ddc97d3c2159811b879ee0d538cf3483b43c90e4bc5802483300"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_prefix_cache.h": {
+      "git_blob_sha256": "18ca2737ee290b3e87ed5f87abc1f1669d41c55e2547cc988fdad9aae44c3c4b",
+      "bytes": 1410,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_prefix_cache.h",
+        "source_sha256": "18ca2737ee290b3e87ed5f87abc1f1669d41c55e2547cc988fdad9aae44c3c4b"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_runtime.h": {
+      "git_blob_sha256": "da446803dc4558469d79c65eac7192461f59b1613f5688e39acd885887b822b7",
+      "bytes": 5387,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_runtime.h",
+        "source_sha256": "da446803dc4558469d79c65eac7192461f59b1613f5688e39acd885887b822b7"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_sha256.c": {
+      "git_blob_sha256": "fdaa395914b0786992993f509d8f0e01f16c09fe31b4e06712fc545ddd09b401",
+      "bytes": 2399,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_sha256.c",
+        "source_sha256": "fdaa395914b0786992993f509d8f0e01f16c09fe31b4e06712fc545ddd09b401"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_sha256.h": {
+      "git_blob_sha256": "915171d16f10828b50eea17aba1254dccbb24efb494f3901ce4f0cfe87cc6e76",
+      "bytes": 313,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_sha256.h",
+        "source_sha256": "915171d16f10828b50eea17aba1254dccbb24efb494f3901ce4f0cfe87cc6e76"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_string.c": {
+      "git_blob_sha256": "8b2e10e344a082085fc9d6834a936557561972b18b264cba35b2ccbb3644ed42",
+      "bytes": 625,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_string.c",
+        "source_sha256": "8b2e10e344a082085fc9d6834a936557561972b18b264cba35b2ccbb3644ed42"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_tensor_async.h": {
+      "git_blob_sha256": "9b693a29a9bed136deefd9247b04207795f5c2bbbad37f8bb57b91761a1c77df",
+      "bytes": 1695,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_tensor_async.h",
+        "source_sha256": "9b693a29a9bed136deefd9247b04207795f5c2bbbad37f8bb57b91761a1c77df"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_tensor_v2.c": {
+      "git_blob_sha256": "ea37be3b17d3e06fe06c82286351a8a58554df316a102c6c024d90230775b826",
+      "bytes": 24116,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_tensor_v2.c",
+        "source_sha256": "ea37be3b17d3e06fe06c82286351a8a58554df316a102c6c024d90230775b826"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_tensor_v2.h": {
+      "git_blob_sha256": "858000fefc6849e88b54f9ffc76553440e1719238cdba41a2c610183683b12ba",
+      "bytes": 1305,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_tensor_v2.h",
+        "source_sha256": "858000fefc6849e88b54f9ffc76553440e1719238cdba41a2c610183683b12ba"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_tokenizer.c": {
+      "git_blob_sha256": "8504901e2197279985dc0268ac7f198f2247af98aba48e9cd46b3b51322212ac",
+      "bytes": 10463,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_tokenizer.c",
+        "source_sha256": "8504901e2197279985dc0268ac7f198f2247af98aba48e9cd46b3b51322212ac"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_tokenizer.h": {
+      "git_blob_sha256": "7c85b5ee16d29f822150bc3470f68fab5d747aaa70d43a0d860749d686ff8c3b",
+      "bytes": 944,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/qw_tokenizer.h",
+        "source_sha256": "7c85b5ee16d29f822150bc3470f68fab5d747aaa70d43a0d860749d686ff8c3b"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/freestanding.c": {
+      "git_blob_sha256": "028e6a5b63ded6b81979d2d9c83cb69ab01eca0d5b94f655af09692e0d148acf",
+      "bytes": 956,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/freestanding.c",
+        "source_sha256": "028e6a5b63ded6b81979d2d9c83cb69ab01eca0d5b94f655af09692e0d148acf"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_ag_platform.c": {
+      "git_blob_sha256": "1833d7fe358e0485dc81bdf1346858a286045dbaa6d275d7c34c015952a2c8ec",
+      "bytes": 1470,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_ag_platform.c",
+        "source_sha256": "1833d7fe358e0485dc81bdf1346858a286045dbaa6d275d7c34c015952a2c8ec"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_ag_platform.h": {
+      "git_blob_sha256": "17b0a3dde5db455d84d8b67ec91bfab3972ad5dc4ca84d6d200326a8b78b9d2a",
+      "bytes": 525,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_ag_platform.h",
+        "source_sha256": "17b0a3dde5db455d84d8b67ec91bfab3972ad5dc4ca84d6d200326a8b78b9d2a"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_dma.h": {
+      "git_blob_sha256": "42480a9fd04b4fb4e55b8b722d4fb7d67ed283d99dcd852b9b71bf5920ef5bf1",
+      "bytes": 3373,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_dma.h",
+        "source_sha256": "42480a9fd04b4fb4e55b8b722d4fb7d67ed283d99dcd852b9b71bf5920ef5bf1"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_fat32.c": {
+      "git_blob_sha256": "e1c3b475147dca6f4986f2cf991b3bb2e1bd9235b473971f034bd8ab68b1c2dd",
+      "bytes": 12860,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_fat32.c",
+        "source_sha256": "e1c3b475147dca6f4986f2cf991b3bb2e1bd9235b473971f034bd8ab68b1c2dd"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_fat32.h": {
+      "git_blob_sha256": "48e26f92c01c316f47c4d8936e47bd9fed56b8a6436ca15c68a3a11c43d54c26",
+      "bytes": 3063,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_fat32.h",
+        "source_sha256": "48e26f92c01c316f47c4d8936e47bd9fed56b8a6436ca15c68a3a11c43d54c26"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_package.c": {
+      "git_blob_sha256": "e50336a45c00fae89cf3e62f539e37a2274fda065c26a48d180d488c86222c14",
+      "bytes": 11200,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_package.c",
+        "source_sha256": "e50336a45c00fae89cf3e62f539e37a2274fda065c26a48d180d488c86222c14"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_package.h": {
+      "git_blob_sha256": "bf3c3f918cf4893a018761bbb80a6926bb62f39beb4f1dd1ff21f28f50c78554",
+      "bytes": 2161,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_package.h",
+        "source_sha256": "bf3c3f918cf4893a018761bbb80a6926bb62f39beb4f1dd1ff21f28f50c78554"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_raw.c": {
+      "git_blob_sha256": "a1b28665628361b2f9b5ea40125a63ebdb3aa1077830d069a8902896d1903023",
+      "bytes": 10110,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_raw.c",
+        "source_sha256": "a1b28665628361b2f9b5ea40125a63ebdb3aa1077830d069a8902896d1903023"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_raw.h": {
+      "git_blob_sha256": "171e501b378b821f5262e14bed90ae1de46da632559521777c4f2dcce7f0553a",
+      "bytes": 5067,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_raw.h",
+        "source_sha256": "171e501b378b821f5262e14bed90ae1de46da632559521777c4f2dcce7f0553a"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_raw_reference.c": {
+      "git_blob_sha256": "f21f28b8e5e9e796a1af86fc9c803ab25a157321ef3e61cc7b6e3072034f3e2b",
+      "bytes": 5114,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_raw_reference.c",
+        "source_sha256": "f21f28b8e5e9e796a1af86fc9c803ab25a157321ef3e61cc7b6e3072034f3e2b"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_runtime.c": {
+      "git_blob_sha256": "e9e62772414ec4d653d9a99087f4e353d2a49266d83f30812360ad46e5c227be",
+      "bytes": 7315,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_runtime.c",
+        "source_sha256": "e9e62772414ec4d653d9a99087f4e353d2a49266d83f30812360ad46e5c227be"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_runtime.h": {
+      "git_blob_sha256": "ebe5d5e3770b695dbbcf17856ab5926e521eb23c51b44007b08022484c66bd79",
+      "bytes": 2320,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_runtime.h",
+        "source_sha256": "ebe5d5e3770b695dbbcf17856ab5926e521eb23c51b44007b08022484c66bd79"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_storage.c": {
+      "git_blob_sha256": "721832877b2088a3959da8705bd7b15d2c78040b0f57c3adf2e6e4ab42156660",
+      "bytes": 3737,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_storage.c",
+        "source_sha256": "721832877b2088a3959da8705bd7b15d2c78040b0f57c3adf2e6e4ab42156660"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_storage.h": {
+      "git_blob_sha256": "77ec0432ea7b1632ae78a289f24b457446e722651e7e02a219a8ce7f09cf35ef",
+      "bytes": 2468,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/npu_storage.h",
+        "source_sha256": "77ec0432ea7b1632ae78a289f24b457446e722651e7e02a219a8ce7f09cf35ef"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/sd_card.c": {
+      "git_blob_sha256": "aaf9f7474e12712254c640cb196fad9c944881dc9f5817eacc068cd2b9762156",
+      "bytes": 18018,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/sd_card.c",
+        "source_sha256": "aaf9f7474e12712254c640cb196fad9c944881dc9f5817eacc068cd2b9762156"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/sd_card.h": {
+      "git_blob_sha256": "96568e4ca6ac3d1005a0be2477e4935ab13d04a1d8ca26fe443d1a6b05b1161c",
+      "bytes": 2015,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/sw/model/vendor/npu_v1/sd_card.h",
+        "source_sha256": "96568e4ca6ac3d1005a0be2477e4935ab13d04a1d8ca26fe443d1a6b05b1161c"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/integration/agent_runtime_20261101/tests/agent_protocol_optimized_host.c": {
+      "git_blob_sha256": "217a6c633a461e212200cea3ebe9da8d2a7b81ef685600e8c3244f2018891cdf",
+      "bytes": 19844,
+      "original_source": {
+        "source": "AI加速器/npu/system/integration/agent_runtime_20261101/tests/agent_protocol_optimized_host.c",
+        "source_sha256": "217a6c633a461e212200cea3ebe9da8d2a7b81ef685600e8c3244f2018891cdf"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/pds/build_system.py": {
+      "git_blob_sha256": "57694ed5f439cb721a7e0266f70de3b384f23e261dc0ff09fcb73f05e39237db",
+      "bytes": 17470,
+      "original_source": {
+        "source": "AI加速器/npu/system/pds/build_system.py",
+        "source_sha256": "4c217f9dd2b6c9b1dc34209f7b931360704f72c52b2e4559dc449e060365c21e"
+      },
+      "text_unchanged_from_original": false
+    },
+    "AI加速器/npu/system/pds/finish_tensor_bitstream.py": {
+      "git_blob_sha256": "d2844ca618c647272ab3b7d44395b42b662d26b73821a14b7f6c34c5f6755ac0",
+      "bytes": 4912,
+      "original_source": {
+        "source": "AI加速器/npu/system/pds/finish_tensor_bitstream.py",
+        "source_sha256": "d2844ca618c647272ab3b7d44395b42b662d26b73821a14b7f6c34c5f6755ac0"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/pds/verify_tensor_pnr.py": {
+      "git_blob_sha256": "7dee89dbf9fbf5064a948448746993d76e998b8bce0e27d167af767045ce0c84",
+      "bytes": 4744,
+      "original_source": {
+        "source": "AI加速器/npu/system/pds/verify_tensor_pnr.py",
+        "source_sha256": "92e1ff2d1d7e57a8083769fbd8e8ab906f8c23f379ed7ebe70917051fecf3d85"
+      },
+      "text_unchanged_from_original": false
+    },
+    "AI加速器/npu/system/rtl/ag_npu_system.sv": {
+      "git_blob_sha256": "58295551a3df60086f2010a689c239d812cb65f6e5b1249e2617837f290cef6d",
+      "bytes": 12411,
+      "original_source": {
+        "source": "AI加速器/npu/system/rtl/ag_npu_system.sv",
+        "source_sha256": "58295551a3df60086f2010a689c239d812cb65f6e5b1249e2617837f290cef6d"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/rtl/ddr_arbiter2.sv": {
+      "git_blob_sha256": "5e6b2a89b46ca1a2983a9a8d19296ea08665751a108593f096624600b37cf00e",
+      "bytes": 4955,
+      "original_source": {
+        "source": "AI加速器/npu/system/rtl/ddr_arbiter2.sv",
+        "source_sha256": "5e6b2a89b46ca1a2983a9a8d19296ea08665751a108593f096624600b37cf00e"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/rtl/gemv_pipeline16.sv": {
+      "git_blob_sha256": "f1d38728a657963954077db850df69a514928eee7b05ec87631471aa295b0336",
+      "bytes": 3164,
+      "original_source": {
+        "source": "AI加速器/npu/system/rtl/gemv_pipeline16.sv",
+        "source_sha256": "f1d38728a657963954077db850df69a514928eee7b05ec87631471aa295b0336"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/rtl/gemv_pipeline_v2.sv": {
+      "git_blob_sha256": "68f2a17e0daf5cfdeb4b3cd4b92d98921cc5730a4af0cdee0d21c1593e69b3e8",
+      "bytes": 3040,
+      "original_source": {
+        "source": "AI加速器/npu/system/rtl/gemv_pipeline_v2.sv",
+        "source_sha256": "68f2a17e0daf5cfdeb4b3cd4b92d98921cc5730a4af0cdee0d21c1593e69b3e8"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/rtl/npu_dma_top.sv": {
+      "git_blob_sha256": "61c38c38b6d9eb3d0fef62d5ff631ed5dceb232c96a727019f76119850a120bf",
+      "bytes": 20632,
+      "original_source": {
+        "source": "AI加速器/npu/system/rtl/npu_dma_top.sv",
+        "source_sha256": "61c38c38b6d9eb3d0fef62d5ff631ed5dceb232c96a727019f76119850a120bf"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/rtl/npu_tensor_v2.sv": {
+      "git_blob_sha256": "9ed69c36277f81102ab77840bc7fd93258fecc2f0b5f522c87e3d40d345408d5",
+      "bytes": 218556,
+      "original_source": {
+        "source": "AI加速器/npu/system/rtl/npu_tensor_v2.sv",
+        "source_sha256": "9ed69c36277f81102ab77840bc7fd93258fecc2f0b5f522c87e3d40d345408d5"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/rtl/sd_spi_top.sv": {
+      "git_blob_sha256": "530fd6fc6d8ec49ae5742f0bd8d19fd51279e8adc97d5279828b09bfe76d1085",
+      "bytes": 10530,
+      "original_source": {
+        "source": "AI加速器/npu/system/rtl/sd_spi_top.sv",
+        "source_sha256": "530fd6fc6d8ec49ae5742f0bd8d19fd51279e8adc97d5279828b09bfe76d1085"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/ag_npu_tensor_sim.sv": {
+      "git_blob_sha256": "d48033a38a7dfa67d265663fcefcb61bb148a2e9c5cfbea06ae46b607d6f0bbe",
+      "bytes": 4316,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/ag_npu_tensor_sim.sv",
+        "source_sha256": "d48033a38a7dfa67d265663fcefcb61bb148a2e9c5cfbea06ae46b607d6f0bbe"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/cache_range_acceptance.c": {
+      "git_blob_sha256": "90f09a4738f57f589a88d9764a673dba6b434b891c08a0d714b727fc8f60e5bd",
+      "bytes": 2553,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/cache_range_acceptance.c",
+        "source_sha256": "90f09a4738f57f589a88d9764a673dba6b434b891c08a0d714b727fc8f60e5bd"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/ddr_queue4_tb.sv": {
+      "git_blob_sha256": "1f689b54c9309a790d87d4e3d650dd1bfad8275f5e97625dfcba534f1692c872",
+      "bytes": 3951,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/ddr_queue4_tb.sv",
+        "source_sha256": "1f689b54c9309a790d87d4e3d650dd1bfad8275f5e97625dfcba534f1692c872"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/run_matrix_lanes.py": {
+      "git_blob_sha256": "d850c331f777e16ddb4b74a7320f18573e6d0d4747c4ab5a582d6b7685126628",
+      "bytes": 6877,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/run_matrix_lanes.py",
+        "source_sha256": "55c7ce838484bd785540ef810b4590982a40141f02e531ad444d5c74e960c9aa"
+      },
+      "text_unchanged_from_original": false
+    },
+    "AI加速器/npu/system/sim/sd_spi_card_model.sv": {
+      "git_blob_sha256": "01d5bd6dfcf64ff7435749074b81025829657d241da625df88b86b7eb4fc730b",
+      "bytes": 10503,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/sd_spi_card_model.sv",
+        "source_sha256": "01d5bd6dfcf64ff7435749074b81025829657d241da625df88b86b7eb4fc730b"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/sd_spi_cold_tb.sv": {
+      "git_blob_sha256": "236a891ac4251d30eea4ba1d887d82e3c8faa3b0208ce7212cbc02476aa701c4",
+      "bytes": 1320,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/sd_spi_cold_tb.sv",
+        "source_sha256": "236a891ac4251d30eea4ba1d887d82e3c8faa3b0208ce7212cbc02476aa701c4"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/sd_spi_cold_test.cpp": {
+      "git_blob_sha256": "4d67acb208ed228f04810c29db2f919e5682b662dfe8131ca9eda8b1ce674b01",
+      "bytes": 14473,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/sd_spi_cold_test.cpp",
+        "source_sha256": "4d67acb208ed228f04810c29db2f919e5682b662dfe8131ca9eda8b1ce674b01"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/tb_sd_spi.sv": {
+      "git_blob_sha256": "0aa93824c248273accafe2a8841d5a4a36ed5dadd8ccc7da265582fd12b89496",
+      "bytes": 6266
+    },
+    "AI加速器/npu/system/sim/tensor_model_host.c": {
+      "git_blob_sha256": "3a5c2886ca1198f652debf720497999a870867149f026b458ac3f4dc801124fe",
+      "bytes": 8599,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/tensor_model_host.c",
+        "source_sha256": "3a5c2886ca1198f652debf720497999a870867149f026b458ac3f4dc801124fe"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/test_checkpoint.c": {
+      "git_blob_sha256": "eab5908f0bd6dd7de85fcba98d1835316baef14f01cf635a0e01e394afca21e9",
+      "bytes": 8536,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/test_checkpoint.c",
+        "source_sha256": "eab5908f0bd6dd7de85fcba98d1835316baef14f01cf635a0e01e394afca21e9"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/test_crc.c": {
+      "git_blob_sha256": "8f0450e7d95e66c093b5e88497f6ec3c4a531a64190eb6348f35fd814f6894f0",
+      "bytes": 4877
+    },
+    "AI加速器/npu/system/sim/test_ddr_queue4.cpp": {
+      "git_blob_sha256": "a079132dd2e4ab73a8aefe5612671c4142b6d16b6b5bf065d1093f1be5042120",
+      "bytes": 12015,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/test_ddr_queue4.cpp",
+        "source_sha256": "a079132dd2e4ab73a8aefe5612671c4142b6d16b6b5bf065d1093f1be5042120"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/test_head_mutation_guard.c": {
+      "git_blob_sha256": "52178809b54f68b9cb8d303d7613798b3f224a8a51acced277604b576d4ba3c2",
+      "bytes": 1274,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/test_head_mutation_guard.c",
+        "source_sha256": "52178809b54f68b9cb8d303d7613798b3f224a8a51acced277604b576d4ba3c2"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/test_npu_dma.cpp": {
+      "git_blob_sha256": "3e09bb869287a288f55059b992b502aa1a8a6f4b211fc7952326cd0d7fb04d28",
+      "bytes": 25132,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/test_npu_dma.cpp",
+        "source_sha256": "3e09bb869287a288f55059b992b502aa1a8a6f4b211fc7952326cd0d7fb04d28"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/test_qw_tensor_adapter.c": {
+      "git_blob_sha256": "0c99bd317f16823add3ce546504edae8c6f6cba226498837e09b96ddc4141ccc",
+      "bytes": 6311,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/test_qw_tensor_adapter.c",
+        "source_sha256": "0c99bd317f16823add3ce546504edae8c6f6cba226498837e09b96ddc4141ccc"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/test_stream_sha_loader.c": {
+      "git_blob_sha256": "83aa67212780bcae2bfd3f0a41e36e0bce2399c025e0b63b4558d9d24e3b6325",
+      "bytes": 7135,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/test_stream_sha_loader.c",
+        "source_sha256": "83aa67212780bcae2bfd3f0a41e36e0bce2399c025e0b63b4558d9d24e3b6325"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/test_system.cpp": {
+      "git_blob_sha256": "25537c4b943da7bf2bdd60bcd8dabd9190b31d3e24906abf9b5e8e98481fbae7",
+      "bytes": 4939
+    },
+    "AI加速器/npu/system/sim/test_tensor_async_mmio.c": {
+      "git_blob_sha256": "f869eb2542109fbb3e31ccb27b3136a296412d7d55553d25836d23f9329be0d0",
+      "bytes": 11807,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/test_tensor_async_mmio.c",
+        "source_sha256": "f869eb2542109fbb3e31ccb27b3136a296412d7d55553d25836d23f9329be0d0"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/test_tensor_driver.c": {
+      "git_blob_sha256": "ef464e70fb243b7c3d37c9652bda1b02927ca2f16fa560f1cecdd2081f84cf33",
+      "bytes": 3225,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/test_tensor_driver.c",
+        "source_sha256": "ef464e70fb243b7c3d37c9652bda1b02927ca2f16fa560f1cecdd2081f84cf33"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/test_tensor_fsm.c": {
+      "git_blob_sha256": "7f6763db14c0fe4fe3dac2dccccfab33bb867c1e186e3773a98ef9df308ec2ca",
+      "bytes": 7474,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/test_tensor_fsm.c",
+        "source_sha256": "7f6763db14c0fe4fe3dac2dccccfab33bb867c1e186e3773a98ef9df308ec2ca"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/test_tensor_reference.c": {
+      "git_blob_sha256": "f7b47e9b2163843252993f0854ea8e69279a7fb60b2da2676252747b23635879",
+      "bytes": 7853,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/test_tensor_reference.c",
+        "source_sha256": "f7b47e9b2163843252993f0854ea8e69279a7fb60b2da2676252747b23635879"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/test_tensor_reference.py": {
+      "git_blob_sha256": "fdd47332b81d6ee38a8f417117f277423eb5828f53b543ae1690ac7708c175bf",
+      "bytes": 19744,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/test_tensor_reference.py",
+        "source_sha256": "beb7349233a19119695506be6e099ef1b869e62a27c93d3ee4853faf6fc83503"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sim/test_tensor_v2.cpp": {
+      "git_blob_sha256": "514f2d25eb5565411d9409cd8e13edf8ccabf2496d6a0e675ef7c6262f9c92cf",
+      "bytes": 11762,
+      "original_source": {
+        "source": "AI加速器/npu/system/sim/test_tensor_v2.cpp",
+        "source_sha256": "514f2d25eb5565411d9409cd8e13edf8ccabf2496d6a0e675ef7c6262f9c92cf"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/agent_target_support.c": {
+      "git_blob_sha256": "4c06a3130590c49bf93fa9608eb794959a39c778fabb5d543b5e6595b307b841",
+      "bytes": 852,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/agent_target_support.c",
+        "source_sha256": "4c06a3130590c49bf93fa9608eb794959a39c778fabb5d543b5e6595b307b841"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/agent_target_support.h": {
+      "git_blob_sha256": "182f72d0d6fb15cdfd7e59ab5d35ef3ec2c3b6d0b7653e3e442216c82495d84c",
+      "bytes": 420,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/agent_target_support.h",
+        "source_sha256": "182f72d0d6fb15cdfd7e59ab5d35ef3ec2c3b6d0b7653e3e442216c82495d84c"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/freestanding.c": {
+      "git_blob_sha256": "028e6a5b63ded6b81979d2d9c83cb69ab01eca0d5b94f655af09692e0d148acf",
+      "bytes": 956,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/freestanding.c",
+        "source_sha256": "028e6a5b63ded6b81979d2d9c83cb69ab01eca0d5b94f655af09692e0d148acf"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/link_agent_128k.ld": {
+      "git_blob_sha256": "00df0b5ad7af04ec6bd16462f13109d6492c764511ced9d6463ffe0fd8309d4f",
+      "bytes": 763,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/link_agent_128k.ld",
+        "source_sha256": "00df0b5ad7af04ec6bd16462f13109d6492c764511ced9d6463ffe0fd8309d4f"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_ag_platform.c": {
+      "git_blob_sha256": "1833d7fe358e0485dc81bdf1346858a286045dbaa6d275d7c34c015952a2c8ec",
+      "bytes": 1470,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_ag_platform.c",
+        "source_sha256": "1833d7fe358e0485dc81bdf1346858a286045dbaa6d275d7c34c015952a2c8ec"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_ag_platform.h": {
+      "git_blob_sha256": "17b0a3dde5db455d84d8b67ec91bfab3972ad5dc4ca84d6d200326a8b78b9d2a",
+      "bytes": 525,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_ag_platform.h",
+        "source_sha256": "17b0a3dde5db455d84d8b67ec91bfab3972ad5dc4ca84d6d200326a8b78b9d2a"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_dma.h": {
+      "git_blob_sha256": "42480a9fd04b4fb4e55b8b722d4fb7d67ed283d99dcd852b9b71bf5920ef5bf1",
+      "bytes": 3373,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_dma.h",
+        "source_sha256": "42480a9fd04b4fb4e55b8b722d4fb7d67ed283d99dcd852b9b71bf5920ef5bf1"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_fat32.c": {
+      "git_blob_sha256": "e1c3b475147dca6f4986f2cf991b3bb2e1bd9235b473971f034bd8ab68b1c2dd",
+      "bytes": 12860,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_fat32.c",
+        "source_sha256": "e1c3b475147dca6f4986f2cf991b3bb2e1bd9235b473971f034bd8ab68b1c2dd"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_fat32.h": {
+      "git_blob_sha256": "48e26f92c01c316f47c4d8936e47bd9fed56b8a6436ca15c68a3a11c43d54c26",
+      "bytes": 3063,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_fat32.h",
+        "source_sha256": "48e26f92c01c316f47c4d8936e47bd9fed56b8a6436ca15c68a3a11c43d54c26"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_fixed_lut_generated.h": {
+      "git_blob_sha256": "5fa41491aefbb2a17d414718e32bc8d903e2e5c40458e6eafb6952c6abe9456f",
+      "bytes": 70405,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_fixed_lut_generated.h",
+        "source_sha256": "5fa41491aefbb2a17d414718e32bc8d903e2e5c40458e6eafb6952c6abe9456f"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_fixed_lut_q16_generated.h": {
+      "git_blob_sha256": "e0fac387fdee6dd750b7bba1d3a6c11c0d52f3fc382d1780c2fc2d07aa16365b",
+      "bytes": 32909,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_fixed_lut_q16_generated.h",
+        "source_sha256": "e0fac387fdee6dd750b7bba1d3a6c11c0d52f3fc382d1780c2fc2d07aa16365b"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_fixed_math.c": {
+      "git_blob_sha256": "4e5c015c513121a30c7ee1555cfedafc06803c07d5cb6bf0470317da16f59037",
+      "bytes": 17552,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_fixed_math.c",
+        "source_sha256": "4e5c015c513121a30c7ee1555cfedafc06803c07d5cb6bf0470317da16f59037"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_fixed_math.h": {
+      "git_blob_sha256": "d780e871cf7caa79dc623035869fdceb162cea113df7af6a4fd1ffbf4411905c",
+      "bytes": 10451,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_fixed_math.h",
+        "source_sha256": "d780e871cf7caa79dc623035869fdceb162cea113df7af6a4fd1ffbf4411905c"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_opt_board_20261102.c": {
+      "git_blob_sha256": "fc1e478f684fde6a44e033f6cbf7b36cbc593c00fa56bc43492cde84b379f284",
+      "bytes": 16942,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_opt_board_20261102.c",
+        "source_sha256": "fc1e478f684fde6a44e033f6cbf7b36cbc593c00fa56bc43492cde84b379f284"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_package.c": {
+      "git_blob_sha256": "e50336a45c00fae89cf3e62f539e37a2274fda065c26a48d180d488c86222c14",
+      "bytes": 11200,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_package.c",
+        "source_sha256": "e50336a45c00fae89cf3e62f539e37a2274fda065c26a48d180d488c86222c14"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_package.h": {
+      "git_blob_sha256": "bf3c3f918cf4893a018761bbb80a6926bb62f39beb4f1dd1ff21f28f50c78554",
+      "bytes": 2161,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_package.h",
+        "source_sha256": "bf3c3f918cf4893a018761bbb80a6926bb62f39beb4f1dd1ff21f28f50c78554"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_raw.c": {
+      "git_blob_sha256": "a1b28665628361b2f9b5ea40125a63ebdb3aa1077830d069a8902896d1903023",
+      "bytes": 10110,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_raw.c",
+        "source_sha256": "a1b28665628361b2f9b5ea40125a63ebdb3aa1077830d069a8902896d1903023"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_raw.h": {
+      "git_blob_sha256": "171e501b378b821f5262e14bed90ae1de46da632559521777c4f2dcce7f0553a",
+      "bytes": 5067,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_raw.h",
+        "source_sha256": "171e501b378b821f5262e14bed90ae1de46da632559521777c4f2dcce7f0553a"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_raw_reference.c": {
+      "git_blob_sha256": "f21f28b8e5e9e796a1af86fc9c803ab25a157321ef3e61cc7b6e3072034f3e2b",
+      "bytes": 5114,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_raw_reference.c",
+        "source_sha256": "f21f28b8e5e9e796a1af86fc9c803ab25a157321ef3e61cc7b6e3072034f3e2b"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_runtime.c": {
+      "git_blob_sha256": "e9e62772414ec4d653d9a99087f4e353d2a49266d83f30812360ad46e5c227be",
+      "bytes": 7315,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_runtime.c",
+        "source_sha256": "e9e62772414ec4d653d9a99087f4e353d2a49266d83f30812360ad46e5c227be"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_runtime.h": {
+      "git_blob_sha256": "ebe5d5e3770b695dbbcf17856ab5926e521eb23c51b44007b08022484c66bd79",
+      "bytes": 2320,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_runtime.h",
+        "source_sha256": "ebe5d5e3770b695dbbcf17856ab5926e521eb23c51b44007b08022484c66bd79"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_storage.c": {
+      "git_blob_sha256": "721832877b2088a3959da8705bd7b15d2c78040b0f57c3adf2e6e4ab42156660",
+      "bytes": 3737,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_storage.c",
+        "source_sha256": "721832877b2088a3959da8705bd7b15d2c78040b0f57c3adf2e6e4ab42156660"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_storage.h": {
+      "git_blob_sha256": "77ec0432ea7b1632ae78a289f24b457446e722651e7e02a219a8ce7f09cf35ef",
+      "bytes": 2468,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_storage.h",
+        "source_sha256": "77ec0432ea7b1632ae78a289f24b457446e722651e7e02a219a8ce7f09cf35ef"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_tensor_ag.c": {
+      "git_blob_sha256": "601309653334832d55fca18b8e1723583fce756576b71bb575fa17d0dc6cfde7",
+      "bytes": 1671,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_tensor_ag.c",
+        "source_sha256": "601309653334832d55fca18b8e1723583fce756576b71bb575fa17d0dc6cfde7"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_tensor_driver.c": {
+      "git_blob_sha256": "a59f03c042c949dd25e2b1f0f8c576b91c6d3c75af955ad1056991108fd88228",
+      "bytes": 11084,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_tensor_driver.c",
+        "source_sha256": "a59f03c042c949dd25e2b1f0f8c576b91c6d3c75af955ad1056991108fd88228"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_tensor_driver.h": {
+      "git_blob_sha256": "fd5807e904efb525cd4ccad073633308be21385b6fdfc1195d543d0e83514d6d",
+      "bytes": 4290,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_tensor_driver.h",
+        "source_sha256": "fd5807e904efb525cd4ccad073633308be21385b6fdfc1195d543d0e83514d6d"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_tensor_reference.c": {
+      "git_blob_sha256": "a1004951227b9f6aadaa1f3b345929ae565ad956cc2216c3297761b6d4f4c1dc",
+      "bytes": 13161,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_tensor_reference.c",
+        "source_sha256": "a1004951227b9f6aadaa1f3b345929ae565ad956cc2216c3297761b6d4f4c1dc"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/npu_tensor_v2.h": {
+      "git_blob_sha256": "016f9c9dee0fff9709589d7f15e56ff32c2504c937c3a9d769d2917607a4beaf",
+      "bytes": 6884,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/npu_tensor_v2.h",
+        "source_sha256": "016f9c9dee0fff9709589d7f15e56ff32c2504c937c3a9d769d2917607a4beaf"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/sd_card.c": {
+      "git_blob_sha256": "aaf9f7474e12712254c640cb196fad9c944881dc9f5817eacc068cd2b9762156",
+      "bytes": 18018,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/sd_card.c",
+        "source_sha256": "aaf9f7474e12712254c640cb196fad9c944881dc9f5817eacc068cd2b9762156"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/sd_card.h": {
+      "git_blob_sha256": "96568e4ca6ac3d1005a0be2477e4935ab13d04a1d8ca26fe443d1a6b05b1161c",
+      "bytes": 2015,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/sd_card.h",
+        "source_sha256": "96568e4ca6ac3d1005a0be2477e4935ab13d04a1d8ca26fe443d1a6b05b1161c"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/tensor_acceptance.c": {
+      "git_blob_sha256": "aae2ff68ed9282aea625cc80bd0118bf109e8aae962e355fd18131d4f86e0429",
+      "bytes": 6574,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/tensor_acceptance.c",
+        "source_sha256": "aae2ff68ed9282aea625cc80bd0118bf109e8aae962e355fd18131d4f86e0429"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/tensor_agent_cooperative_board.c": {
+      "git_blob_sha256": "d134ae212e793ec8538c2eb0f3a7184a1438cf99c2282193b2c3b5656443aa55",
+      "bytes": 12575,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/tensor_agent_cooperative_board.c",
+        "source_sha256": "d134ae212e793ec8538c2eb0f3a7184a1438cf99c2282193b2c3b5656443aa55"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/tensor_agent_cooperative_board.h": {
+      "git_blob_sha256": "bc0170af44711b698d38095962b5f81a01a7b6f56e7414225b5570c66648bb5e",
+      "bytes": 537,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/tensor_agent_cooperative_board.h",
+        "source_sha256": "bc0170af44711b698d38095962b5f81a01a7b6f56e7414225b5570c66648bb5e"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/sw/tensor_model_board.c": {
+      "git_blob_sha256": "e46c4609a26978a1b6afe5fa66b35cac4761355cb373aab98cbd1f6fb69f3197",
+      "bytes": 7808,
+      "original_source": {
+        "source": "AI加速器/npu/system/sw/tensor_model_board.c",
+        "source_sha256": "e46c4609a26978a1b6afe5fa66b35cac4761355cb373aab98cbd1f6fb69f3197"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/tools/build_tensor_agent_cooperative.py": {
+      "git_blob_sha256": "1a1a12ce63313df8351819f42d2f60380b5914a467e9e596d3c84cf1fc869e97",
+      "bytes": 10873,
+      "original_source": {
+        "source": "AI加速器/npu/system/tools/build_tensor_agent_cooperative.py",
+        "source_sha256": "7d8f08c1cfdc95b910412316c730b69cfda4ecb25c9acf2d4e1a83ad1bebb4ff"
+      },
+      "text_unchanged_from_original": false
+    },
+    "AI加速器/npu/system/tools/build_tensor_model_v2.py": {
+      "git_blob_sha256": "fef5cedb322a5625495f0f29b99fdf10f0745188f59abd10e07b45cae0d3c8b7",
+      "bytes": 5317,
+      "original_source": {
+        "source": "AI加速器/npu/system/tools/build_tensor_model_v2.py",
+        "source_sha256": "db6e2f39fea16f09c47182f2789b1ce7923c1f18dd2e0863a32d357d06775340"
+      },
+      "text_unchanged_from_original": false
+    },
+    "AI加速器/npu/system/tools/deployment.py": {
+      "git_blob_sha256": "a4a9a120bc2c6bf9acc5410e27b734af5dd1e56a1e4967dfb689ef7da8e2bb55",
+      "bytes": 4213
+    },
+    "AI加速器/npu/system/tools/generate_npu_fixed_luts.py": {
+      "git_blob_sha256": "1f0b24fb4ee48ceab2cb1283e1a85e63dde5115290994d31d8fb335c56ecca52",
+      "bytes": 5153,
+      "original_source": {
+        "source": "AI加速器/npu/system/tools/generate_npu_fixed_luts.py",
+        "source_sha256": "1f0b24fb4ee48ceab2cb1283e1a85e63dde5115290994d31d8fb335c56ecca52"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/tools/model_assets.py": {
+      "git_blob_sha256": "da11ff386287a86352d6ebde17a9083ec55d7d00ecec401029146b01ceee8296",
+      "bytes": 204
+    },
+    "AI加速器/npu/system/tools/run_cache_range.py": {
+      "git_blob_sha256": "5accac092cf8924c05b6d868124a4d530f9d3ca7190bb38b1cdefcdac503ebed",
+      "bytes": 6816,
+      "original_source": {
+        "source": "AI加速器/npu/system/tools/run_cache_range.py",
+        "source_sha256": "8315f0c89b8f49cca07ba63f26b7bdbda12bada027a5092d223b1d645cb54815"
+      },
+      "text_unchanged_from_original": false
+    },
+    "AI加速器/npu/system/tools/run_crc.py": {
+      "git_blob_sha256": "c68df294ccc543fbb39beceaf8272f913517c0c8f66fa3b3cb90292b69adeaa0",
+      "bytes": 1241
+    },
+    "AI加速器/npu/system/tools/run_ddr_queue4.py": {
+      "git_blob_sha256": "e8c511124dfd950ec6c4789741061fed465851ef04a41a30ea75fc7f27f23f87",
+      "bytes": 2589,
+      "original_source": {
+        "source": "AI加速器/npu/system/tools/run_ddr_queue4.py",
+        "source_sha256": "fb91905759270b535307048d2ec087b357ca83d7aa7f4dcbb4fdfa10c31cdede"
+      },
+      "text_unchanged_from_original": false
+    },
+    "AI加速器/npu/system/tools/run_stream_sha_loader.py": {
+      "git_blob_sha256": "d0d0d00dc07c1e2c03f82520604d05a30612fc4b7a7eeaeac692e3f70a910ea5",
+      "bytes": 5985,
+      "original_source": {
+        "source": "AI加速器/npu/system/tools/run_stream_sha_loader.py",
+        "source_sha256": "d0d0d00dc07c1e2c03f82520604d05a30612fc4b7a7eeaeac692e3f70a910ea5"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/tools/run_tensor_agent_v2.py": {
+      "git_blob_sha256": "d4ad16cb3ac8195154c960d02695b2ff2714bc228cfe58522d2eaef8c889e16a",
+      "bytes": 6161,
+      "original_source": {
+        "source": "AI加速器/npu/system/tools/run_tensor_agent_v2.py",
+        "source_sha256": "4e54ca53f6caba94800e009f58923f9be124735461275a0494aa23a2b302fc70"
+      },
+      "text_unchanged_from_original": false
+    },
+    "AI加速器/npu/system/tools/run_tensor_async_driver.py": {
+      "git_blob_sha256": "68de55967d78708368beb12c0a8604867efb85cd0798f7abf316c018a9ae0cc5",
+      "bytes": 3911,
+      "original_source": {
+        "source": "AI加速器/npu/system/tools/run_tensor_async_driver.py",
+        "source_sha256": "7559a98a570d8fa5cea2db51aaee8088e98419bd1beaedec8b722e15bf4091d3"
+      },
+      "text_unchanged_from_original": false
+    },
+    "AI加速器/npu/system/tools/run_tensor_model_v2.py": {
+      "git_blob_sha256": "d47c97b6771c2e3e7d6f79a47ee32fcdc3e4c2853afbff59089806442992c0e2",
+      "bytes": 4372,
+      "original_source": {
+        "source": "AI加速器/npu/system/tools/run_tensor_model_v2.py",
+        "source_sha256": "7116431c554ef235b3b3487dd96e7cf170034977fb823e7d47d74ee50a032d9f"
+      },
+      "text_unchanged_from_original": false
+    },
+    "AI加速器/npu/system/tools/run_tensor_system_v2.py": {
+      "git_blob_sha256": "46ca6bd2c002229e4a9c9be6d7533f0ec12136646592150ba550d3d269f35971",
+      "bytes": 20158,
+      "original_source": {
+        "source": "AI加速器/npu/system/tools/run_tensor_system_v2.py",
+        "source_sha256": "c84b02f29d58aea91a8d0af5e68e50637564dc74382d3e5a8dd75bcba025c3bc"
+      },
+      "text_unchanged_from_original": false
+    },
+    "AI加速器/npu/system/tools/run_tensor_v2_rtl.py": {
+      "git_blob_sha256": "883a61fb6e69eb28bc07ab76d628766a06b82a67e6078c9a10fa14ab6a2ff5c3",
+      "bytes": 5056,
+      "original_source": {
+        "source": "AI加速器/npu/system/tools/run_tensor_v2_rtl.py",
+        "source_sha256": "b34f808dc0322276ad9613ee99bdfac5e5512126d0b670a81188ba340a550bdc"
+      },
+      "text_unchanged_from_original": false
+    },
+    "AI加速器/npu/system/tools/sd_cold_acceptance.py": {
+      "git_blob_sha256": "426503581f8c04a0914c012249201fc77c45fbb51f457c7c03fa4b4f75928387",
+      "bytes": 7738,
+      "original_source": {
+        "source": "AI加速器/npu/system/tools/sd_cold_acceptance.py",
+        "source_sha256": "feecbda205d2a233f5a2a4abb3e68516db9564e561f89c9e95f89d53fbe4f97e"
+      },
+      "text_unchanged_from_original": false
+    },
+    "AI加速器/npu/system/tools/sd_stats_fat_acceptance.py": {
+      "git_blob_sha256": "9613723b79a6c625039c97a9882586e6fe5f87eebe60dc58974b8395433a4419",
+      "bytes": 2719,
+      "original_source": {
+        "source": "AI加速器/npu/system/tools/sd_stats_fat_acceptance.py",
+        "source_sha256": "9613723b79a6c625039c97a9882586e6fe5f87eebe60dc58974b8395433a4419"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/npu/system/tools/system_common.py": {
+      "git_blob_sha256": "49eef277aa0b4d2f44978a9e3207bf1b06e0310fd1c1dac64c62aa2af1f05f15",
+      "bytes": 1641
+    },
+    "AI加速器/npu/system/tools/validate_handoff.py": {
+      "git_blob_sha256": "059cbef6d5d7a711290a6e9f7516dbcc3cce200a037af5404769c46ace3d31d6",
+      "bytes": 3667
+    },
+    "AI加速器/rtl/compute/gemv_core.sv": {
+      "git_blob_sha256": "d12fdccbf7340a3e3183ad2b76a6cfcaf2060b896f3a994f1686831f64e54891",
+      "bytes": 1971,
+      "original_source": {
+        "source": "AI加速器/rtl/compute/gemv_core.sv",
+        "source_sha256": "baa3c31fb49d99799bce9846da264fc39071d0cf2ab7740f9714c61f8bb3d2dd"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/rtl/compute/group_acc.sv": {
+      "git_blob_sha256": "5d3a87a055e8bfe83fb556285b6e38fba9ab0bdd4b5d75e1592d1e9115eb668a",
+      "bytes": 1441,
+      "original_source": {
+        "source": "AI加速器/rtl/compute/group_acc.sv",
+        "source_sha256": "01f8aefb8a95cdb6030ca44b634bd3ea7daffc8400c67d100130c36f6f8425d3"
+      },
+      "text_unchanged_from_original": true
+    },
+    "AI加速器/rtl/compute/mac_lane.sv": {
+      "git_blob_sha256": "dadc1bc0cda450ab2c6e29851d4d2c9bb574b4f82ca4dd305cb1f8fe9c046ac7",
+      "bytes": 400,
+      "original_source": {
+        "source": "AI加速器/rtl/compute/mac_lane.sv",
+        "source_sha256": "f44c73fcd5763bad98e38ee30c27872ed3a1f8e28b968907d359866980b4cc5c"
+      },
+      "text_unchanged_from_original": true
+    },
+    "NPU_HANDOFF.md": {
+      "git_blob_sha256": "7948335af1da8b86f71ff0cb4369674a04d1275e8d5b578b78cddef4a944c0d3",
+      "bytes": 15009
+    },
+    "README.md": {
+      "git_blob_sha256": "57e8108c82a1840cc83305c997dfe89a1e42292dfcc8c6141f189b62522492f8",
+      "bytes": 8483
+    },
+    "docs/RV侧接口文档.md": {
+      "git_blob_sha256": "8518d70b0a4fe65d6138285a9ce1c91771d620b1043006693d474d381db44a4b",
+      "bytes": 8824
+    },
+    "docs/npu/ASSESSMENT_20261102.md": {
+      "git_blob_sha256": "23300205d8073ccb27f4a26c079f52568e0c6ddcf7c25b31d0517834ce2064b6",
+      "bytes": 10588
+    },
+    "docs/npu/HANDOFF_VALIDATION.json": {
+      "git_blob_sha256": "2f23f5eafbb11f29d23bc54d3514aafd0b0c329f7b8297a519005a38ce5c716c",
+      "bytes": 10140
+    },
+    "docs/npu/evidence/PROVENANCE.json": {
+      "git_blob_sha256": "8ef8ed1c7bbede8efa1f00c7ea7e4432809a40405bd64d5605245edd1b81cfe8",
+      "bytes": 3855
+    },
+    "docs/npu/evidence/agent_firmware.json": {
+      "git_blob_sha256": "8d2d5353206ed8df9d064d472b14679851c5ec2b869d9687f61f96e6b8067f9e",
+      "bytes": 17864
+    },
+    "docs/npu/evidence/cache_range.json": {
+      "git_blob_sha256": "271abc614cdd79815d98c4fdf8700d7eba8bb3b9f1634a5cd3feaea59339b477",
+      "bytes": 6912
+    },
+    "docs/npu/evidence/cpu_latest.json": {
+      "git_blob_sha256": "f34dba1fc72c8930b48dadf2a7f2e4f83a577a2961bb6659e6cc20e340d4fb94",
+      "bytes": 25967
+    },
+    "docs/npu/evidence/cpu_queue4.json": {
+      "git_blob_sha256": "186828ae29d88e4fbb5ecbe8eafc9b1a4ef69bced00d32b31a2ad6ae35a1df6b",
+      "bytes": 28436
+    },
+    "docs/npu/evidence/handoff_clean_acceptance.json": {
+      "git_blob_sha256": "854b3cbf4c51a44f85d19b28905ce38da821ff85d161dcb1b863d4cbb2a73881",
+      "bytes": 25007
+    },
+    "docs/npu/evidence/handoff_clean_agent.json": {
+      "git_blob_sha256": "8cd52cb08cce2e13d13ca54c86b8aa2c58c6549c5906e7ad22ed365d2c585ce0",
+      "bytes": 21354
+    },
+    "docs/npu/evidence/handoff_clean_cpu.json": {
+      "git_blob_sha256": "3cd043c9f35e851ef7509fd021c6be8caadaf0ffe21cd17554ab0c8b44a284c7",
+      "bytes": 23489
+    },
+    "docs/npu/evidence/head_quant_reuse.json": {
+      "git_blob_sha256": "88ea77782ebd8607ae68114946f7a1e375b195e07e0f3faad79e6268afea5b9b",
+      "bytes": 1579
+    },
+    "docs/npu/evidence/historical_route.json": {
+      "git_blob_sha256": "8b5d8b058e4f7e789080fad70c5f138a272af2465fd55bed36880d62e986a340",
+      "bytes": 17411
+    },
+    "docs/npu/evidence/historical_route.rtr": {
+      "git_blob_sha256": "a3c22f1ac27dfdc6c893763f16300bc648f7989a108fbd160d71b2bb9ec6fb5c",
+      "bytes": 1007540
+    },
+    "docs/npu/evidence/historical_status.json": {
+      "git_blob_sha256": "ed6ebeaa54cc8fbfe6858dc6bce4f25233c1dade57cd6c7e2e19ce31c5f2f409",
+      "bytes": 12673
+    },
+    "docs/npu/evidence/latest_synthesis.json": {
+      "git_blob_sha256": "16a46d32e9426e642dc649b3d34d0079f35213830fe367f2a9cbbf19a9f86ec2",
+      "bytes": 17143
+    },
+    "docs/npu/evidence/model_result.json": {
+      "git_blob_sha256": "63b1ffee56f1adbff2d7acd55db7fb8f74bf93bf8a4529a845cd7357fb899b94",
+      "bytes": 879
+    },
+    "docs/npu/evidence/tensor_rtl.json": {
+      "git_blob_sha256": "c54e84627896da8a1e961dc4920f78367f909f8e5b57ecfb907978c78131f99c",
+      "bytes": 1332
+    },
+    "fpga/board/audit_ddr_queue4_cdc.py": {
+      "git_blob_sha256": "a8c321508dd68ba8cb70c3295fc71eddbbd2580414fdcba07d0b290ecb62916f",
+      "bytes": 11838
+    },
+    "fpga/board/check_ddr_queue4_cdc.tcl": {
+      "git_blob_sha256": "6c6c12a440d00a7322ee9a534500d0484fdb58b1d4cf66102dd0acb4fb57f292",
+      "bytes": 1136
+    },
+    "fpga/board/ddr_cdc.fdc": {
+      "git_blob_sha256": "8261dc056688a15b486a9a6e8debcec3f78a692d8f80befb9e028dd419f8b63f",
+      "bytes": 1217
+    },
+    "fpga/board/ddr_queue4_cdc.fdc": {
+      "git_blob_sha256": "2113e21cc0c7f76f6a8d54a77727e91310a4763a1a6c57d32d2349f1d0042152",
+      "bytes": 1905
+    },
+    "rtl/ag_hmic_bridge.sv": {
+      "git_blob_sha256": "12116497697d925d18c15e401896ddcc42d53d6c8674e59fe6ecfd6516cb0687",
+      "bytes": 18994
+    },
+    "rtl/ag_l1cache.sv": {
+      "git_blob_sha256": "c076ac2389ee01261b9ebfa03452f1566e7a5cf17f03859a5e867f3ccf15274d",
+      "bytes": 10436
+    },
+    "rtl/ag_soc.sv": {
+      "git_blob_sha256": "65eee6abff9889c00739e3ef7c7ab292dd71b144f116ccad06145500bc801c92",
+      "bytes": 19860
+    },
+    "sim/cache_range_main.cpp": {
+      "git_blob_sha256": "cea7be0f206aeeb9820bfe878c4358221674a8ddb3b7bdabd5a176fc9413d6f3",
+      "bytes": 4952
+    }
+  }
+}

@@ -1,0 +1,453 @@
+{
+  "passed": true,
+  "scope": "real RV32 + production ag_npu_system tensor/matrix + Cache/DDR simulation",
+  "board_verified": false,
+  "physical_timing_closed": false,
+  "full_model_inference": false,
+  "cpu_mode": "portable_metadata",
+  "tensor_v2_enabled": true,
+  "matrix_lanes": 64,
+  "cache_enabled": true,
+  "ddr_outstanding": 4,
+  "ddr_bfm": "ordered credit-reserved request/response deque",
+  "source_sha256": {
+    "AI加速器/npu/rtl/npu_bram.sv": "a64600de9688775c0328432c41588d7db42b1ddce6287591151d928b5c248247",
+    "AI加速器/npu/rtl/npu_bram_top.sv": "54a24b48ea90c76b172c4c2d4a9d0807c6683918f239dc63227fdb282e22ca81",
+    "AI加速器/npu/system/rtl/ag_npu_system.sv": "58295551a3df60086f2010a689c239d812cb65f6e5b1249e2617837f290cef6d",
+    "AI加速器/npu/system/rtl/ddr_arbiter2.sv": "5e6b2a89b46ca1a2983a9a8d19296ea08665751a108593f096624600b37cf00e",
+    "AI加速器/npu/system/rtl/gemv_pipeline16.sv": "f1d38728a657963954077db850df69a514928eee7b05ec87631471aa295b0336",
+    "AI加速器/npu/system/rtl/gemv_pipeline_v2.sv": "68f2a17e0daf5cfdeb4b3cd4b92d98921cc5730a4af0cdee0d21c1593e69b3e8",
+    "AI加速器/npu/system/rtl/npu_dma_top.sv": "61c38c38b6d9eb3d0fef62d5ff631ed5dceb232c96a727019f76119850a120bf",
+    "AI加速器/npu/system/rtl/npu_tensor_v2.sv": "9ed69c36277f81102ab77840bc7fd93258fecc2f0b5f522c87e3d40d345408d5",
+    "AI加速器/npu/system/rtl/sd_spi_top.sv": "530fd6fc6d8ec49ae5742f0bd8d19fd51279e8adc97d5279828b09bfe76d1085",
+    "AI加速器/npu/system/sim/ag_npu_sim.sv": "d0a54bf2b202217889f9f8edcec75a8e3dd09c705d11cf3ea09a931b6ba363fb",
+    "AI加速器/npu/system/sim/ag_npu_tensor_sim.sv": "d48033a38a7dfa67d265663fcefcb61bb148a2e9c5cfbea06ae46b607d6f0bbe",
+    "AI加速器/npu/system/sim/cache_range_acceptance.c": "90f09a4738f57f589a88d9764a673dba6b434b891c08a0d714b727fc8f60e5bd",
+    "AI加速器/npu/system/sim/ddr_queue4_tb.sv": "1f689b54c9309a790d87d4e3d650dd1bfad8275f5e97625dfcba534f1692c872",
+    "AI加速器/npu/system/sim/run_matrix_lanes.py": "55c7ce838484bd785540ef810b4590982a40141f02e531ad444d5c74e960c9aa",
+    "AI加速器/npu/system/sim/run_sd_multiblock.py": "47913fa8b147d32a4d1697d15a92f02735598b9fc775dceec7fc5ae263e95871",
+    "AI加速器/npu/system/sim/sd_spi_card_model.sv": "01d5bd6dfcf64ff7435749074b81025829657d241da625df88b86b7eb4fc730b",
+    "AI加速器/npu/system/sim/sd_spi_cold_tb.sv": "236a891ac4251d30eea4ba1d887d82e3c8faa3b0208ce7212cbc02476aa701c4",
+    "AI加速器/npu/system/sim/sd_spi_cold_test.cpp": "4d67acb208ed228f04810c29db2f919e5682b662dfe8131ca9eda8b1ce674b01",
+    "AI加速器/npu/system/sim/tb_sd_spi.sv": "0aa93824c248273accafe2a8841d5a4a36ed5dadd8ccc7da265582fd12b89496",
+    "AI加速器/npu/system/sim/tensor_model_host.c": "3a5c2886ca1198f652debf720497999a870867149f026b458ac3f4dc801124fe",
+    "AI加速器/npu/system/sim/test_checkpoint.c": "eab5908f0bd6dd7de85fcba98d1835316baef14f01cf635a0e01e394afca21e9",
+    "AI加速器/npu/system/sim/test_crc.c": "8f0450e7d95e66c093b5e88497f6ec3c4a531a64190eb6348f35fd814f6894f0",
+    "AI加速器/npu/system/sim/test_ddr_queue4.cpp": "a079132dd2e4ab73a8aefe5612671c4142b6d16b6b5bf065d1093f1be5042120",
+    "AI加速器/npu/system/sim/test_fat32.py": "d20b7795b354753a5634f9c5e6676152d0689caf0826d611a7227961ea3bc44c",
+    "AI加速器/npu/system/sim/test_head_mutation_guard.c": "52178809b54f68b9cb8d303d7613798b3f224a8a51acced277604b576d4ba3c2",
+    "AI加速器/npu/system/sim/test_npu_dma.cpp": "3e09bb869287a288f55059b992b502aa1a8a6f4b211fc7952326cd0d7fb04d28",
+    "AI加速器/npu/system/sim/test_package.py": "9023e8d6d57235bf4cf5296990aff2a3b4227abb029f5216e1ad6b407f264864",
+    "AI加速器/npu/system/sim/test_qw_tensor_adapter.c": "0c99bd317f16823add3ce546504edae8c6f6cba226498837e09b96ddc4141ccc",
+    "AI加速器/npu/system/sim/test_raw_api.c": "b6082654399e38d2525c0a03221a5a542d25bb5a2bcf937eabb2bb2b109ace53",
+    "AI加速器/npu/system/sim/test_runtime.c": "ffa86d4e69d7d4f4cd587559d9a6fdd6d43d63067cc1f6fc68848d1979a649f0",
+    "AI加速器/npu/system/sim/test_sd_spi.cpp": "5c953cded8460105b3b4c510249e572dc9d7dc48ae96a1bfb7b36e7460e190a7",
+    "AI加速器/npu/system/sim/test_storage.py": "514074ff1bc9ac51e60e910d351e05de77e01ab8113f0ce65994bad861b0b25f",
+    "AI加速器/npu/system/sim/test_stream_sha_loader.c": "83aa67212780bcae2bfd3f0a41e36e0bce2399c025e0b63b4558d9d24e3b6325",
+    "AI加速器/npu/system/sim/test_system.cpp": "25537c4b943da7bf2bdd60bcd8dabd9190b31d3e24906abf9b5e8e98481fbae7",
+    "AI加速器/npu/system/sim/test_tensor_async_mmio.c": "f869eb2542109fbb3e31ccb27b3136a296412d7d55553d25836d23f9329be0d0",
+    "AI加速器/npu/system/sim/test_tensor_driver.c": "ef464e70fb243b7c3d37c9652bda1b02927ca2f16fa560f1cecdd2081f84cf33",
+    "AI加速器/npu/system/sim/test_tensor_fsm.c": "7f6763db14c0fe4fe3dac2dccccfab33bb867c1e186e3773a98ef9df308ec2ca",
+    "AI加速器/npu/system/sim/test_tensor_reference.c": "f7b47e9b2163843252993f0854ea8e69279a7fb60b2da2676252747b23635879",
+    "AI加速器/npu/system/sim/test_tensor_reference.py": "beb7349233a19119695506be6e099ef1b869e62a27c93d3ee4853faf6fc83503",
+    "AI加速器/npu/system/sim/test_tensor_v2.cpp": "514f2d25eb5565411d9409cd8e13edf8ccabf2496d6a0e675ef7c6262f9c92cf",
+    "AI加速器/npu/system/sw/acceptance.c": "76a1f4e5639f00507b61a0b9cd36f50cdc337b35076fa925c65836df6a5e5afe",
+    "AI加速器/npu/system/sw/agent_board_20261101.c": "858e0d0eb345676d94a2f5aa49a273ab333ed327aba4bde010031b26ab90abea",
+    "AI加速器/npu/system/sw/agent_target_support.c": "4c06a3130590c49bf93fa9608eb794959a39c778fabb5d543b5e6595b307b841",
+    "AI加速器/npu/system/sw/agent_target_support.h": "182f72d0d6fb15cdfd7e59ab5d35ef3ec2c3b6d0b7653e3e442216c82495d84c",
+    "AI加速器/npu/system/sw/agent_tools_board_20261102.c": "8a31f3e0e2fa8df417a9ade155bdbccd01229bc1cdc984e923742046b60de644",
+    "AI加速器/npu/system/sw/freestanding.c": "028e6a5b63ded6b81979d2d9c83cb69ab01eca0d5b94f655af09692e0d148acf",
+    "AI加速器/npu/system/sw/link_agent_128k.ld": "00df0b5ad7af04ec6bd16462f13109d6492c764511ced9d6463ffe0fd8309d4f",
+    "AI加速器/npu/system/sw/npu_ag_platform.c": "1833d7fe358e0485dc81bdf1346858a286045dbaa6d275d7c34c015952a2c8ec",
+    "AI加速器/npu/system/sw/npu_ag_platform.h": "17b0a3dde5db455d84d8b67ec91bfab3972ad5dc4ca84d6d200326a8b78b9d2a",
+    "AI加速器/npu/system/sw/npu_backend.c": "899815a42e82174ea4badbedcd6f7d028bbf04924fa9a7443ff05a1eed5ed0a3",
+    "AI加速器/npu/system/sw/npu_backend.h": "91e4de44221cbe85051604fddb5e2b31ac64201a130d50b705d9fef85962c472",
+    "AI加速器/npu/system/sw/npu_cpu_dma_opt.c": "9c32e3cf6d96f51cc2e631f41dbf0dfc2fb0813663c125273711b121f403d3f0",
+    "AI加速器/npu/system/sw/npu_cpu_dma_opt.h": "fda9c14504411457cfd1b1c0d061b44f93c97b4df644bf4a017354d70d9e11e5",
+    "AI加速器/npu/system/sw/npu_dma.h": "42480a9fd04b4fb4e55b8b722d4fb7d67ed283d99dcd852b9b71bf5920ef5bf1",
+    "AI加速器/npu/system/sw/npu_fat32.c": "e1c3b475147dca6f4986f2cf991b3bb2e1bd9235b473971f034bd8ab68b1c2dd",
+    "AI加速器/npu/system/sw/npu_fat32.h": "48e26f92c01c316f47c4d8936e47bd9fed56b8a6436ca15c68a3a11c43d54c26",
+    "AI加速器/npu/system/sw/npu_fixed_lut_generated.h": "5fa41491aefbb2a17d414718e32bc8d903e2e5c40458e6eafb6952c6abe9456f",
+    "AI加速器/npu/system/sw/npu_fixed_lut_q16_generated.h": "e0fac387fdee6dd750b7bba1d3a6c11c0d52f3fc382d1780c2fc2d07aa16365b",
+    "AI加速器/npu/system/sw/npu_fixed_math.c": "4e5c015c513121a30c7ee1555cfedafc06803c07d5cb6bf0470317da16f59037",
+    "AI加速器/npu/system/sw/npu_fixed_math.h": "d780e871cf7caa79dc623035869fdceb162cea113df7af6a4fd1ffbf4411905c",
+    "AI加速器/npu/system/sw/npu_opt_board_20261102.c": "fc1e478f684fde6a44e033f6cbf7b36cbc593c00fa56bc43492cde84b379f284",
+    "AI加速器/npu/system/sw/npu_package.c": "e50336a45c00fae89cf3e62f539e37a2274fda065c26a48d180d488c86222c14",
+    "AI加速器/npu/system/sw/npu_package.h": "bf3c3f918cf4893a018761bbb80a6926bb62f39beb4f1dd1ff21f28f50c78554",
+    "AI加速器/npu/system/sw/npu_raw.c": "a1b28665628361b2f9b5ea40125a63ebdb3aa1077830d069a8902896d1903023",
+    "AI加速器/npu/system/sw/npu_raw.h": "171e501b378b821f5262e14bed90ae1de46da632559521777c4f2dcce7f0553a",
+    "AI加速器/npu/system/sw/npu_raw_reference.c": "f21f28b8e5e9e796a1af86fc9c803ab25a157321ef3e61cc7b6e3072034f3e2b",
+    "AI加速器/npu/system/sw/npu_runtime.c": "e9e62772414ec4d653d9a99087f4e353d2a49266d83f30812360ad46e5c227be",
+    "AI加速器/npu/system/sw/npu_runtime.h": "ebe5d5e3770b695dbbcf17856ab5926e521eb23c51b44007b08022484c66bd79",
+    "AI加速器/npu/system/sw/npu_storage.c": "721832877b2088a3959da8705bd7b15d2c78040b0f57c3adf2e6e4ab42156660",
+    "AI加速器/npu/system/sw/npu_storage.h": "77ec0432ea7b1632ae78a289f24b457446e722651e7e02a219a8ce7f09cf35ef",
+    "AI加速器/npu/system/sw/npu_tensor_ag.c": "601309653334832d55fca18b8e1723583fce756576b71bb575fa17d0dc6cfde7",
+    "AI加速器/npu/system/sw/npu_tensor_driver.c": "a59f03c042c949dd25e2b1f0f8c576b91c6d3c75af955ad1056991108fd88228",
+    "AI加速器/npu/system/sw/npu_tensor_driver.h": "fd5807e904efb525cd4ccad073633308be21385b6fdfc1195d543d0e83514d6d",
+    "AI加速器/npu/system/sw/npu_tensor_reference.c": "a1004951227b9f6aadaa1f3b345929ae565ad956cc2216c3297761b6d4f4c1dc",
+    "AI加速器/npu/system/sw/npu_tensor_v2.h": "016f9c9dee0fff9709589d7f15e56ff32c2504c937c3a9d769d2917607a4beaf",
+    "AI加速器/npu/system/sw/real_gate.c": "50dded4ec6c11ef2fb788bdc3bfe62dc3e83daba408b0311c0f32431b52130e6",
+    "AI加速器/npu/system/sw/real_operator.c": "9d32aa368dccbbcd24c1b0ee768a261f7bfdeae8bb94f5d520a994a783f4c34c",
+    "AI加速器/npu/system/sw/sd_card.c": "aaf9f7474e12712254c640cb196fad9c944881dc9f5817eacc068cd2b9762156",
+    "AI加速器/npu/system/sw/sd_card.h": "96568e4ca6ac3d1005a0be2477e4935ab13d04a1d8ca26fe443d1a6b05b1161c",
+    "AI加速器/npu/system/sw/sd_readcard.c": "b12c4a13d6a096f68c9b57a41e6a8f31dc0fd4a27fbcbb6af9363a5764d24793",
+    "AI加速器/npu/system/sw/tensor_acceptance.c": "aae2ff68ed9282aea625cc80bd0118bf109e8aae962e355fd18131d4f86e0429",
+    "AI加速器/npu/system/sw/tensor_agent_cooperative_board.c": "d134ae212e793ec8538c2eb0f3a7184a1438cf99c2282193b2c3b5656443aa55",
+    "AI加速器/npu/system/sw/tensor_agent_cooperative_board.h": "bc0170af44711b698d38095962b5f81a01a7b6f56e7414225b5570c66648bb5e",
+    "AI加速器/npu/system/sw/tensor_model_board.c": "e46c4609a26978a1b6afe5fa66b35cac4761355cb373aab98cbd1f6fb69f3197",
+    "AI加速器/npu/system/tools/assess_agent_board_run_20261102.py": "29fd9c617f3df67da3f846bfef23f3bedcb5ab9fa00e8cc8c9846dff81016dec",
+    "AI加速器/npu/system/tools/build_agent_board_20261101.py": "ba890bb54765f028c7146c264ae80e0c34e6ebed7a3f346ddf57c650988d08fe",
+    "AI加速器/npu/system/tools/build_agent_tools_20261102.py": "b087b0dbe68203764d3b80906867f1d58e08e4393751e06b053d0ec6fa473859",
+    "AI加速器/npu/system/tools/build_npu_opt_board_20261102.py": "ded70fbbf6d45cbc70025bb42460d9b49dec66787f44066df09b5b3c00babf70",
+    "AI加速器/npu/system/tools/build_readcard.py": "77cb2a365e3c5cd5a00daa75dfa2def9470f26f556fec2d12e16b2dae5c0e6d0",
+    "AI加速器/npu/system/tools/build_tensor_agent_cooperative.py": "7d8f08c1cfdc95b910412316c730b69cfda4ecb25c9acf2d4e1a83ad1bebb4ff",
+    "AI加速器/npu/system/tools/build_tensor_model_v2.py": "db6e2f39fea16f09c47182f2789b1ce7923c1f18dd2e0863a32d357d06775340",
+    "AI加速器/npu/system/tools/capture_optimization_baseline.py": "1308cc128e8e3c2c107dada9464c8bba9ca2e080eb00ef8c18f50303ab91bbc3",
+    "AI加速器/npu/system/tools/check_agent_board_progress_20261102.py": "dd3279f30f809223710d9cfc30a7d50cd85affc6b564092f69eec6bd67c98843",
+    "AI加速器/npu/system/tools/generate_npu_fixed_luts.py": "1f0b24fb4ee48ceab2cb1283e1a85e63dde5115290994d31d8fb335c56ecca52",
+    "AI加速器/npu/system/tools/make_sd_fixture.py": "3ba6333fdbac7c7bd634eef544797f7abced242ce9d8bef8dae18b20bf8522b2",
+    "AI加速器/npu/system/tools/npu_fixed_math_candidate.md": "8ea669821cbcb3bc58c4b4734a6fb37aee5bd41bf019f302beaa040e71904cf6",
+    "AI加速器/npu/system/tools/npu_fixed_math_q16_candidate.md": "46cf92adee5ba9ec8e31150dadb4e3a78d5b54d103f166f2d9ccd1f73ebad62a",
+    "AI加速器/npu/system/tools/pack_parameters.py": "271c84b23801427bedbb946f07144184006f1cfa7142b1cbb3665511d376827d",
+    "AI加速器/npu/system/tools/prepare_gate_validation_package.py": "fe456077e896a5c7266becb72446189ebd8981651085d000d26c442bf87c3503",
+    "AI加速器/npu/system/tools/prepare_operator_fixture.py": "f06524f40328f477a6e9be521c1b872433f18900096d327b824d5621c2cff21b",
+    "AI加速器/npu/system/tools/prepare_operator_payload.py": "4ea8982d417f3180a8d0be3635d53d2f0d3f50fd8674f63bf017abb3054583c9",
+    "AI加速器/npu/system/tools/prepare_real_gate.py": "25847b5604d8d885ad18a02650209555f614999b6462ed0dfc290d5c95996d4f",
+    "AI加速器/npu/system/tools/program_agent_board_20261101.ps1": "e5683199c8bd1e50d832d6fc26af3e91a5e4f1ab41d93eeb2b30dd395d2fcec0",
+    "AI加速器/npu/system/tools/program_agent_tools_20261102.ps1": "c2a6798e272ae99517e08f7bf90d3cca0dbd6e823d191aeae1593e3b79df4d8b",
+    "AI加速器/npu/system/tools/program_npu_opt_board_20261102.ps1": "f03faeb6737cad4ce72ad3047a3c5f48cb40e8c9bf499433695e8e28be8126a6",
+    "AI加速器/npu/system/tools/quantize_output_head_candidate_20261102.py": "5f4aea3f75f0bdad1bb70e718188b244664633672e0051757dbabea16e2d2cee",
+    "AI加速器/npu/system/tools/qw_integer_lut_runtime.md": "c7cd2752bc714b0178e2fd015a268c4cffbf95a3decd5ffeb2c616f279d900a2",
+    "AI加速器/npu/system/tools/restore_agent_sd_20261101.py": "6c045c4579da513cf2dfccdf2177e510696e02e4828bc607beabcab4cfca8933",
+    "AI加速器/npu/system/tools/review_tensor_agent_cooperative.py": "00194a01d1ca16cbb26ac9eae872ee4835a8a86c8b9f931e9dde5dac43ae3cd3",
+    "AI加速器/npu/system/tools/run_agent_protocol_reference_20261102.py": "76fbb160d90db35ac17527afc65986ee7dcaa627824be6c37d907dd9867e042b",
+    "AI加速器/npu/system/tools/run_cache_range.py": "8315f0c89b8f49cca07ba63f26b7bdbda12bada027a5092d223b1d645cb54815",
+    "AI加速器/npu/system/tools/run_ddr_queue4.py": "fb91905759270b535307048d2ec087b357ca83d7aa7f4dcbb4fdfa10c31cdede",
+    "AI加速器/npu/system/tools/run_head_quant_reuse.py": "487666ebaf57d59dfd70b0b8fa3bf65da211524f1fe474b8943930124e77a6d5",
+    "AI加速器/npu/system/tools/run_npu_optimization_benchmark_20261102.py": "1ce5b0e4f7437008396b83d42d3443422c8296b2cd9a1dfef0081e8c487e9d54",
+    "AI加速器/npu/system/tools/run_stream_sha_loader.py": "d0d0d00dc07c1e2c03f82520604d05a30612fc4b7a7eeaeac692e3f70a910ea5",
+    "AI加速器/npu/system/tools/run_system.py": "9f78fd7d22536b5ecef728766c61eb9e9b46c9eb1293c6926f3f3eb9cf0eae29",
+    "AI加速器/npu/system/tools/run_tensor_agent_v2.py": "4e54ca53f6caba94800e009f58923f9be124735461275a0494aa23a2b302fc70",
+    "AI加速器/npu/system/tools/run_tensor_async_driver.py": "7559a98a570d8fa5cea2db51aaee8088e98419bd1beaedec8b722e15bf4091d3",
+    "AI加速器/npu/system/tools/run_tensor_model_v2.py": "7116431c554ef235b3b3487dd96e7cf170034977fb823e7d47d74ee50a032d9f",
+    "AI加速器/npu/system/tools/run_tensor_system_v2.py": "c84b02f29d58aea91a8d0af5e68e50637564dc74382d3e5a8dd75bcba025c3bc",
+    "AI加速器/npu/system/tools/run_tensor_v2_rtl.py": "b34f808dc0322276ad9613ee99bdfac5e5512126d0b670a81188ba340a550bdc",
+    "AI加速器/npu/system/tools/sd_cold_acceptance.py": "feecbda205d2a233f5a2a4abb3e68516db9564e561f89c9e95f89d53fbe4f97e",
+    "AI加速器/npu/system/tools/sd_stats_fat_acceptance.py": "9613723b79a6c625039c97a9882586e6fe5f87eebe60dc58974b8395433a4419",
+    "AI加速器/npu/system/tools/stage_npu_optimization_sd_20261102.py": "ee263c446d0a1575ad0ccc0673b9556e2b6ce558393f5c07c15e2c31a3beeba7",
+    "AI加速器/npu/system/tools/summarize_npu_opt_board_20261102.py": "eb67eee2a6d147145cf3a994fae5e7b852d9bff748a5d433870b6311a2143522",
+    "AI加速器/npu/system/tools/summarize_tensor_optimization.py": "124ac3c1e2fe35cafa6872b974a8e3df2d95d4c6a75c6f670dab7cdd78f5b3bd",
+    "AI加速器/npu/system/tools/validate_npu_fixed_math.py": "c53984cd3616092e6002e13b14d072e215cb734fcc0cd9ec84f63cd989681684",
+    "AI加速器/npu/system/tools/validate_npu_fixed_math_q16.py": "945162241450b780e0a3cd56f79487f4ed4148403619df1dac1ff795689a3f5a",
+    "AI加速器/npu/system/tools/verify_operator_board.py": "d2683c2b16b4bf58d08379a3aa68880fa26e7a3ec84e63817b43e072d216ef7b",
+    "AI加速器/npu/system/tools/verify_system.py": "6e12fc83bc17b535ffaccb3eb39183e91b6b9215bf68d97165eb4a9e8ebc093e",
+    "AI加速器/rtl/compute/gemv_core.sv": "baa3c31fb49d99799bce9846da264fc39071d0cf2ab7740f9714c61f8bb3d2dd",
+    "AI加速器/rtl/compute/group_acc.sv": "01f8aefb8a95cdb6030ca44b634bd3ea7daffc8400c67d100130c36f6f8425d3",
+    "AI加速器/rtl/compute/mac_lane.sv": "f44c73fcd5763bad98e38ee30c27872ed3a1f8e28b968907d359866980b4cc5c",
+    "CPU/rtl/ag_extmem.sv": "b1b702e82cb1d77709fd3d41e4cf1bc17d3731f900fc7e51f2988ceae9dfe2b8",
+    "CPU/rtl/ag_fpga_top.sv": "83f5673efdfc56cd89eead203605f9fc05736089e3d766d705318c7c51037156",
+    "CPU/rtl/ag_hmic_bridge.sv": "12116497697d925d18c15e401896ddcc42d53d6c8674e59fe6ecfd6516cb0687",
+    "CPU/rtl/ag_l1cache.sv": "c076ac2389ee01261b9ebfa03452f1566e7a5cf17f03859a5e867f3ccf15274d",
+    "CPU/rtl/ag_soc.sv": "65eee6abff9889c00739e3ef7c7ab292dd71b144f116ccad06145500bc801c92",
+    "CPU/rtl/files.f": "aed7527b1457f435b090ecfff72b213ecc50e4b86fd5beb95cca2ab47bc83562",
+    "CPU/rtl/rv32_alu.sv": "bbbe7a9d66d9ad67ac5cb3f218cae11ef2c261e12f01997484b07edf1aeea82a",
+    "CPU/rtl/rv32_core.sv": "f21e3224477aa912c014b83625b95678bb12d1b668dc9aaf4943b29d8dd259fb",
+    "CPU/rtl/rv32_csr.sv": "3dd75ebedb56856c1862686d48ffa24c2ba36453481cd1a662dc00780188e4de",
+    "CPU/rtl/rv32_decode.sv": "e19e9930f1222ec82f1909e6ba5c5ef7b6c572532ac42e69db0260ec1d49780f",
+    "CPU/rtl/rv32_divider.sv": "fb9bf1d0772d90df223ca77aef8a1c0536f4ea22933912d089018666cc7faadf",
+    "CPU/rtl/rv32_pkg.sv": "f7fcfa74f0c859012392a5866676db4a28653c86616e1f49f063d6aa253cdeca",
+    "CPU/rtl/rv32_predictor.sv": "d95a21ad5ee915cb1cf018a91a483001a268e59318aaa05d3eff15b9b3ff435b",
+    "CPU/rtl/uart_tx.sv": "52c34cb4f8cb48b845410db4b4b2cba7a324d969ea559e6e80ae7ee78201205a",
+    "CPU/scripts/bin2hex.py": "0c815d6d9868a548500d3a992975b8112035e5bd68b990baa1a768deddc1d429",
+    "CPU/sw/link.ld": "bb5a9cb3de8f726d6c618946420e9c71abe90bfc30e6cd7ab1bcc4b5ce464986",
+    "CPU/sw/start.S": "928ca24501fe536740617b16390d9d89cdcc646ed58f251e6cbc8d3c6bf0e18a"
+  },
+  "profiles": {
+    "single": {
+      "result": {
+        "done": true,
+        "exit_code": 0,
+        "cycles": 2628102,
+        "retired": 1174209,
+        "dual_retired": 0,
+        "trap": false,
+        "last_pc": 68,
+        "peripheral_requests": 3571,
+        "legacy_completions": 0,
+        "dma_completions": 3,
+        "ddr_reads": 2723,
+        "ddr_writes": 1139,
+        "ddr_backpressure": 1856,
+        "sd_clock_edges": 0
+      },
+      "bus": {
+        "tensor_completions": 26,
+        "overlap_cycles": 3185,
+        "tensor_requests": 1012,
+        "matrix_requests": 670,
+        "cpu_requests": 2180,
+        "ddr_outstanding": 4,
+        "peak_pending": 2
+      },
+      "summary": {
+        "jobs": 26,
+        "checked_words": 13840,
+        "opcodes": 20,
+        "matrix_jobs": 3,
+        "reference_on_target": false
+      },
+      "cases": [
+        {
+          "index": 0,
+          "opcode": 1,
+          "name": "op1",
+          "cycles": 93
+        },
+        {
+          "index": 1,
+          "opcode": 2,
+          "name": "op2",
+          "cycles": 233
+        },
+        {
+          "index": 2,
+          "opcode": 3,
+          "name": "op3",
+          "cycles": 245
+        },
+        {
+          "index": 3,
+          "opcode": 4,
+          "name": "op4",
+          "cycles": 106
+        },
+        {
+          "index": 4,
+          "opcode": 5,
+          "name": "op5",
+          "cycles": 98
+        },
+        {
+          "index": 5,
+          "opcode": 6,
+          "name": "op6",
+          "cycles": 103
+        },
+        {
+          "index": 6,
+          "opcode": 7,
+          "name": "op7",
+          "cycles": 102
+        },
+        {
+          "index": 7,
+          "opcode": 8,
+          "name": "op8",
+          "cycles": 1601
+        },
+        {
+          "index": 8,
+          "opcode": 9,
+          "name": "op9",
+          "cycles": 732
+        },
+        {
+          "index": 9,
+          "opcode": 10,
+          "name": "op10",
+          "cycles": 268
+        },
+        {
+          "index": 10,
+          "opcode": 11,
+          "name": "op11",
+          "cycles": 792
+        },
+        {
+          "index": 11,
+          "opcode": 12,
+          "name": "op12",
+          "cycles": 1060
+        },
+        {
+          "index": 12,
+          "opcode": 12,
+          "name": "op12_second_state_step",
+          "cycles": 1072
+        },
+        {
+          "index": 13,
+          "opcode": 13,
+          "name": "op13",
+          "cycles": 2710
+        },
+        {
+          "index": 14,
+          "opcode": 13,
+          "name": "op13_second_state_step",
+          "cycles": 2745
+        },
+        {
+          "index": 15,
+          "opcode": 14,
+          "name": "op14",
+          "cycles": 3185
+        },
+        {
+          "index": 16,
+          "opcode": 15,
+          "name": "op15",
+          "cycles": 717
+        },
+        {
+          "index": 17,
+          "opcode": 16,
+          "name": "op16",
+          "cycles": 65
+        },
+        {
+          "index": 18,
+          "opcode": 17,
+          "name": "op17",
+          "cycles": 907
+        },
+        {
+          "index": 19,
+          "opcode": 18,
+          "name": "op18",
+          "cycles": 923
+        },
+        {
+          "index": 20,
+          "opcode": 20,
+          "name": "delta_q24_first",
+          "cycles": 2705
+        },
+        {
+          "index": 21,
+          "opcode": 20,
+          "name": "delta_q24_second_state_step",
+          "cycles": 2676
+        },
+        {
+          "index": 22,
+          "opcode": 8,
+          "name": "delta_q24_to_norm_q48_epsilon",
+          "cycles": 1609
+        },
+        {
+          "index": 23,
+          "opcode": 3,
+          "name": "mul_rne_saturation",
+          "cycles": 257
+        },
+        {
+          "index": 24,
+          "opcode": 15,
+          "name": "quant_zero",
+          "cycles": 89
+        },
+        {
+          "index": 25,
+          "opcode": 19,
+          "name": "matrix_v1_to_reduce_raw_w4",
+          "cycles": 186
+        }
+      ],
+      "wrong_expected": {
+        "done": true,
+        "exit_code": 10,
+        "cycles": 22996,
+        "retired": 16656,
+        "dual_retired": 0,
+        "trap": false,
+        "last_pc": 68,
+        "peripheral_requests": 35,
+        "legacy_completions": 0,
+        "dma_completions": 0,
+        "ddr_reads": 69,
+        "ddr_writes": 6,
+        "ddr_backpressure": 37,
+        "sd_clock_edges": 0
+      },
+      "skip_cache": {
+        "done": true,
+        "exit_code": 10,
+        "cycles": 20389,
+        "retired": 14390,
+        "dual_retired": 0,
+        "trap": false,
+        "last_pc": 68,
+        "peripheral_requests": 36,
+        "legacy_completions": 0,
+        "dma_completions": 0,
+        "ddr_reads": 66,
+        "ddr_writes": 2,
+        "ddr_backpressure": 29,
+        "sd_clock_edges": 0
+      }
+    }
+  },
+  "tools": {
+    "verilator": "Verilator 5.032 2025-01-01 rev (Debian 5.032-1)",
+    "compiler": "riscv-none-elf-gcc (xPack GNU RISC-V Embedded GCC x86_64) 15.2.0"
+  },
+  "fixture_count": 26,
+  "opcodes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "firmware": {
+    "binary_bytes": 23808,
+    "elf_sha256": "27f9610fa5bbe7b5555efb9331acedc9398425acb09ce902dea1e357ae40a3e3",
+    "host_reference_linked": false
+  },
+  "wrong_expected_firmware": {
+    "binary_bytes": 23824,
+    "elf_sha256": "7c9826094a53950c8bb740830e3564587f2c2acc92cc73346bcb66d642ea6368",
+    "host_reference_linked": false
+  },
+  "skip_cache_firmware": {
+    "binary_bytes": 23408,
+    "elf_sha256": "337b8873197c7f9ef0328a2a35e959ed9b25f5e343e10e622db4838ffad58152",
+    "host_reference_linked": false
+  },
+  "cpu_compatibility": {
+    "production_modified": false,
+    "formal_equivalence_verified": false,
+    "original_sha256": "f21e3224477aa912c014b83625b95678bb12d1b668dc9aaf4943b29d8dd259fb",
+    "copy_sha256": "47f807132c0d8f39dbaa615913f7565a32f6f8306fe7363346651a5099fecca5"
+  },
+  "source_changes_during_run": {
+    "AI加速器/npu/system/tools/summarize_tensor_optimization.py": "a25bf148cd648896a1eef5584e7df0083067c69026e36d395ef235037db701de"
+  },
+  "original_receipt": {
+    "path": "D:\\GPT\\qiansai_FPGA\\AI加速器\\npu\\system\\build\\tensor_system_v2_packdiag_final_20261102\\report.json",
+    "sha256": "65cd6270598f6277e0b515934c884480bb84cb22e25a045f2011c713f7c83275",
+    "passed": false,
+    "failure": "ValueError('shared source changed during acceptance; report lists affected files')"
+  },
+  "verification_scope": "All completed RTL/CPU/Cache/DDR and negative results; every non-reporting source retained exact SHA. Only unrelated summarizer changed during run.",
+  "unrelated_report_tool_changes": {
+    "AI加速器/npu/system/tools/summarize_tensor_optimization.py": "a25bf148cd648896a1eef5584e7df0083067c69026e36d395ef235037db701de"
+  },
+  "actual_acceptance_sources_unchanged": true
+}

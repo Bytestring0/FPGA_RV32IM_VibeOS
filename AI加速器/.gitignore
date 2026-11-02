@@ -1,0 +1,7 @@
+build/
+build_dma/
+__pycache__/
+*.py[cod]
+*.vcd
+*.fst
+obj_dir/

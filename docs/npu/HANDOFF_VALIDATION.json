@@ -1,0 +1,221 @@
+{
+  "base_cpu_commit": "f7f87ead59bc527861084e847b5975e9929bb152",
+  "branch": "codex/npu-cpu-handoff-20261102",
+  "passed": true,
+  "scope": "handoff packaging and functional integration; not deployment approval",
+  "board_verified": false,
+  "quality_approved": false,
+  "physical_timing_closed": false,
+  "whole_model_inference_rerun": false,
+  "sd_card_written": false,
+  "command": "python3 AI加速器/npu/system/tools/validate_handoff.py --toolchain <xpack-linux-directory> --output <fresh-system-build-directory>",
+  "batch_report_sha256": "839b375506528f4ccd4ac21daedd98edea9870ee000f19b3e7d8d51d243f2cce",
+  "checks": {
+    "tensor_rtl": {
+      "exit_code": 0,
+      "seconds": 52.978,
+      "log_sha256": "8e88bcfe944a01ec91e0e002d8f404f8779c3dc25084ca101c5d555309c6dfa3"
+    },
+    "cpu_cache_ddr": {
+      "exit_code": 0,
+      "seconds": 97.579,
+      "log_sha256": "b45fb3642094675e6e4f9e0c11e75f855b9d20d39f4e4abb31de51f0d47957eb"
+    },
+    "cache_range": {
+      "exit_code": 0,
+      "seconds": 55.437,
+      "log_sha256": "eb03f74a57505ee45c4332a22fa8d2f362916dd1c3a523920ad022723280d20c"
+    },
+    "queue4": {
+      "exit_code": 0,
+      "seconds": 21.772,
+      "log_sha256": "5d6b283daa6a3de723a006ffcef56b62c38a810c1a5157fef828427d6543a71f"
+    },
+    "async_driver": {
+      "exit_code": 0,
+      "seconds": 5.882,
+      "log_sha256": "d152c3f81421e28b8c4953527edf7bf7c5c8e602bd0787ed9d985a76f1771466"
+    },
+    "stream_loader": {
+      "exit_code": 0,
+      "seconds": 5.399,
+      "log_sha256": "eeb836827b279e878ca86759a5caaf9bf1cf14d8bbd5660a986174db99e564fc"
+    },
+    "agent_build": {
+      "exit_code": 0,
+      "seconds": 25.473,
+      "log_sha256": "0aebd974e1c0292d65ef481f358553183ccf438b6be9d2b1b2be4706b90dbf21"
+    }
+  },
+  "tensor_pass_lines": [
+    "TENSOR_V2_CORE_PASS cases=513 reads=1064321 writes=12408 cycles=14296195",
+    "TENSOR_PACK_DIAG_BOUNDARIES_PASS byte_word_tails multi_sat badscale_clear reset_zero",
+    "TENSOR_V2_PASS cases=536 reads=1064418 writes=12452 cycles=14314407"
+  ],
+  "cpu": {
+    "cache_enabled": true,
+    "matrix_lanes": 64,
+    "ddr_outstanding": 4,
+    "cpu_mode": "portable_metadata",
+    "cpu_compatibility": {
+      "production_modified": false,
+      "formal_equivalence_verified": false,
+      "original_sha256": "f21e3224477aa912c014b83625b95678bb12d1b668dc9aaf4943b29d8dd259fb",
+      "copy_sha256": "47f807132c0d8f39dbaa615913f7565a32f6f8306fe7363346651a5099fecca5"
+    },
+    "results": {
+      "single.log": [
+        "TENSOR_SYSTEM_SUMMARY {\"jobs\":26,\"checked_words\":13840,\"opcodes\":20,\"matrix_jobs\":3,\"reference_on_target\":false}",
+        "SYSTEM_RESULT {\"done\":true,\"exit_code\":0,\"cycles\":2628102,\"retired\":1174209,\"dual_retired\":0,\"trap\":false,\"last_pc\":68,\"peripheral_requests\":3571,\"legacy_completions\":0,\"dma_completions\":3,\"ddr_reads\":2723,\"ddr_writes\":1139,\"ddr_backpressure\":1856,\"sd_clock_edges\":0}",
+        "TENSOR_SYSTEM_BUS {\"tensor_completions\":26,\"overlap_cycles\":3185,\"tensor_requests\":1012,\"matrix_requests\":670,\"cpu_requests\":2180,\"ddr_outstanding\":4,\"peak_pending\":2}"
+      ],
+      "dual.log": [
+        "TENSOR_SYSTEM_SUMMARY {\"jobs\":26,\"checked_words\":13840,\"opcodes\":20,\"matrix_jobs\":3,\"reference_on_target\":false}",
+        "SYSTEM_RESULT {\"done\":true,\"exit_code\":0,\"cycles\":2374884,\"retired\":1176952,\"dual_retired\":259922,\"trap\":false,\"last_pc\":68,\"peripheral_requests\":3921,\"legacy_completions\":0,\"dma_completions\":3,\"ddr_reads\":2723,\"ddr_writes\":1139,\"ddr_backpressure\":1956,\"sd_clock_edges\":0}",
+        "TENSOR_SYSTEM_BUS {\"tensor_completions\":26,\"overlap_cycles\":3224,\"tensor_requests\":1012,\"matrix_requests\":670,\"cpu_requests\":2180,\"ddr_outstanding\":4,\"peak_pending\":2}"
+      ],
+      "single_wrong_expected.log": [
+        "SYSTEM_RESULT {\"done\":true,\"exit_code\":10,\"cycles\":22996,\"retired\":16656,\"dual_retired\":0,\"trap\":false,\"last_pc\":68,\"peripheral_requests\":35,\"legacy_completions\":0,\"dma_completions\":0,\"ddr_reads\":69,\"ddr_writes\":6,\"ddr_backpressure\":37,\"sd_clock_edges\":0}",
+        "TENSOR_SYSTEM_BUS {\"tensor_completions\":1,\"overlap_cycles\":0,\"tensor_requests\":4,\"matrix_requests\":0,\"cpu_requests\":71,\"ddr_outstanding\":4,\"peak_pending\":1}"
+      ],
+      "single_skip_cache.log": [
+        "SYSTEM_RESULT {\"done\":true,\"exit_code\":10,\"cycles\":20389,\"retired\":14390,\"dual_retired\":0,\"trap\":false,\"last_pc\":68,\"peripheral_requests\":36,\"legacy_completions\":0,\"dma_completions\":0,\"ddr_reads\":66,\"ddr_writes\":2,\"ddr_backpressure\":29,\"sd_clock_edges\":0}",
+        "TENSOR_SYSTEM_BUS {\"tensor_completions\":1,\"overlap_cycles\":0,\"tensor_requests\":4,\"matrix_requests\":0,\"cpu_requests\":64,\"ddr_outstanding\":4,\"peak_pending\":1}"
+      ],
+      "dual_wrong_expected.log": [
+        "SYSTEM_RESULT {\"done\":true,\"exit_code\":10,\"cycles\":19186,\"retired\":16663,\"dual_retired\":3822,\"trap\":false,\"last_pc\":68,\"peripheral_requests\":36,\"legacy_completions\":0,\"dma_completions\":0,\"ddr_reads\":69,\"ddr_writes\":6,\"ddr_backpressure\":40,\"sd_clock_edges\":0}",
+        "TENSOR_SYSTEM_BUS {\"tensor_completions\":1,\"overlap_cycles\":0,\"tensor_requests\":4,\"matrix_requests\":0,\"cpu_requests\":71,\"ddr_outstanding\":4,\"peak_pending\":1}"
+      ],
+      "dual_skip_cache.log": [
+        "SYSTEM_RESULT {\"done\":true,\"exit_code\":10,\"cycles\":16796,\"retired\":14397,\"dual_retired\":3610,\"trap\":false,\"last_pc\":68,\"peripheral_requests\":37,\"legacy_completions\":0,\"dma_completions\":0,\"ddr_reads\":66,\"ddr_writes\":2,\"ddr_backpressure\":31,\"sd_clock_edges\":0}",
+        "TENSOR_SYSTEM_BUS {\"tensor_completions\":1,\"overlap_cycles\":0,\"tensor_requests\":4,\"matrix_requests\":0,\"cpu_requests\":64,\"ddr_outstanding\":4,\"peak_pending\":1}"
+      ]
+    }
+  },
+  "agent": {
+    "static_tcm_bytes": 120032,
+    "stack_reserved_bytes": 8192,
+    "headroom_before_stack_bytes": 2848,
+    "tokenizer_verified_at_build": false,
+    "resource": {
+      "short_name": "APPRES  BIN",
+      "bytes": 37396,
+      "sha256": "4277b6bed2d1ef05eb038e19c144c36e4e0a635c0bfafdc2d2488b235397c2a0",
+      "required_on_sd": true,
+      "contains": "complete canonical R4 and unchanged referenced fixed-point LUTs"
+    }
+  },
+  "matrix_lanes": {
+    "runs": [
+      {
+        "tag": "16_pipeline_dma",
+        "lanes": 16,
+        "build_exit_code": 0,
+        "test_exit_code": 0
+      },
+      {
+        "tag": "16_pipeline_core",
+        "lanes": 16,
+        "build_exit_code": 0,
+        "test_exit_code": 0
+      },
+      {
+        "tag": "32_pipeline_dma",
+        "lanes": 32,
+        "build_exit_code": 0,
+        "test_exit_code": 0
+      },
+      {
+        "tag": "32_pipeline_core",
+        "lanes": 32,
+        "build_exit_code": 0,
+        "test_exit_code": 0
+      },
+      {
+        "tag": "64_pipeline_dma",
+        "lanes": 64,
+        "build_exit_code": 0,
+        "test_exit_code": 0
+      },
+      {
+        "tag": "64_pipeline_core",
+        "lanes": 64,
+        "build_exit_code": 0,
+        "test_exit_code": 0
+      }
+    ],
+    "report_sha256": "026f8507093c1b3c97847f053f0ee8e4875ea03eeb1d72514cfd822d18a958f7"
+  },
+  "sd": {
+    "scope": "current real SPI hw_multi waveform, CRC bit/table equivalence and RTL checks; not real media",
+    "report_sha256": "49711a7a88e96c461d827481ce7f60fbff330cfafba877b8bd1117b40b5fabf4",
+    "passed": true
+  },
+  "fresh_indexed_checkout": {
+    "status": "verified",
+    "source": "git checkout-index --all from the explicitly staged tree",
+    "windows_autocrlf": true,
+    "canonical_prompt_and_evidence_exact_bytes": true,
+    "checks": {
+      "tensor_rtl": {
+        "exit_code": 0,
+        "seconds": 52.578,
+        "log_sha256": "6d06c3bad0047d629c3a4ed93d1dc3dbf8e2ac23c85b67c3de4d3207d3745f47"
+      },
+      "cpu_cache_ddr": {
+        "exit_code": 0,
+        "seconds": 97.868,
+        "log_sha256": "7ec4bcb5840cb84a705680282e9d56426d3de31962130dea2a1580578f9ad3ce"
+      },
+      "cache_range": {
+        "exit_code": 0,
+        "seconds": 54.585,
+        "log_sha256": "6555cf516681bd9110ccef37c4ba8c68b8c942fe3ca93eb539f682d01ee7e338"
+      },
+      "queue4": {
+        "exit_code": 0,
+        "seconds": 20.01,
+        "log_sha256": "0ee796d140ff7851c9054c22ac96f41d182d9b3b45112957fc187ba284238d3f"
+      },
+      "async_driver": {
+        "exit_code": 0,
+        "seconds": 5.781,
+        "log_sha256": "8dc557b1fd3e0474c25525b4edf129285e3466a9a86dc29646faae880d9b6a02"
+      },
+      "stream_loader": {
+        "exit_code": 0,
+        "seconds": 5.186,
+        "log_sha256": "84680bd2f56e1e26f0b3fca6b44eb78f45059661513deede5329494eec1f26ed"
+      },
+      "agent_build": {
+        "exit_code": 0,
+        "seconds": 23.667,
+        "log_sha256": "3a60abe86c2561968b5c39ff7f25c71d2deb5c0a5b60bd8dc39d686d08ca09ec"
+      }
+    },
+    "firmware_bin_and_appres_identical_to_working_tree_build": true,
+    "raw_receipts": {
+      "handoff_clean_acceptance.json": {
+        "path": "docs/npu/evidence/handoff_clean_acceptance.json",
+        "sha256": "854b3cbf4c51a44f85d19b28905ce38da821ff85d161dcb1b863d4cbb2a73881"
+      },
+      "handoff_clean_cpu.json": {
+        "path": "docs/npu/evidence/handoff_clean_cpu.json",
+        "sha256": "3cd043c9f35e851ef7509fd021c6be8caadaf0ffe21cd17554ab0c8b44a284c7"
+      },
+      "handoff_clean_agent.json": {
+        "path": "docs/npu/evidence/handoff_clean_agent.json",
+        "sha256": "8cd52cb08cce2e13d13ca54c86b8aa2c58c6549c5906e7ad22ed365d2c585ce0"
+      }
+    },
+    "no_original_project_untracked_inputs_used": true
+  },
+  "limitations": [
+    "No current FPGA model throughput or quality approval.",
+    "Fresh firmware builds use fixed tokenizer metadata; the real SD loader still verifies bytes/SHA.",
+    "CPU simulation default portable_metadata is a temporary simulator compatibility copy, not formal equivalence.",
+    "PDS rerun, physical timing and board programming were not part of this handoff task."
+  ],
+  "source_baseline_date": "2026-11-02",
+  "handoff_date": "2026-11-03"
+}

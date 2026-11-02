@@ -1,0 +1,29 @@
+{
+  "passed": true,
+  "scope": "HEAD_QUANT_REUSE_FOCUSED_AND_ONE8TOKEN_HOST_RUN",
+  "board_verified": false,
+  "quality_approved": false,
+  "source_sha256": {
+    "integration/agent_runtime_20261101/sw/model/qw_tensor_v2.c": "ea37be3b17d3e06fe06c82286351a8a58554df316a102c6c024d90230775b826",
+    "integration/agent_runtime_20261101/sw/model/qw_tensor_v2.h": "858000fefc6849e88b54f9ffc76553440e1719238cdba41a2c610183683b12ba",
+    "integration/agent_runtime_20261101/sw/model/qw_tensor_async.h": "9b693a29a9bed136deefd9247b04207795f5c2bbbad37f8bb57b91761a1c77df",
+    "sim/test_tensor_fsm.c": "7f6763db14c0fe4fe3dac2dccccfab33bb867c1e186e3773a98ef9df308ec2ca"
+  },
+  "focused_contract_passed": true,
+  "eight_token_hashes_and_sampled_tokens_equal": true,
+  "first_token_all_logit_bytes_equal": true,
+  "golden_result_sha256": "97234b5cc9f5e453396bf5d6673587b55dc7174095879d12da98d2bda82d4902",
+  "golden_host_seconds": 8.39969023,
+  "candidate_host_seconds": 8.34006101,
+  "host_time_ratio_old_over_new": 1.0071497342679512,
+  "old_tensor_jobs": 37848,
+  "new_tensor_jobs": 37368,
+  "saved_tensor_jobs": 480,
+  "raw_jobs_unchanged": true,
+  "raw_jobs": 2120,
+  "old_underflows": 484801,
+  "new_underflows": 474481,
+  "golden_evidence_limit": "Frozen golden stores full logits bytes only for first token; all8 tokens compare sampled tokens and FNV1a32 full-logit hashes, not collision-free byte dumps.",
+  "host_timing_note": "One new host run compared with historical timing; CPU scheduling/cache differs. Not controlled benchmark or FPGA speedup.",
+  "source_unchanged": true
+}

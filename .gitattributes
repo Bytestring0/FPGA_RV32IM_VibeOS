@@ -1,3 +1,9 @@
 # Evidence archives must retain exact bytes for recorded SHA-256 values.
 docs/results/** -text
 *.sh text eol=lf
+
+# Reproducible NPU sources/scripts and byte-exact prompt, catalog and receipts.
+AI加速器/** text eol=lf
+AI加速器/npu/system/integration/agent_protocol_20261102/analysis/protocol-r4-original-system.txt -text
+AI加速器/npu/system/config/TENSOR_HEAD.JSON -text
+docs/npu/evidence/** -text -whitespace

@@ -2,6 +2,8 @@
 // One external 32-byte transaction at a time; D is write-back/write-allocate.
 module ag_l1cache #(parameter integer SET_BITS=7) (
  input logic clk,rst, maintenance_req,
+ input logic maintenance_range,
+ input logic [31:0] maintenance_start,maintenance_end,
  output logic maintenance_busy,maintenance_error,
  input logic req_valid, output logic req_ready,
  input logic req_instruction,req_write,
@@ -29,6 +31,8 @@ module ag_l1cache #(parameter integer SET_BITS=7) (
  logic [255:0] ir0,ir1,dr0,dr1,evict_data;
  logic [TAG_BITS-1:0] it0,it1,dt0,dt1;
  logic instruction,writing,victim,flushing,flush_pending;
+ logic pending_range,active_range;
+ logic [31:0] pending_start,pending_end,active_start,active_end;
  logic store_commit,store_way;
  wire [255:0] rd0=(instruction && !flushing)?ir0:dr0, rd1=(instruction && !flushing)?ir1:dr1;
  wire [TAG_BITS-1:0] rt0=(instruction && !flushing)?it0:dt0, rt1=(instruction && !flushing)?it1:dt1;
@@ -36,6 +40,15 @@ module ag_l1cache #(parameter integer SET_BITS=7) (
  logic [255:0] write_data;
  logic [31:0] write_mask;
  logic [SET_BITS-1:0] scan;
+ // Scan every set; reconstruct DDR byte addresses independently for each I/D
+ // way from synchronous tags. This filters a full scan, not O(span) lookup.
+ wire [31:0] scan_d0={2'b00,dt0,scan,5'b0},scan_d1={2'b00,dt1,scan,5'b0};
+ wire [31:0] scan_i0={2'b00,it0,scan,5'b0},scan_i1={2'b00,it1,scan,5'b0};
+ wire match_d0=!active_range||(scan_d0>=active_start&&scan_d0<active_end);
+ wire match_d1=!active_range||(scan_d1>=active_start&&scan_d1<active_end);
+ wire match_i0=!active_range||(scan_i0>=active_start&&scan_i0<active_end);
+ wire match_i1=!active_range||(scan_i1>=active_start&&scan_i1<active_end);
+ wire dirty0=dmr[0]&&dmr[2]&&match_d0,dirty1=dmr[1]&&dmr[3]&&match_d1;
  wire [SET_BITS-1:0] index=address[5+:SET_BITS];
  wire [TAG_BITS-1:0] tag=address[29:5+SET_BITS];
  wire valid0=(instruction && !flushing)?imr[0]:dmr[0];
@@ -64,10 +77,10 @@ module ag_l1cache #(parameter integer SET_BITS=7) (
  // A single read address per D array prevents PDS from replicating RAMs for
  // demand lookup and maintenance. No reset of any line/tag/metadata array.
  always_ff @(posedge clk) begin
-  if(accept && req_instruction) begin
-    imr<=i_meta[req_addr[5+:SET_BITS]];
-    ir0<=i_data0[req_addr[5+:SET_BITS]];ir1<=i_data1[req_addr[5+:SET_BITS]];
-    it0<=i_tag0[req_addr[5+:SET_BITS]];it1<=i_tag1[req_addr[5+:SET_BITS]];
+  if((accept && req_instruction)||state==SCAN_READ) begin
+    imr<=i_meta[d_read_index];
+    ir0<=i_data0[d_read_index];ir1<=i_data1[d_read_index];
+    it0<=i_tag0[d_read_index];it1<=i_tag1[d_read_index];
   end
   if(d_read) begin
    dmr<=d_meta[d_read_index];
@@ -97,6 +110,8 @@ module ag_l1cache #(parameter integer SET_BITS=7) (
    state<=RESET_SCAN;
    store_commit<=0;store_way<=0;
    flush_pending<=0;flushing<=0;maintenance_error<=0;scan<=0;
+   pending_range<=0;active_range<=0;
+   pending_start<=0;pending_end<=0;active_start<=0;active_end<=0;
    rsp_valid<=0;rsp_data<=0;rsp_error<=0;
    address<=0;instruction<=0;writing<=0;write_data<=0;write_mask<=0;
    evict_addr<=0;evict_data<=0;victim<=0;
@@ -104,7 +119,15 @@ module ag_l1cache #(parameter integer SET_BITS=7) (
   end else begin
    store_commit<=0;
    if(rsp_ready) rsp_valid<=0;
-   if(maintenance_req) flush_pending<=1;
+   if(maintenance_req) begin
+    if(!flush_pending&&!flushing&&state!=RESET_SCAN) begin
+     flush_pending<=1;pending_range<=maintenance_range;
+     pending_start<=maintenance_start;pending_end<=maintenance_end;
+    end else if(!maintenance_range) begin
+     // Queue a full FENCE.I without changing the active range.
+     flush_pending<=1;pending_range<=0;
+    end
+   end
    case(state)
     RESET_SCAN: begin
      i_meta[scan]<=0;d_meta[scan]<=0;
@@ -114,6 +137,8 @@ module ag_l1cache #(parameter integer SET_BITS=7) (
     IDLE: begin
      if(flush_pending && !rsp_valid) begin
       flushing<=1;flush_pending<=0;scan<=0;state<=SCAN_READ;
+      active_range<=pending_range && !(maintenance_req && !maintenance_range);
+      active_start<=pending_start;active_end<=pending_end;
      end else if(req_valid && req_ready) begin
       address<=req_addr;instruction<=req_instruction;writing<=req_write;
       write_data<=req_wdata;write_mask<=req_wstrb;
@@ -180,13 +205,18 @@ module ag_l1cache #(parameter integer SET_BITS=7) (
     end
     SCAN_READ: state<=SCAN_CHECK;
     SCAN_CHECK: begin
-     if((dmr[0]&&dmr[2]) || (dmr[1]&&dmr[3])) begin
-      victim<=!(dmr[0]&&dmr[2]);
-      evict_addr<={(dmr[0]&&dmr[2])?rt0:rt1,scan,5'b0};
-      evict_data<=(dmr[0]&&dmr[2])?rd0:rd1;
+     if(dirty0 || dirty1) begin
+      victim<=!dirty0;
+      evict_addr<={dirty0?dt0:dt1,scan,5'b0};
+      evict_data<=dirty0?dr0:dr1;
       state<=WB_SEND;
      end else begin
-      i_meta[scan]<=0;d_meta[scan]<=0;
+      if(!active_range) begin i_meta[scan]<=0;d_meta[scan]<=0;end
+      else begin
+       i_meta[scan]<={imr[2],imr[1]&&!match_i1,imr[0]&&!match_i0};
+       d_meta[scan]<={dmr[4],dmr[3]&&!match_d1,dmr[2]&&!match_d0,
+                     dmr[1]&&!match_d1,dmr[0]&&!match_d0};
+      end
       if(&scan) begin flushing<=0;state<=IDLE;end
       else begin scan<=scan+1'b1;state<=SCAN_READ;end
      end

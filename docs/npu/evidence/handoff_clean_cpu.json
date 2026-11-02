@@ -1,0 +1,618 @@
+{
+  "passed": true,
+  "scope": "real RV32 + production ag_npu_system tensor/matrix + Cache/DDR simulation",
+  "board_verified": false,
+  "physical_timing_closed": false,
+  "full_model_inference": false,
+  "cpu_mode": "portable_metadata",
+  "tensor_v2_enabled": true,
+  "matrix_lanes": 64,
+  "cache_enabled": true,
+  "ddr_outstanding": 4,
+  "ddr_bfm": "ordered credit-reserved request/response deque",
+  "source_sha256": {
+    "AI加速器/npu/rtl/npu_bram.sv": "a64600de9688775c0328432c41588d7db42b1ddce6287591151d928b5c248247",
+    "AI加速器/npu/rtl/npu_bram_top.sv": "54a24b48ea90c76b172c4c2d4a9d0807c6683918f239dc63227fdb282e22ca81",
+    "AI加速器/npu/system/rtl/ag_npu_system.sv": "58295551a3df60086f2010a689c239d812cb65f6e5b1249e2617837f290cef6d",
+    "AI加速器/npu/system/rtl/ddr_arbiter2.sv": "5e6b2a89b46ca1a2983a9a8d19296ea08665751a108593f096624600b37cf00e",
+    "AI加速器/npu/system/rtl/gemv_pipeline16.sv": "f1d38728a657963954077db850df69a514928eee7b05ec87631471aa295b0336",
+    "AI加速器/npu/system/rtl/gemv_pipeline_v2.sv": "68f2a17e0daf5cfdeb4b3cd4b92d98921cc5730a4af0cdee0d21c1593e69b3e8",
+    "AI加速器/npu/system/rtl/npu_dma_top.sv": "61c38c38b6d9eb3d0fef62d5ff631ed5dceb232c96a727019f76119850a120bf",
+    "AI加速器/npu/system/rtl/npu_tensor_v2.sv": "9ed69c36277f81102ab77840bc7fd93258fecc2f0b5f522c87e3d40d345408d5",
+    "AI加速器/npu/system/rtl/sd_spi_top.sv": "530fd6fc6d8ec49ae5742f0bd8d19fd51279e8adc97d5279828b09bfe76d1085",
+    "AI加速器/npu/system/sim/ag_npu_tensor_sim.sv": "d48033a38a7dfa67d265663fcefcb61bb148a2e9c5cfbea06ae46b607d6f0bbe",
+    "AI加速器/npu/system/sim/cache_range_acceptance.c": "90f09a4738f57f589a88d9764a673dba6b434b891c08a0d714b727fc8f60e5bd",
+    "AI加速器/npu/system/sim/ddr_queue4_tb.sv": "1f689b54c9309a790d87d4e3d650dd1bfad8275f5e97625dfcba534f1692c872",
+    "AI加速器/npu/system/sim/run_matrix_lanes.py": "d850c331f777e16ddb4b74a7320f18573e6d0d4747c4ab5a582d6b7685126628",
+    "AI加速器/npu/system/sim/sd_spi_card_model.sv": "01d5bd6dfcf64ff7435749074b81025829657d241da625df88b86b7eb4fc730b",
+    "AI加速器/npu/system/sim/sd_spi_cold_tb.sv": "236a891ac4251d30eea4ba1d887d82e3c8faa3b0208ce7212cbc02476aa701c4",
+    "AI加速器/npu/system/sim/sd_spi_cold_test.cpp": "4d67acb208ed228f04810c29db2f919e5682b662dfe8131ca9eda8b1ce674b01",
+    "AI加速器/npu/system/sim/tb_sd_spi.sv": "0aa93824c248273accafe2a8841d5a4a36ed5dadd8ccc7da265582fd12b89496",
+    "AI加速器/npu/system/sim/tensor_model_host.c": "3a5c2886ca1198f652debf720497999a870867149f026b458ac3f4dc801124fe",
+    "AI加速器/npu/system/sim/test_checkpoint.c": "eab5908f0bd6dd7de85fcba98d1835316baef14f01cf635a0e01e394afca21e9",
+    "AI加速器/npu/system/sim/test_crc.c": "8f0450e7d95e66c093b5e88497f6ec3c4a531a64190eb6348f35fd814f6894f0",
+    "AI加速器/npu/system/sim/test_ddr_queue4.cpp": "a079132dd2e4ab73a8aefe5612671c4142b6d16b6b5bf065d1093f1be5042120",
+    "AI加速器/npu/system/sim/test_head_mutation_guard.c": "52178809b54f68b9cb8d303d7613798b3f224a8a51acced277604b576d4ba3c2",
+    "AI加速器/npu/system/sim/test_npu_dma.cpp": "3e09bb869287a288f55059b992b502aa1a8a6f4b211fc7952326cd0d7fb04d28",
+    "AI加速器/npu/system/sim/test_qw_tensor_adapter.c": "0c99bd317f16823add3ce546504edae8c6f6cba226498837e09b96ddc4141ccc",
+    "AI加速器/npu/system/sim/test_stream_sha_loader.c": "83aa67212780bcae2bfd3f0a41e36e0bce2399c025e0b63b4558d9d24e3b6325",
+    "AI加速器/npu/system/sim/test_system.cpp": "25537c4b943da7bf2bdd60bcd8dabd9190b31d3e24906abf9b5e8e98481fbae7",
+    "AI加速器/npu/system/sim/test_tensor_async_mmio.c": "f869eb2542109fbb3e31ccb27b3136a296412d7d55553d25836d23f9329be0d0",
+    "AI加速器/npu/system/sim/test_tensor_driver.c": "ef464e70fb243b7c3d37c9652bda1b02927ca2f16fa560f1cecdd2081f84cf33",
+    "AI加速器/npu/system/sim/test_tensor_fsm.c": "7f6763db14c0fe4fe3dac2dccccfab33bb867c1e186e3773a98ef9df308ec2ca",
+    "AI加速器/npu/system/sim/test_tensor_reference.c": "f7b47e9b2163843252993f0854ea8e69279a7fb60b2da2676252747b23635879",
+    "AI加速器/npu/system/sim/test_tensor_reference.py": "fdd47332b81d6ee38a8f417117f277423eb5828f53b543ae1690ac7708c175bf",
+    "AI加速器/npu/system/sim/test_tensor_v2.cpp": "514f2d25eb5565411d9409cd8e13edf8ccabf2496d6a0e675ef7c6262f9c92cf",
+    "AI加速器/npu/system/sw/agent_target_support.c": "4c06a3130590c49bf93fa9608eb794959a39c778fabb5d543b5e6595b307b841",
+    "AI加速器/npu/system/sw/agent_target_support.h": "182f72d0d6fb15cdfd7e59ab5d35ef3ec2c3b6d0b7653e3e442216c82495d84c",
+    "AI加速器/npu/system/sw/freestanding.c": "028e6a5b63ded6b81979d2d9c83cb69ab01eca0d5b94f655af09692e0d148acf",
+    "AI加速器/npu/system/sw/link_agent_128k.ld": "00df0b5ad7af04ec6bd16462f13109d6492c764511ced9d6463ffe0fd8309d4f",
+    "AI加速器/npu/system/sw/npu_ag_platform.c": "1833d7fe358e0485dc81bdf1346858a286045dbaa6d275d7c34c015952a2c8ec",
+    "AI加速器/npu/system/sw/npu_ag_platform.h": "17b0a3dde5db455d84d8b67ec91bfab3972ad5dc4ca84d6d200326a8b78b9d2a",
+    "AI加速器/npu/system/sw/npu_dma.h": "42480a9fd04b4fb4e55b8b722d4fb7d67ed283d99dcd852b9b71bf5920ef5bf1",
+    "AI加速器/npu/system/sw/npu_fat32.c": "e1c3b475147dca6f4986f2cf991b3bb2e1bd9235b473971f034bd8ab68b1c2dd",
+    "AI加速器/npu/system/sw/npu_fat32.h": "48e26f92c01c316f47c4d8936e47bd9fed56b8a6436ca15c68a3a11c43d54c26",
+    "AI加速器/npu/system/sw/npu_fixed_lut_generated.h": "5fa41491aefbb2a17d414718e32bc8d903e2e5c40458e6eafb6952c6abe9456f",
+    "AI加速器/npu/system/sw/npu_fixed_lut_q16_generated.h": "e0fac387fdee6dd750b7bba1d3a6c11c0d52f3fc382d1780c2fc2d07aa16365b",
+    "AI加速器/npu/system/sw/npu_fixed_math.c": "4e5c015c513121a30c7ee1555cfedafc06803c07d5cb6bf0470317da16f59037",
+    "AI加速器/npu/system/sw/npu_fixed_math.h": "d780e871cf7caa79dc623035869fdceb162cea113df7af6a4fd1ffbf4411905c",
+    "AI加速器/npu/system/sw/npu_opt_board_20261102.c": "fc1e478f684fde6a44e033f6cbf7b36cbc593c00fa56bc43492cde84b379f284",
+    "AI加速器/npu/system/sw/npu_package.c": "e50336a45c00fae89cf3e62f539e37a2274fda065c26a48d180d488c86222c14",
+    "AI加速器/npu/system/sw/npu_package.h": "bf3c3f918cf4893a018761bbb80a6926bb62f39beb4f1dd1ff21f28f50c78554",
+    "AI加速器/npu/system/sw/npu_raw.c": "a1b28665628361b2f9b5ea40125a63ebdb3aa1077830d069a8902896d1903023",
+    "AI加速器/npu/system/sw/npu_raw.h": "171e501b378b821f5262e14bed90ae1de46da632559521777c4f2dcce7f0553a",
+    "AI加速器/npu/system/sw/npu_raw_reference.c": "f21f28b8e5e9e796a1af86fc9c803ab25a157321ef3e61cc7b6e3072034f3e2b",
+    "AI加速器/npu/system/sw/npu_runtime.c": "e9e62772414ec4d653d9a99087f4e353d2a49266d83f30812360ad46e5c227be",
+    "AI加速器/npu/system/sw/npu_runtime.h": "ebe5d5e3770b695dbbcf17856ab5926e521eb23c51b44007b08022484c66bd79",
+    "AI加速器/npu/system/sw/npu_storage.c": "721832877b2088a3959da8705bd7b15d2c78040b0f57c3adf2e6e4ab42156660",
+    "AI加速器/npu/system/sw/npu_storage.h": "77ec0432ea7b1632ae78a289f24b457446e722651e7e02a219a8ce7f09cf35ef",
+    "AI加速器/npu/system/sw/npu_tensor_ag.c": "601309653334832d55fca18b8e1723583fce756576b71bb575fa17d0dc6cfde7",
+    "AI加速器/npu/system/sw/npu_tensor_driver.c": "a59f03c042c949dd25e2b1f0f8c576b91c6d3c75af955ad1056991108fd88228",
+    "AI加速器/npu/system/sw/npu_tensor_driver.h": "fd5807e904efb525cd4ccad073633308be21385b6fdfc1195d543d0e83514d6d",
+    "AI加速器/npu/system/sw/npu_tensor_reference.c": "a1004951227b9f6aadaa1f3b345929ae565ad956cc2216c3297761b6d4f4c1dc",
+    "AI加速器/npu/system/sw/npu_tensor_v2.h": "016f9c9dee0fff9709589d7f15e56ff32c2504c937c3a9d769d2917607a4beaf",
+    "AI加速器/npu/system/sw/sd_card.c": "aaf9f7474e12712254c640cb196fad9c944881dc9f5817eacc068cd2b9762156",
+    "AI加速器/npu/system/sw/sd_card.h": "96568e4ca6ac3d1005a0be2477e4935ab13d04a1d8ca26fe443d1a6b05b1161c",
+    "AI加速器/npu/system/sw/tensor_acceptance.c": "aae2ff68ed9282aea625cc80bd0118bf109e8aae962e355fd18131d4f86e0429",
+    "AI加速器/npu/system/sw/tensor_agent_cooperative_board.c": "d134ae212e793ec8538c2eb0f3a7184a1438cf99c2282193b2c3b5656443aa55",
+    "AI加速器/npu/system/sw/tensor_agent_cooperative_board.h": "bc0170af44711b698d38095962b5f81a01a7b6f56e7414225b5570c66648bb5e",
+    "AI加速器/npu/system/sw/tensor_model_board.c": "e46c4609a26978a1b6afe5fa66b35cac4761355cb373aab98cbd1f6fb69f3197",
+    "AI加速器/npu/system/tools/build_tensor_agent_cooperative.py": "1a1a12ce63313df8351819f42d2f60380b5914a467e9e596d3c84cf1fc869e97",
+    "AI加速器/npu/system/tools/build_tensor_model_v2.py": "fef5cedb322a5625495f0f29b99fdf10f0745188f59abd10e07b45cae0d3c8b7",
+    "AI加速器/npu/system/tools/deployment.py": "a4a9a120bc2c6bf9acc5410e27b734af5dd1e56a1e4967dfb689ef7da8e2bb55",
+    "AI加速器/npu/system/tools/generate_npu_fixed_luts.py": "1f0b24fb4ee48ceab2cb1283e1a85e63dde5115290994d31d8fb335c56ecca52",
+    "AI加速器/npu/system/tools/model_assets.py": "da11ff386287a86352d6ebde17a9083ec55d7d00ecec401029146b01ceee8296",
+    "AI加速器/npu/system/tools/run_cache_range.py": "5accac092cf8924c05b6d868124a4d530f9d3ca7190bb38b1cdefcdac503ebed",
+    "AI加速器/npu/system/tools/run_crc.py": "c68df294ccc543fbb39beceaf8272f913517c0c8f66fa3b3cb90292b69adeaa0",
+    "AI加速器/npu/system/tools/run_ddr_queue4.py": "e8c511124dfd950ec6c4789741061fed465851ef04a41a30ea75fc7f27f23f87",
+    "AI加速器/npu/system/tools/run_stream_sha_loader.py": "d0d0d00dc07c1e2c03f82520604d05a30612fc4b7a7eeaeac692e3f70a910ea5",
+    "AI加速器/npu/system/tools/run_tensor_agent_v2.py": "d4ad16cb3ac8195154c960d02695b2ff2714bc228cfe58522d2eaef8c889e16a",
+    "AI加速器/npu/system/tools/run_tensor_async_driver.py": "68de55967d78708368beb12c0a8604867efb85cd0798f7abf316c018a9ae0cc5",
+    "AI加速器/npu/system/tools/run_tensor_model_v2.py": "d47c97b6771c2e3e7d6f79a47ee32fcdc3e4c2853afbff59089806442992c0e2",
+    "AI加速器/npu/system/tools/run_tensor_system_v2.py": "46ca6bd2c002229e4a9c9be6d7533f0ec12136646592150ba550d3d269f35971",
+    "AI加速器/npu/system/tools/run_tensor_v2_rtl.py": "883a61fb6e69eb28bc07ab76d628766a06b82a67e6078c9a10fa14ab6a2ff5c3",
+    "AI加速器/npu/system/tools/sd_cold_acceptance.py": "426503581f8c04a0914c012249201fc77c45fbb51f457c7c03fa4b4f75928387",
+    "AI加速器/npu/system/tools/sd_stats_fat_acceptance.py": "9613723b79a6c625039c97a9882586e6fe5f87eebe60dc58974b8395433a4419",
+    "AI加速器/npu/system/tools/system_common.py": "49eef277aa0b4d2f44978a9e3207bf1b06e0310fd1c1dac64c62aa2af1f05f15",
+    "AI加速器/npu/system/tools/validate_handoff.py": "059cbef6d5d7a711290a6e9f7516dbcc3cce200a037af5404769c46ace3d31d6",
+    "AI加速器/rtl/compute/gemv_core.sv": "d12fdccbf7340a3e3183ad2b76a6cfcaf2060b896f3a994f1686831f64e54891",
+    "AI加速器/rtl/compute/group_acc.sv": "5d3a87a055e8bfe83fb556285b6e38fba9ab0bdd4b5d75e1592d1e9115eb668a",
+    "AI加速器/rtl/compute/mac_lane.sv": "dadc1bc0cda450ab2c6e29851d4d2c9bb574b4f82ca4dd305cb1f8fe9c046ac7",
+    "rtl/ag_extmem.sv": "b1b702e82cb1d77709fd3d41e4cf1bc17d3731f900fc7e51f2988ceae9dfe2b8",
+    "rtl/ag_fpga_top.sv": "83f5673efdfc56cd89eead203605f9fc05736089e3d766d705318c7c51037156",
+    "rtl/ag_hmic_bridge.sv": "d9736a74d19f77f0fab3f6a7ddf860068b9186cf99262381b0be00ec0b8f2bf7",
+    "rtl/ag_l1cache.sv": "fca9dae124d0ed1dbe1c9f4db07b3e45de6c6f919aa34378e4a20744bf29f009",
+    "rtl/ag_soc.sv": "fdca2ee7ebd9a3aed4f1ddb89615b441fb904942ed248c3979b6fbf195a1a86f",
+    "rtl/files.f": "aed7527b1457f435b090ecfff72b213ecc50e4b86fd5beb95cca2ab47bc83562",
+    "rtl/rv32_alu.sv": "bbbe7a9d66d9ad67ac5cb3f218cae11ef2c261e12f01997484b07edf1aeea82a",
+    "rtl/rv32_core.sv": "f21e3224477aa912c014b83625b95678bb12d1b668dc9aaf4943b29d8dd259fb",
+    "rtl/rv32_csr.sv": "3dd75ebedb56856c1862686d48ffa24c2ba36453481cd1a662dc00780188e4de",
+    "rtl/rv32_decode.sv": "e19e9930f1222ec82f1909e6ba5c5ef7b6c572532ac42e69db0260ec1d49780f",
+    "rtl/rv32_divider.sv": "fb9bf1d0772d90df223ca77aef8a1c0536f4ea22933912d089018666cc7faadf",
+    "rtl/rv32_pkg.sv": "f7fcfa74f0c859012392a5866676db4a28653c86616e1f49f063d6aa253cdeca",
+    "rtl/rv32_predictor.sv": "d95a21ad5ee915cb1cf018a91a483001a268e59318aaa05d3eff15b9b3ff435b",
+    "rtl/uart_tx.sv": "52c34cb4f8cb48b845410db4b4b2cba7a324d969ea559e6e80ae7ee78201205a",
+    "scripts/bin2hex.py": "0c815d6d9868a548500d3a992975b8112035e5bd68b990baa1a768deddc1d429",
+    "sw/link.ld": "bb5a9cb3de8f726d6c618946420e9c71abe90bfc30e6cd7ab1bcc4b5ce464986",
+    "sw/start.S": "928ca24501fe536740617b16390d9d89cdcc646ed58f251e6cbc8d3c6bf0e18a"
+  },
+  "profiles": {
+    "single": {
+      "result": {
+        "done": true,
+        "exit_code": 0,
+        "cycles": 2628102,
+        "retired": 1174209,
+        "dual_retired": 0,
+        "trap": false,
+        "last_pc": 68,
+        "peripheral_requests": 3571,
+        "legacy_completions": 0,
+        "dma_completions": 3,
+        "ddr_reads": 2723,
+        "ddr_writes": 1139,
+        "ddr_backpressure": 1856,
+        "sd_clock_edges": 0
+      },
+      "bus": {
+        "tensor_completions": 26,
+        "overlap_cycles": 3185,
+        "tensor_requests": 1012,
+        "matrix_requests": 670,
+        "cpu_requests": 2180,
+        "ddr_outstanding": 4,
+        "peak_pending": 2
+      },
+      "summary": {
+        "jobs": 26,
+        "checked_words": 13840,
+        "opcodes": 20,
+        "matrix_jobs": 3,
+        "reference_on_target": false
+      },
+      "cases": [
+        {
+          "index": 0,
+          "opcode": 1,
+          "name": "op1",
+          "cycles": 93
+        },
+        {
+          "index": 1,
+          "opcode": 2,
+          "name": "op2",
+          "cycles": 233
+        },
+        {
+          "index": 2,
+          "opcode": 3,
+          "name": "op3",
+          "cycles": 245
+        },
+        {
+          "index": 3,
+          "opcode": 4,
+          "name": "op4",
+          "cycles": 106
+        },
+        {
+          "index": 4,
+          "opcode": 5,
+          "name": "op5",
+          "cycles": 98
+        },
+        {
+          "index": 5,
+          "opcode": 6,
+          "name": "op6",
+          "cycles": 103
+        },
+        {
+          "index": 6,
+          "opcode": 7,
+          "name": "op7",
+          "cycles": 102
+        },
+        {
+          "index": 7,
+          "opcode": 8,
+          "name": "op8",
+          "cycles": 1601
+        },
+        {
+          "index": 8,
+          "opcode": 9,
+          "name": "op9",
+          "cycles": 732
+        },
+        {
+          "index": 9,
+          "opcode": 10,
+          "name": "op10",
+          "cycles": 268
+        },
+        {
+          "index": 10,
+          "opcode": 11,
+          "name": "op11",
+          "cycles": 792
+        },
+        {
+          "index": 11,
+          "opcode": 12,
+          "name": "op12",
+          "cycles": 1060
+        },
+        {
+          "index": 12,
+          "opcode": 12,
+          "name": "op12_second_state_step",
+          "cycles": 1072
+        },
+        {
+          "index": 13,
+          "opcode": 13,
+          "name": "op13",
+          "cycles": 2710
+        },
+        {
+          "index": 14,
+          "opcode": 13,
+          "name": "op13_second_state_step",
+          "cycles": 2745
+        },
+        {
+          "index": 15,
+          "opcode": 14,
+          "name": "op14",
+          "cycles": 3185
+        },
+        {
+          "index": 16,
+          "opcode": 15,
+          "name": "op15",
+          "cycles": 717
+        },
+        {
+          "index": 17,
+          "opcode": 16,
+          "name": "op16",
+          "cycles": 65
+        },
+        {
+          "index": 18,
+          "opcode": 17,
+          "name": "op17",
+          "cycles": 907
+        },
+        {
+          "index": 19,
+          "opcode": 18,
+          "name": "op18",
+          "cycles": 923
+        },
+        {
+          "index": 20,
+          "opcode": 20,
+          "name": "delta_q24_first",
+          "cycles": 2705
+        },
+        {
+          "index": 21,
+          "opcode": 20,
+          "name": "delta_q24_second_state_step",
+          "cycles": 2676
+        },
+        {
+          "index": 22,
+          "opcode": 8,
+          "name": "delta_q24_to_norm_q48_epsilon",
+          "cycles": 1609
+        },
+        {
+          "index": 23,
+          "opcode": 3,
+          "name": "mul_rne_saturation",
+          "cycles": 257
+        },
+        {
+          "index": 24,
+          "opcode": 15,
+          "name": "quant_zero",
+          "cycles": 89
+        },
+        {
+          "index": 25,
+          "opcode": 19,
+          "name": "matrix_v1_to_reduce_raw_w4",
+          "cycles": 186
+        }
+      ],
+      "wrong_expected": {
+        "done": true,
+        "exit_code": 10,
+        "cycles": 22996,
+        "retired": 16656,
+        "dual_retired": 0,
+        "trap": false,
+        "last_pc": 68,
+        "peripheral_requests": 35,
+        "legacy_completions": 0,
+        "dma_completions": 0,
+        "ddr_reads": 69,
+        "ddr_writes": 6,
+        "ddr_backpressure": 37,
+        "sd_clock_edges": 0
+      },
+      "skip_cache": {
+        "done": true,
+        "exit_code": 10,
+        "cycles": 20389,
+        "retired": 14390,
+        "dual_retired": 0,
+        "trap": false,
+        "last_pc": 68,
+        "peripheral_requests": 36,
+        "legacy_completions": 0,
+        "dma_completions": 0,
+        "ddr_reads": 66,
+        "ddr_writes": 2,
+        "ddr_backpressure": 29,
+        "sd_clock_edges": 0
+      }
+    },
+    "dual": {
+      "result": {
+        "done": true,
+        "exit_code": 0,
+        "cycles": 2374884,
+        "retired": 1176952,
+        "dual_retired": 259922,
+        "trap": false,
+        "last_pc": 68,
+        "peripheral_requests": 3921,
+        "legacy_completions": 0,
+        "dma_completions": 3,
+        "ddr_reads": 2723,
+        "ddr_writes": 1139,
+        "ddr_backpressure": 1956,
+        "sd_clock_edges": 0
+      },
+      "bus": {
+        "tensor_completions": 26,
+        "overlap_cycles": 3224,
+        "tensor_requests": 1012,
+        "matrix_requests": 670,
+        "cpu_requests": 2180,
+        "ddr_outstanding": 4,
+        "peak_pending": 2
+      },
+      "summary": {
+        "jobs": 26,
+        "checked_words": 13840,
+        "opcodes": 20,
+        "matrix_jobs": 3,
+        "reference_on_target": false
+      },
+      "cases": [
+        {
+          "index": 0,
+          "opcode": 1,
+          "name": "op1",
+          "cycles": 86
+        },
+        {
+          "index": 1,
+          "opcode": 2,
+          "name": "op2",
+          "cycles": 249
+        },
+        {
+          "index": 2,
+          "opcode": 3,
+          "name": "op3",
+          "cycles": 253
+        },
+        {
+          "index": 3,
+          "opcode": 4,
+          "name": "op4",
+          "cycles": 107
+        },
+        {
+          "index": 4,
+          "opcode": 5,
+          "name": "op5",
+          "cycles": 104
+        },
+        {
+          "index": 5,
+          "opcode": 6,
+          "name": "op6",
+          "cycles": 111
+        },
+        {
+          "index": 6,
+          "opcode": 7,
+          "name": "op7",
+          "cycles": 113
+        },
+        {
+          "index": 7,
+          "opcode": 8,
+          "name": "op8",
+          "cycles": 1594
+        },
+        {
+          "index": 8,
+          "opcode": 9,
+          "name": "op9",
+          "cycles": 739
+        },
+        {
+          "index": 9,
+          "opcode": 10,
+          "name": "op10",
+          "cycles": 283
+        },
+        {
+          "index": 10,
+          "opcode": 11,
+          "name": "op11",
+          "cycles": 813
+        },
+        {
+          "index": 11,
+          "opcode": 12,
+          "name": "op12",
+          "cycles": 1047
+        },
+        {
+          "index": 12,
+          "opcode": 12,
+          "name": "op12_second_state_step",
+          "cycles": 1052
+        },
+        {
+          "index": 13,
+          "opcode": 13,
+          "name": "op13",
+          "cycles": 2711
+        },
+        {
+          "index": 14,
+          "opcode": 13,
+          "name": "op13_second_state_step",
+          "cycles": 2677
+        },
+        {
+          "index": 15,
+          "opcode": 14,
+          "name": "op14",
+          "cycles": 3224
+        },
+        {
+          "index": 16,
+          "opcode": 15,
+          "name": "op15",
+          "cycles": 711
+        },
+        {
+          "index": 17,
+          "opcode": 16,
+          "name": "op16",
+          "cycles": 54
+        },
+        {
+          "index": 18,
+          "opcode": 17,
+          "name": "op17",
+          "cycles": 915
+        },
+        {
+          "index": 19,
+          "opcode": 18,
+          "name": "op18",
+          "cycles": 916
+        },
+        {
+          "index": 20,
+          "opcode": 20,
+          "name": "delta_q24_first",
+          "cycles": 2726
+        },
+        {
+          "index": 21,
+          "opcode": 20,
+          "name": "delta_q24_second_state_step",
+          "cycles": 2684
+        },
+        {
+          "index": 22,
+          "opcode": 8,
+          "name": "delta_q24_to_norm_q48_epsilon",
+          "cycles": 1583
+        },
+        {
+          "index": 23,
+          "opcode": 3,
+          "name": "mul_rne_saturation",
+          "cycles": 264
+        },
+        {
+          "index": 24,
+          "opcode": 15,
+          "name": "quant_zero",
+          "cycles": 85
+        },
+        {
+          "index": 25,
+          "opcode": 19,
+          "name": "matrix_v1_to_reduce_raw_w4",
+          "cycles": 178
+        }
+      ],
+      "wrong_expected": {
+        "done": true,
+        "exit_code": 10,
+        "cycles": 19186,
+        "retired": 16663,
+        "dual_retired": 3822,
+        "trap": false,
+        "last_pc": 68,
+        "peripheral_requests": 36,
+        "legacy_completions": 0,
+        "dma_completions": 0,
+        "ddr_reads": 69,
+        "ddr_writes": 6,
+        "ddr_backpressure": 40,
+        "sd_clock_edges": 0
+      },
+      "skip_cache": {
+        "done": true,
+        "exit_code": 10,
+        "cycles": 16796,
+        "retired": 14397,
+        "dual_retired": 3610,
+        "trap": false,
+        "last_pc": 68,
+        "peripheral_requests": 37,
+        "legacy_completions": 0,
+        "dma_completions": 0,
+        "ddr_reads": 66,
+        "ddr_writes": 2,
+        "ddr_backpressure": 31,
+        "sd_clock_edges": 0
+      }
+    }
+  },
+  "tools": {
+    "verilator": "Verilator 5.032 2025-01-01 rev (Debian 5.032-1)",
+    "compiler": "riscv-none-elf-gcc (xPack GNU RISC-V Embedded GCC x86_64) 15.2.0"
+  },
+  "fixture_count": 26,
+  "opcodes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+  ],
+  "firmware": {
+    "binary_bytes": 23808,
+    "elf_sha256": "e7161f37bd4e403ab6c0307b395f7f9a1cd251047019180d49f05639484492dc",
+    "host_reference_linked": false
+  },
+  "wrong_expected_firmware": {
+    "binary_bytes": 23824,
+    "elf_sha256": "e5f0813a47978b83b478ec37d6c96121635626f1fa0699437f6d351f8b0cc7b7",
+    "host_reference_linked": false
+  },
+  "skip_cache_firmware": {
+    "binary_bytes": 23408,
+    "elf_sha256": "b63975f4dbefc6972e0076a48fd11869177eb2b217c1578ae842d54e0e697d73",
+    "host_reference_linked": false
+  },
+  "cpu_compatibility": {
+    "production_modified": false,
+    "formal_equivalence_verified": false,
+    "original_sha256": "f21e3224477aa912c014b83625b95678bb12d1b668dc9aaf4943b29d8dd259fb",
+    "copy_sha256": "47f807132c0d8f39dbaa615913f7565a32f6f8306fe7363346651a5099fecca5"
+  },
+  "source_changes_during_run": {}
+}

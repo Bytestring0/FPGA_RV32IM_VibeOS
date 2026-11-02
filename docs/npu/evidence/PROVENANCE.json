@@ -1,0 +1,68 @@
+{
+  "historical_status.json": {
+    "original_local_path": "AI加速器/npu/system/build/continuation_20261102_evidence_latest/report.json",
+    "sha256": "ed6ebeaa54cc8fbfe6858dc6bce4f25233c1dade57cd6c7e2e19ce31c5f2f409",
+    "bytes": 12673,
+    "scope": "Historical exact bytes; input paths are provenance, not files promised in this handoff."
+  },
+  "tensor_rtl.json": {
+    "original_local_path": "AI加速器/npu/system/build/continuation_20261102_pack_diag_final/report.json",
+    "sha256": "c54e84627896da8a1e961dc4920f78367f909f8e5b57ecfb907978c78131f99c",
+    "bytes": 1332,
+    "scope": "Historical exact bytes; input paths are provenance, not files promised in this handoff."
+  },
+  "cpu_queue4.json": {
+    "original_local_path": "AI加速器/npu/system/build/tensor_system_v2_queue4_final_20261102/report.json",
+    "sha256": "186828ae29d88e4fbb5ecbe8eafc9b1a4ef69bced00d32b31a2ad6ae35a1df6b",
+    "bytes": 28436,
+    "scope": "Historical exact bytes; input paths are provenance, not files promised in this handoff."
+  },
+  "cpu_latest.json": {
+    "original_local_path": "AI加速器/npu/system/build/tensor_system_v2_packdiag_final_20261102/verified_report.json",
+    "sha256": "f34dba1fc72c8930b48dadf2a7f2e4f83a577a2961bb6659e6cc20e340d4fb94",
+    "bytes": 25967,
+    "scope": "Historical exact bytes; input paths are provenance, not files promised in this handoff."
+  },
+  "cache_range.json": {
+    "original_local_path": "AI加速器/npu/system/build/continuation_20261102_cache_range/repair_report.json",
+    "sha256": "271abc614cdd79815d98c4fdf8700d7eba8bb3b9f1634a5cd3feaea59339b477",
+    "bytes": 6912,
+    "scope": "Historical exact bytes; input paths are provenance, not files promised in this handoff."
+  },
+  "model_result.json": {
+    "original_local_path": "AI加速器/npu/system/build/continuation_20261102_head_quant/model/model_result.json",
+    "sha256": "63b1ffee56f1adbff2d7acd55db7fb8f74bf93bf8a4529a845cd7357fb899b94",
+    "bytes": 879,
+    "scope": "Historical exact bytes; input paths are provenance, not files promised in this handoff."
+  },
+  "head_quant_reuse.json": {
+    "original_local_path": "AI加速器/npu/system/build/continuation_20261102_head_quant/report.json",
+    "sha256": "88ea77782ebd8607ae68114946f7a1e375b195e07e0f3faad79e6268afea5b9b",
+    "bytes": 1579,
+    "scope": "Historical exact bytes; input paths are provenance, not files promised in this handoff."
+  },
+  "agent_firmware.json": {
+    "original_local_path": "AI加速器/npu/system/build/tensor_agent_cooperative_headreuse_20261102/report.json",
+    "sha256": "8d2d5353206ed8df9d064d472b14679851c5ec2b869d9687f61f96e6b8067f9e",
+    "bytes": 17864,
+    "scope": "Historical exact bytes; input paths are provenance, not files promised in this handoff."
+  },
+  "latest_synthesis.json": {
+    "original_local_path": "npu_system_pds/tensor_v2_agent_packdiag_synth81/report.json",
+    "sha256": "16a46d32e9426e642dc649b3d34d0079f35213830fe367f2a9cbbf19a9f86ec2",
+    "bytes": 17143,
+    "scope": "Historical exact bytes; input paths are provenance, not files promised in this handoff."
+  },
+  "historical_route.json": {
+    "original_local_path": "npu_system_pds/tensor_v2_agent_queue4_seed4_81/report.json",
+    "sha256": "8b5d8b058e4f7e789080fad70c5f138a272af2465fd55bed36880d62e986a340",
+    "bytes": 17411,
+    "scope": "Historical exact bytes; input paths are provenance, not files promised in this handoff."
+  },
+  "historical_route.rtr": {
+    "original_local_path": "npu_system_pds/tensor_v2_agent_queue4_seed4_81/report_timing/ag_npu_board_top.rtr",
+    "sha256": "a3c22f1ac27dfdc6c893763f16300bc648f7989a108fbd160d71b2bb9ec6fb5c",
+    "bytes": 1007540,
+    "scope": "Historical exact bytes; input paths are provenance, not files promised in this handoff."
+  }
+}

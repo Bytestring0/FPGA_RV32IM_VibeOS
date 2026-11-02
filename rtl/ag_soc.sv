@@ -14,7 +14,8 @@ module ag_soc #(
     parameter bit CACHE_ENABLE = DDR_ENABLE,
     parameter integer CACHE_SET_BITS = 7,
     parameter bit PIPELINED_MMIO = DDR_ENABLE,
-    parameter bit MULH_PIPELINE = 0
+    parameter bit MULH_PIPELINE = 0,
+    parameter bit EXT_MMIO_ENABLE = 0
 ) (
     input logic clk, rst,
     input logic irq_external,
@@ -40,7 +41,13 @@ module ag_soc #(
     output logic [29:0] mem_req_addr, output logic mem_req_write,
     output logic [255:0] mem_req_wdata, output logic [31:0] mem_req_wstrb,
     input logic mem_rsp_valid, output logic mem_rsp_ready,
-    input logic [255:0] mem_rsp_data, input logic mem_rsp_error
+    input logic [255:0] mem_rsp_data, input logic mem_rsp_error,
+    output wire ext_req_valid, input wire ext_req_ready,
+    output wire ext_req_write,
+    output wire [31:0] ext_req_addr, ext_req_wdata,
+    output wire [3:0] ext_req_wstrb,
+    input wire ext_rsp_valid, output wire ext_rsp_ready,
+    input wire [31:0] ext_rsp_data, input wire ext_rsp_error
 );
     localparam integer AW = $clog2(RAM_WORDS);
     logic [31:0] ram [0:RAM_WORDS-1];
@@ -60,7 +67,8 @@ module ag_soc #(
     logic msip;
     logic tx_ready, tx_valid;
     logic uart_wait;
-    logic mmio_pending;
+    logic mmio_pending, ext_wait;
+    localparam bit QUEUED_MMIO = PIPELINED_MMIO || EXT_MMIO_ENABLE;
     logic [31:0] mmio_addr, mmio_wdata;
     logic [3:0] mmio_strb;
     logic mmio_write;
@@ -72,14 +80,25 @@ module ag_soc #(
     wire [63:0] mi_data;
     wire [31:0] md_data;
     wire cpu_fence_i,cache_busy,cache_error;
-    logic cache_flush;
+    logic cache_flush,cache_range_flush,cache_range_error;
+    logic [31:0] cache_range_start,cache_range_end,cache_range_start_hold,cache_range_end_hold;
     wire [31:0] cache_ihit,cache_imiss,cache_dhit,cache_dmiss,cache_wb,cache_ib_hit;
-    wire mmio_fire = PIPELINED_MMIO ? mmio_pending :
+    wire external_select = EXT_MMIO_ENABLE &&
+        ((mmio_addr >= 32'h10001000 && mmio_addr < 32'h10001100) ||
+         (mmio_addr >= 32'h10004000 && mmio_addr < 32'h10007000) ||
+         (mmio_addr >= 32'h10010000 && mmio_addr < 32'h10018000));
+    wire mmio_fire = QUEUED_MMIO ? (mmio_pending && !external_select) :
         (dv && dr && !d_ext && da >= RAM_WORDS * 4);
-    wire [31:0] peripheral_addr = PIPELINED_MMIO ? mmio_addr : da;
-    wire [31:0] peripheral_data = PIPELINED_MMIO ? mmio_wdata : dd;
-    wire [3:0] peripheral_strb = PIPELINED_MMIO ? mmio_strb : ds;
-    wire peripheral_write = PIPELINED_MMIO ? mmio_write : dw;
+    wire [31:0] peripheral_addr = QUEUED_MMIO ? mmio_addr : da;
+    wire [31:0] peripheral_data = QUEUED_MMIO ? mmio_wdata : dd;
+    wire [3:0] peripheral_strb = QUEUED_MMIO ? mmio_strb : ds;
+    wire peripheral_write = QUEUED_MMIO ? mmio_write : dw;
+    assign ext_req_valid = !rst && mmio_pending && external_select && !ext_wait;
+    assign ext_req_write = mmio_write;
+    assign ext_req_addr = mmio_addr;
+    assign ext_req_wdata = mmio_wdata;
+    assign ext_req_wstrb = mmio_strb;
+    assign ext_rsp_ready = !rst && EXT_MMIO_ENABLE && ext_wait && (!drv || drr);
     integer j;
     initial begin
         if (INIT_FILE != "") $readmemh(INIT_FILE, ram);
@@ -89,7 +108,7 @@ module ag_soc #(
     // holds its response until TX accepts it; ready has no address/data path.
     // Ready depends only on registered queue/response state, never on the
     // newly generated address. DDR requests are decoupled by a one-entry slot.
-    assign dr = (!drv || drr) && !uart_wait && !mmio_pending && !ddr_d_pending;
+    assign dr = (!drv || drr) && !uart_wait && !mmio_pending && !ddr_d_pending && !ext_wait;
     assign idata = {ram_i_second, ram_i_data};
     // Capture the response source when accepting a request. The select is
     // settled before RAM data arrives and does not depend on DDR rsp_valid.
@@ -117,7 +136,9 @@ module ag_soc #(
         );
         if (CACHE_ENABLE) begin : cached
             ag_l1cache #(.SET_BITS(CACHE_SET_BITS)) l1 (
-                .clk(clk),.rst(rst),.maintenance_req(cpu_fence_i || cache_flush),
+                .clk(clk),.rst(rst),.maintenance_req(cpu_fence_i || cache_flush || cache_range_flush),
+                .maintenance_range(cache_range_flush && !cpu_fence_i && !cache_flush),
+                .maintenance_start(cache_range_start_hold),.maintenance_end(cache_range_end_hold),
                 .maintenance_busy(cache_busy),.maintenance_error(cache_error),
                 .req_valid(lv),.req_ready(lr),.req_addr(la),.req_instruction(linstr),
                 .req_write(lwrite),.req_wdata(ld),.req_wstrb(ls),
@@ -191,10 +212,11 @@ module ag_soc #(
             console_valid <= 0; console_data <= 0; mtime <= 0; mtimecmp <= '1; msip <= 0;
             uart_wait <= 0; uart_data <= 0;
             ddr_d_pending <= 0; ddr_d_write <= 0; ddr_d_addr <= 0; ddr_d_wdata <= 0; ddr_d_strb <= 0;
-            cache_flush <= 0;
-            mmio_pending <= 0; mmio_addr <= 0; mmio_wdata <= 0; mmio_strb <= 0; mmio_write <= 0;
+            cache_flush <= 0;cache_range_flush <= 0;cache_range_error <= 0;
+            cache_range_start<=0;cache_range_end<=0;cache_range_start_hold<=0;cache_range_end_hold<=0;
+            mmio_pending <= 0; ext_wait <= 0; mmio_addr <= 0; mmio_wdata <= 0; mmio_strb <= 0; mmio_write <= 0;
         end else begin
-            cache_flush <= 0;
+            cache_flush <= 0;cache_range_flush <= 0;
             mtime <= mtime + 64'd1;
             if (ddr_d_pending && md_ready) ddr_d_pending <= 0;
             if (DDR_ENABLE && dv && dr && d_ext) begin
@@ -217,10 +239,20 @@ module ag_soc #(
                 uart_wait <= 0; drv <= 1;
                 console_valid <= 1; console_data <= uart_data;
             end
-            if (mmio_pending) mmio_pending <= 0;
+            if (mmio_fire) mmio_pending <= 0;
+            if (ext_req_valid && ext_req_ready) begin
+                mmio_pending <= 0;
+                ext_wait <= 1;
+            end
+            if (ext_rsp_valid && ext_rsp_ready) begin
+                ext_wait <= 0;
+                drv <= 1;
+                dre <= ext_rsp_error;
+                mmio_data <= ext_rsp_data;
+            end
             if (dv && dr && !d_ext) begin
                 drv <= 1; dre <= 0; mmio_data <= 0;
-                if (PIPELINED_MMIO && da >= RAM_WORDS * 4) begin
+                if (QUEUED_MMIO && da >= RAM_WORDS * 4) begin
                     // Accept the address before decoding peripheral registers.
                     // The CPU waits for the response; TCM retains its fast path.
                     mmio_pending <= 1; drv <= 0;
@@ -265,14 +297,53 @@ module ag_soc #(
                         // bit 0: calibrated and usable, bit 1: sticky fault,
                         // bit 2: external-memory interface compiled in.
                         if (DDR_ENABLE) begin
-                            mmio_data <= {26'b0, CACHE_ENABLE, cache_error, (cache_busy || cache_flush), 1'b1, ddr_fault, ddr_ready};
+                            mmio_data <= {25'b0, CACHE_ENABLE, CACHE_ENABLE, cache_error, (cache_busy || cache_flush || cache_range_flush), 1'b1, ddr_fault, ddr_ready};
                             if (peripheral_write) dre <= 1;
                         end else dre <= 1;
                     end
                     32'h10000204: begin
                         if(CACHE_ENABLE && DDR_ENABLE) begin
-                            mmio_data <= {30'b0,cache_error,(cache_busy || cache_flush)};
+                            mmio_data <= {30'b0,cache_error,(cache_busy || cache_flush || cache_range_flush)};
                             if(peripheral_write && peripheral_strb[0] && peripheral_data[0]) cache_flush<=1;
+                        end else dre<=1;
+                    end
+                    // STATUS bit6 gates these CSRs, avoiding unsupported reads
+                    // on old systems. Start/end are32B-aligned half-open offsets.
+                    32'h10000228: begin
+                        if(CACHE_ENABLE && DDR_ENABLE) begin
+                            mmio_data<=32'h524e4701; // RNG version1, full I/D clean+invalidate
+                            if(peripheral_write)dre<=1;
+                        end else dre<=1;
+                    end
+                    32'h10000230,32'h10000234: begin
+                        if(CACHE_ENABLE && DDR_ENABLE) begin
+                            mmio_data<=peripheral_addr[2]?cache_range_end:cache_range_start;
+                            if(peripheral_write)begin
+                                if(peripheral_strb!=15)dre<=1;
+                                else if(peripheral_addr[2])cache_range_end<=peripheral_data;
+                                else cache_range_start<=peripheral_data;
+                            end
+                        end else dre<=1;
+                    end
+                    32'h10000238: begin
+                        if(CACHE_ENABLE && DDR_ENABLE) begin
+                            mmio_data<={29'b0,cache_range_error,cache_error,
+                                (cache_busy||cache_flush||cache_range_flush)};
+                            if(peripheral_write)begin
+                                if(peripheral_strb!=15)dre<=1;
+                                else if(peripheral_data==1)begin
+                                    if(cache_busy||cache_flush||cache_range_flush||cpu_fence_i||
+                                       cache_range_start>=cache_range_end||cache_range_end>32'h40000000||
+                                       |cache_range_start[4:0]|| |cache_range_end[4:0])cache_range_error<=1;
+                                    else begin
+                                        cache_range_error<=0;cache_range_flush<=1;
+                                        cache_range_start_hold<=cache_range_start;
+                                        cache_range_end_hold<=cache_range_end;
+                                    end
+                                end else if(peripheral_data==2 && !cache_busy && !cache_range_flush && !cache_flush)
+                                    cache_range_error<=0;
+                                else dre<=1;
+                            end
                         end else dre<=1;
                     end
                     32'h10000210: if(CACHE_ENABLE && DDR_ENABLE) mmio_data<=cache_ihit;else dre<=1;
