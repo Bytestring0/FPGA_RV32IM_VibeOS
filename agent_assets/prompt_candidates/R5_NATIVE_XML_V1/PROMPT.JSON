@@ -1,0 +1,32 @@
+{
+  "prompt_version": "R5_NATIVE_XML_V1",
+  "status": "FROZEN_FOR_REGRESSION_NOT_QUALITY_APPROVED",
+  "model_policy": "unchanged W4 body BF16 embedding/head; no candidate format approved",
+  "r4_utf8_sha256": "8c574a87cb8f0f361807696059ebfa8cfac8fcb27fd75aac2bd591fd940a1c00",
+  "utf8_sha256": "03de523d76e46109477bb22b96e9d6bd2ed976f8ac53c279d79d1da99e7ba0ea",
+  "utf8_bytes": 6915,
+  "tool_count": 12,
+  "tools_block_sha256": "a01f7e71148ab0fed985d334085ff11ec546fe608d80b6981c2ffa97bb4a3de0",
+  "tools_block_unchanged": true,
+  "tokenizer_bin_sha256": "66df043b96ef2ccaa8d6e24148b0dc03eb022e8f461a88fdc527c178cbe4aa45",
+  "tuning_evidence": [
+    "R4 real output calculate(expression=\"19+23\") rejected",
+    "R4 real output calculate(expression=\"7*8\") rejected"
+  ],
+  "independent_evaluation_used": false,
+  "scope": "format correction only; all tools and user action semantics preserved",
+  "token_count": 1610,
+  "context_capacity": 2048,
+  "remaining_after_system": 438,
+  "token_ids_file": "PREFIX.BIN",
+  "token_ids_file_bytes": 6444,
+  "token_ids_file_sha256": "94150057d10439ae3fbf5dc79dbe01a289776af1a2ae4d4ca145ee06b49a5f40",
+  "token_ids_sha256": "5c7346f52367f1430fb0b84e1ae592942e3652cc976c79fd61f4425b2f287292",
+  "schema_file_sha256": "e2b6f45bd1a760c77a09063fa30a5e114144c5d26ebd2416a9588084f17006e1",
+  "c_tokenizer_encode_decode_exact": true,
+  "c_export_log_sha256": "3d0d7b1ff4537d5a0de4de44b14a81baea136a3e1beddfca7606efd1f8a44a79",
+  "source_build": "ae6f4585c4dc9064837c41b4e54c2a182d17f99c294775a0cdf164489704bd00",
+  "checkpoint_filename": "R5CKPT.BIN",
+  "note": "Entire 12-tool schema unchanged; R4 regression failures used to correct output format; 240 natural holdout still not run or tuned on.",
+  "freeze_sha256": "8a2b00fb52d690e1cf6c51a35367d8ef6f4037020a30ec0be00f9486309609c2"
+}

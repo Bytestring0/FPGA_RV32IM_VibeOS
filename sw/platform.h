@@ -1,7 +1,6 @@
 #ifndef AG_PLATFORM_H
 #define AG_PLATFORM_H
-typedef unsigned int uint32_t;
-typedef unsigned long long uint64_t;
+#include <stdint.h>
 #define MMIO32(addr) (*(volatile uint32_t *)(addr))
 #define UART_DATA 0x10000000u
 #define MTIME_LO  0x10000100u
