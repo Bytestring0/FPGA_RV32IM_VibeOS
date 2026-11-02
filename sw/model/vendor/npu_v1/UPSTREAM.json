@@ -1,0 +1,150 @@
+{
+  "source": "d:\\Users\\zhang\\xwechat_files\\wxid_t7ql61otr4ws22_39c7\\msg\\file\\2026-11\\npu_agent_runtime_handoff_20261101.zip",
+  "sha256": "c17f086238f93778519af12a13cae682c25f88ce905bc3b3d15dabab038a8db6",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 5245
+    },
+    {
+      "path": "brief/agent_runtime_request_20261031.md",
+      "bytes": 5923
+    },
+    {
+      "path": "brief/contest_guide_ziguang_2026.pdf",
+      "bytes": 1348484
+    },
+    {
+      "path": "config/deployment.json",
+      "bytes": 1552
+    },
+    {
+      "path": "docs/agent_handoff_current.md",
+      "bytes": 3034
+    },
+    {
+      "path": "docs/agent_runtime_required_20261031.md",
+      "bytes": 2940
+    },
+    {
+      "path": "docs/dma.md",
+      "bytes": 12054
+    },
+    {
+      "path": "docs/fat32.md",
+      "bytes": 7400
+    },
+    {
+      "path": "docs/integration.md",
+      "bytes": 4155
+    },
+    {
+      "path": "docs/operator_delivery_integration_20261031.md",
+      "bytes": 5550
+    },
+    {
+      "path": "docs/package.md",
+      "bytes": 8923
+    },
+    {
+      "path": "docs/raw_api.md",
+      "bytes": 13818
+    },
+    {
+      "path": "docs/sd.md",
+      "bytes": 10251
+    },
+    {
+      "path": "docs/storage_adapter.md",
+      "bytes": 8856
+    },
+    {
+      "path": "docs/system_readme.md",
+      "bytes": 10095
+    },
+    {
+      "path": "model_metadata/TENSOR.JSON",
+      "bytes": 560944
+    },
+    {
+      "path": "model_metadata/deployment_manifest.json",
+      "bytes": 135717
+    },
+    {
+      "path": "sw/freestanding.c",
+      "bytes": 956
+    },
+    {
+      "path": "sw/npu_ag_platform.c",
+      "bytes": 1127
+    },
+    {
+      "path": "sw/npu_ag_platform.h",
+      "bytes": 525
+    },
+    {
+      "path": "sw/npu_dma.h",
+      "bytes": 3373
+    },
+    {
+      "path": "sw/npu_fat32.c",
+      "bytes": 10478
+    },
+    {
+      "path": "sw/npu_fat32.h",
+      "bytes": 2484
+    },
+    {
+      "path": "sw/npu_package.c",
+      "bytes": 7290
+    },
+    {
+      "path": "sw/npu_package.h",
+      "bytes": 2161
+    },
+    {
+      "path": "sw/npu_raw.c",
+      "bytes": 10110
+    },
+    {
+      "path": "sw/npu_raw.h",
+      "bytes": 5067
+    },
+    {
+      "path": "sw/npu_raw_reference.c",
+      "bytes": 5114
+    },
+    {
+      "path": "sw/npu_runtime.c",
+      "bytes": 4727
+    },
+    {
+      "path": "sw/npu_runtime.h",
+      "bytes": 1681
+    },
+    {
+      "path": "sw/npu_storage.c",
+      "bytes": 3737
+    },
+    {
+      "path": "sw/npu_storage.h",
+      "bytes": 2468
+    },
+    {
+      "path": "sw/sd_card.c",
+      "bytes": 9722
+    },
+    {
+      "path": "sw/sd_card.h",
+      "bytes": 794
+    },
+    {
+      "path": "tools/pack_parameters.py",
+      "bytes": 7295
+    },
+    {
+      "path": "SHA256SUMS.json",
+      "bytes": 3292
+    }
+  ]
+}
