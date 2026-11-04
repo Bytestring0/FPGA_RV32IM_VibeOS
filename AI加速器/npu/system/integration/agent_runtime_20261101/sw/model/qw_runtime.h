@@ -53,6 +53,13 @@ typedef struct {
   * for forward SiLU/sigmoid/softplus/softmax exp only; graph remains mixed.
   * Zero-initialize options; use qw_set_lut_nonlinear between runs to switch. */
  uint32_t lut_nonlinear;
+ /* Lazy tied-embedding load. When nonzero and embedding_read is set, the
+  * token_embd matrix is NOT streamed at open; qw_step fetches the single
+  * 2048-byte row it needs from storage into the row's arena slot. Values are
+  * bit-identical to a full load. Requires an enabled W4 head. */
+ uint32_t lazy_embedding;
+ int (*embedding_read)(void *user,uint64_t offset,void *dst,size_t bytes);
+ void *embedding_user;
 } qw_options;
 typedef struct {
  size_t context_offset,weights_offset,weights_bytes,cpu_offset,cpu_bytes;

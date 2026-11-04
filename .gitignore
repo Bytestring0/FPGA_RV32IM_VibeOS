@@ -97,6 +97,9 @@ stdout.log.bak
 # 队友需要时从网盘/课程资料获取；确需入库可删除下面两行
 教程*_*.pdf
 !_*.pdf
+紫光.pdf
+# Local model assets (large binaries stay outside Git)
+/[Dd]ata/
 
 # ---------- Python ----------
 __pycache__/

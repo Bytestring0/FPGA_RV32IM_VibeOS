@@ -42,7 +42,8 @@ struct Tb {
     bool stalled=false,force_stall=false,fault_armed=false,fault_write=false;
     bool check_done=false,verified_done=false;
     uint32_t fault_addr=0;
-    unsigned faults_fired=0;
+    unsigned faults_fired=0,max_pending=0;
+    uint64_t overlap_responses=0;
     Request held{};
     Fixture expected{};
 
@@ -113,6 +114,7 @@ struct Tb {
         if(stalled) held=request();
         if(rsp_hs) {
             Transfer r=pending.front(); pending.pop_front();
+            if(!r.write && old_state==6) ++overlap_responses;
             if(r.write&&!r.error) {
                 unsigned bytes=0;
                 for(unsigned b=0;b<32;++b) if(r.strobe&(uint32_t(1)<<b)) {
@@ -123,8 +125,10 @@ struct Tb {
             }
         }
         if(req_hs) {
-            need(pending.empty(),"more than one DDR transaction outstanding");
             Request q=request();
+            need(pending.size()<4,"more than four DDR reads outstanding");
+            need(!q.write || pending.empty(),"write issued before read responses drained");
+            for(const auto &p:pending) need(!p.write,"read issued while write outstanding");
             need((q.addr&31)==0 && uint64_t(q.addr)+32<=DDR_BYTES,"unaligned/out-of-range DDR request");
             Transfer r{};r.addr=q.addr;r.write=q.write;r.strobe=q.strobe;r.data=q.data;
             r.due=cyc+(q.write?write_delay:read_delay);
@@ -136,6 +140,7 @@ struct Tb {
                 for(unsigned i=0;i<8;++i) r.data[i]=get32(q.addr+i*4);
             }
             ++accepted; pending.push_back(r);
+            if(pending.size()>max_pending) max_pending=unsigned(pending.size());
         }
         d.clk=1;d.eval();d.clk=0;d.eval();++cyc;
         if(!d.rst && old_busy && old_state==6 &&
@@ -214,6 +219,8 @@ struct Tb {
     }
     void run_fixture(const Fixture &f,bool busy_probes=false) {
         clear();load(f);configure(f.n,f.k,f.wb,f.ab,f.ob);
+        if(f.ws!=f.groups*64) access(40,true,f.ws);
+        if(f.os!=((f.groups+3)/4)*32) access(48,true,f.os);
         uint64_t r0=reads,w0=writes,b0=core_beats;expected=f;check_done=true;verified_done=false;
         access(0,true,1);
         if(busy_probes) {
@@ -321,27 +328,71 @@ struct Tb {
         check_done=false;write_delay=2;
         std::printf("COVER request_hold=9 final_write_response_delay=13 done_after_ack=pass\n");
     }
-    void test() {
+    void prefetch_fault_cases() {
+        // A failed future row must not cancel the preceding row's write commit.
+        clear();Fixture f=fixture(3,128,411);load(f);configure(f.n,f.k,f.wb,f.ab,f.ob);
+        read_delay=20;fault_write=false;fault_addr=f.wb+f.ws;fault_armed=true;
+        access(0,true,1);await_idle();
+        need(d.error&&!d.done&&d.error_code==8&&d.result_count==1,
+             "future prefetched fault changed preceding committed inventory");
+        need(pending.empty(),"future fault left responses undrained");
+        need(get32(f.ob)==0,"preceding row tag was not committed");
+        for(unsigned b=0;b<f.os;++b) need(peek(f.ob+f.os+b)==0xcd,"faulted row was written");
+        clear();
+        // Hold an unaccepted read across the older fault response. It must keep
+        // VALID/address stable and busy asserted until accepted and drained.
+        f=fixture(2,512,412);load(f);configure(f.n,f.k,f.wb,f.ab,f.ob);
+        fault_addr=f.wb;fault_armed=true;access(0,true,1);unsigned guard=0;
+        while(pending.empty() || pending.front().addr!=f.wb) {
+            step();need(++guard<5000,"first prefetched read not issued");
+        }
+        force_stall=true;
+        for(unsigned i=0;i<25;++i) step();
+        need(d.busy&&!d.error&&d.mem_req_valid&&pending.empty(),
+             "fault abandoned held offer or reported before drain");
+        force_stall=false;await_idle();
+        need(d.error&&d.error_code==8&&!d.result_count&&pending.empty(),"held fault drain failed");
+        read_delay=2;clear();run(2,129,413);
+        // Errors in every position of a four-record streaming batch must suppress
+        // that uncommitted batch, drain reads, and leave the elastic core reusable.
+        for(unsigned group=0;group<4;group++){
+            clear();f=fixture(1,512,420+group);load(f);configure(f.n,f.k,f.wb,f.ab,f.ob);
+            fault_addr=f.wb+group*64;fault_write=false;fault_armed=true;access(0,true,1);await_idle();
+            need(d.error&&d.error_code==8&&!d.done&&!d.result_count&&pending.empty(),"streaming group fault commit/drain");
+            for(unsigned b=0;b<f.os;b++)need(peek(f.ob+b)==0xcd,"failed batch published partial records");
+            clear();run(1,512,430+group);
+        }
+        std::printf("COVER prefetch_future_fault_commit=pass fault_held_offer_drain=pass\n");
+    }
+    void test(bool short_run=false) {
         need(access(64,false,0,7)==0x4e444d41,"identity");
         need(access(72)==NPU_DMA_LANES,"physical lane capability CSR");
         access(0x80,false,0,5,true);
         access(8,true,7,0,true,1);need(access(8)==0,"partial-strobe write changed configuration");
         run(1,4096,19); // Prime the synchronous cache before poisoned tail tests.
         for(unsigned k:{1u,15u,16u,17u,31u,32u,33u,63u,64u,65u,127u,128u,129u,255u,256u,257u}) run(2,k,40+k);
-        run(3,384,71,true);run(16,2048,77);run(6144,1,91);
+        run(3,384,71,true);run(16,2048,77);run(short_run?8:6144,1,91);
+        read_delay=20;max_pending=0;uint64_t overlap0=overlap_responses;
+        run(8,512,92);
+        need(max_pending==4,"prefetch did not reach four outstanding reads");
+        need(overlap_responses>overlap0,"DDR responses never overlapped core ISSUE");
+        std::printf("COVER max_outstanding_reads=%u response_compute_overlap=%llu\n",max_pending,
+                    (unsigned long long)(overlap_responses-overlap0));
+        read_delay=2;
+        Fixture strided=fixture(3,384,93);strided.ws+=32;strided.os+=32;run_fixture(strided);
         Fixture edge=fixture(1,128,101);edge.wb=0x3fffffc0u;run_fixture(edge);
         edge=fixture(1,384,102);edge.ob=0x3fffffe0u;run_fixture(edge);
         validation_cases();
         for(unsigned kind=0;kind<3;++kind) fault_case(kind);
-        reset_cases();final_write_delay_case();
+        reset_cases();final_write_delay_case();prefetch_fault_cases();
         clear();need(pending.empty()&&!d.busy,"regression left an outstanding task");
-        std::printf("PASS_NPU_DMA checks=%u cycles=%llu read_faults=2 write_faults=1 mmio_hold=7\n",
+        std::printf("PASS_NPU_DMA checks=%u cycles=%llu read_faults=4 write_faults=1 mmio_hold=7\n",
                     checks,(unsigned long long)cyc);
     }
 };
 int main(int argc,char **argv) {
     Verilated::commandArgs(argc,argv);
-    try { Tb tb;tb.test();return 0; }
+    try { Tb tb;if(argc>1 && std::string(argv[1])=="--budget"){for(unsigned k:{1024u,2048u,3584u})tb.run(32,k,700+k);return 0;}tb.test(argc>1 && std::string(argv[1])=="--short");return 0; }
     catch(const std::exception &e) { std::fprintf(stderr,"FAIL_NPU_DMA %s\n",e.what());return 1; }
 }
 #else

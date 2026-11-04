@@ -3,6 +3,9 @@
 #include "npu_tensor_driver.h"
 #include "npu_runtime.h"
 #include "npu_dma.h"
+#ifdef NPU_TEST_FUSED
+#include "npu_fused_matrix.h"
+#endif
 
 #define BASE 0x10000u
 #define WORDS 512u
@@ -91,17 +94,69 @@ static int run_fixture(const struct fixture *f,unsigned index) {
     text("TENSOR_SYSTEM_CASE {\"index\":");number(index);text(",\"opcode\":");number(f->job.opcode);text(",\"name\":\"");text(f->name);text("\",\"cycles\":");number(context.last_cycles);text("}\n");
     return 0;
 }
+#ifdef NPU_TEST_FUSED
+static int fused_matrix_check(void){
+ npu_raw_context raw={0};npu_raw_region grants[3]={{0x20000,384,NPU_RAW_WEIGHT},{0x30000,256,NPU_RAW_ACTIVATION},{0x40000,96,NPU_RAW_PARTIAL}};
+ raw.config.mode=NPU_RAW_HARDWARE;raw.config.device=npu_dma_mmio();raw.config.regions=grants;raw.config.region_count=3;
+ npu_fused_matrix_job j={0};j.raw.rows=3;j.raw.cols=129;j.raw.weight_offset=0x20000;j.raw.activation_offset=0x30000;j.raw.partial_offset=0x40000;
+ j.scale_offset=0x60002;j.output_offset=0x70000;j.scale_region_offset=0x60000;j.scale_region_bytes=32;j.output_region_offset=0x70000;j.output_region_bytes=32;
+ for(unsigned pass=0;pass<2;pass++){
+  matrix_prepare(3,129,0x40000);
+  *word(0x60000)=0x3c00a5a5u;*word(0x60004)=0x3c003800u;*word(0x60008)=0x3c003800u;*word(0x6000c)=0xa5a53800u;
+  for(unsigned q=0;q<8;q++)*word(0x70000+q*4)=POISON;
+  j.maximum=pass?32768u:65536u;npu_fused_matrix_stats stats={0};npu_raw_budgets budgets={POLLS,POLLS};
+  int rc=npu_fused_matrix_execute(&raw,&j,budgets,&stats);
+  if(rc||raw.active||raw.cache_unknown||stats.error||stats.result_count!=3){text("FUSED_EXECUTE_FAILURE rc=");number((uint32_t)-rc);text(" error=");number(stats.error);text(" result_count=");number(stats.result_count);text("\n");return 43;}
+  if(stats.numeric.status||stats.numeric.saturations||stats.numeric.underflows||stats.numeric.invalid_inputs)return 44;
+  for(unsigned q=0;q<8;q++){
+   uint32_t want=q<3?fused_expected[pass][q]:POISON;
+#ifdef NEGATIVE_FUSED_EXPECTATION
+   if(pass==0&&q==0)want^=1;
+#endif
+   uint32_t got=*word(0x70000+q*4);
+   if(got!=want){text("FUSED_DDR_MISMATCH pass=");number(pass);text(" row=");number(q);text(" got=");number(got);text(" expected=");number(want);text("\n");return 10;}checked++;
+  }
+  for(unsigned q=0;q<24;q++)if(*word(0x40000+q*4)!=POISON)return 45;
+  if(*(volatile uint32_t *)((uintptr_t)npu_dma_mmio()+NPU_FUSED_MODE)!=0)return 46;
+  text("FUSED_MATRIX_SYSTEM {\"pass\":");number(pass);text(",\"rows\":3,\"k\":129,\"cycles\":");number(stats.cycles);text(",\"result_count\":");number(stats.result_count);text("}\n");
+ }
+ return 0;
+}
+#endif
 int main(void) {
     volatile uint32_t *status=(volatile uint32_t *)0x10000200u;unsigned polls=POLLS;
     while(polls--&&!(*status&1u)){}
     if(!(*status&1u)||(*status&0x12u)||!(*status&0x20u))return 1;
     if(npu_dma_mmio()->id!=NPU_DMA_ID_VALUE)return 2;
+#ifdef TEST_PARTIAL_SRAM
+    volatile uint32_t *partial=(volatile uint32_t *)(uintptr_t)0x10007000u;
+    if(partial[2]!=0x50535231u||partial[3]!=65536u)return 40;
+    polls=POLLS;while((partial[0]&2u)&&polls)--polls;
+    if(!polls)return 42;
+    partial[1]=BASE;partial[0]=1;
+    polls=POLLS;while((partial[0]&2u)&&polls)--polls;
+    if(!polls||(partial[0]&1u)==0)return 41;
+#endif
     npu_tensor_region region={BASE,WORDS*4,3};
     if(npu_tensor_ag_init(&context,&region,1,POLLS,POLLS))return 3;
     normal_publish=context.config.publish;
+#ifdef NPU_TEST_FUSED
+    {int fused=fused_matrix_check();if(fused)return fused;}
+#endif
     for(unsigned i=0;i<sizeof(fixtures)/sizeof(fixtures[0]);i++){int rc=run_fixture(fixtures+i,i);if(rc)return rc;}
+#ifdef TEST_PARTIAL_SRAM
+    /* Reuse the same SRAM lines after CPU cached poison stores and prior raw/tensor. */
+    for(unsigned repeat=0;repeat<2;repeat++){
+      unsigned index=(unsigned)(sizeof(fixtures)/sizeof(fixtures[0]))-1u;
+      int repeated=run_fixture(fixtures+index,index);if(repeated)return repeated;
+    }
+#endif
     matrix_prepare(2,129,0x40000);if(ag_dma_publish(POLLS))return 37;matrix_start(2,129,0x40000);int rc=matrix_check(2,129,0x40000);if(rc)return rc;
-    if(context.active||context.cache_unknown||context.jobs_started!=context.jobs_completed||context.jobs_completed!=sizeof(fixtures)/sizeof(fixtures[0]))return 38;
+    if(context.active||context.cache_unknown||context.jobs_started!=context.jobs_completed||context.jobs_completed!=sizeof(fixtures)/sizeof(fixtures[0])
+#ifdef TEST_PARTIAL_SRAM
+       +2u
+#endif
+       )return 38;
     text("TENSOR_SYSTEM_SUMMARY {\"jobs\":");number((uint32_t)context.jobs_completed);text(",\"checked_words\":");number(checked);text(",\"opcodes\":");number(TENSOR_SYSTEM_OPCODE_COUNT);text(",\"matrix_jobs\":3,\"reference_on_target\":false}\n");
     text("PASS_TENSOR_CPU_CACHE_DDR_V2\n");return 0;
 }

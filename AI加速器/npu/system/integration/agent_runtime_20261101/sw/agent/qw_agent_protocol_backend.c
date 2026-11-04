@@ -541,6 +541,44 @@ ag_backend_poll_status qw_agent_protocol_poll(void *context,
     return finish_generation(b);
 }
 
+/* Direct chat: no tool schema, no agent loop. The prompt is one user turn, so
+ * prefill is a handful of tokens instead of the whole tool profile. */
+int qw_agent_direct_chat(qw_agent_protocol_backend *b,const char *text){
+    static const char sys[]="<|im_start|>system\nAnswer in English, one short sentence.\n<|im_end|>\n";
+    static const char head[]="<|im_start|>user\n";
+    static const char tail[]="<|im_end|>\n<|im_start|>assistant\n";
+    if(!b||!text||!b->model||!b->tokenizer)return QW_ARGUMENT;
+    size_t tb=0;while(text[tb]&&tb<AG_LOOP_TASK_MAX)++tb;
+    if(!tb||tb>AG_LOOP_TASK_MAX)return QW_ARGUMENT;
+    size_t n=0;
+    b->prompt[0]=0;
+    if(!literal(b->prompt,b->prompt_capacity,&n,sys)||
+       !literal(b->prompt,b->prompt_capacity,&n,head)||
+       !append(b->prompt,b->prompt_capacity,&n,text,tb)||
+       !literal(b->prompt,b->prompt_capacity,&n,tail))return QW_CAPACITY;
+    size_t count=0;
+    if(qt_encode(b->tokenizer,b->prompt,n,1,b->tokens,b->token_capacity,&count,
+        b->tokenizer_workspace,b->tokenizer_workspace_bytes))return QW_TOKEN;
+    if(!count)return QW_TOKEN;
+    size_t processed=0;
+    int prc=qw_prefill(b->model,b->tokens,count,&processed);
+    if(prc)return prc;                      /* surface the real code, never mask it */
+    if(processed!=count)return QW_CONTEXT_FULL;
+    qw_status st;
+    int src=qw_get_status(b->model,&st);
+    if(src)return src;
+    if(!st.logits)return QW_NEED_RESET;
+    const float *logits=st.logits;uint32_t token=0,seed=1;
+    for(unsigned step=0;step<AGENT_DIRECT_MAX_TOKENS;step++){
+        if(qw_sample(logits,QW_VOCAB,0,1,&seed,&token))return QW_NUMERIC;
+        if(qw_is_stop(token))break;
+        const char *piece=0;size_t bytes=0;unsigned flags=0;
+        if(qt_piece(b->tokenizer,token,&piece,&bytes,&flags))return QW_TOKEN;
+        if(piece&&bytes&&b->on_token)b->on_token(b->trace_user,step,token,0.0f,piece,bytes,0);
+        if(qw_decode(b->model,token,&logits)||!logits)return QW_IO;
+    }
+    return 0;
+}
 ag_loop_backend qw_agent_protocol_adapter(qw_agent_protocol_backend *bridge) {
     ag_loop_backend backend = {qw_agent_protocol_poll, bridge};
     return backend;

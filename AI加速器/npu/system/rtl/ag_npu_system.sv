@@ -14,10 +14,22 @@ module ag_npu_system #(
     parameter bit NPU_REUSE_ACT_LINE = 0,
     parameter bit TENSOR_ENABLE = 0,
     parameter integer NPU_LANES = 16,
-    parameter integer DDR_OUTSTANDING = 1
+    parameter integer DDR_OUTSTANDING = 1,
+    parameter bit PARTIAL_SRAM_ENABLE = 0,
+    parameter bit TENSOR_PARALLEL_RAW = 1,
+    parameter bit TENSOR_PARALLEL_DELTA = 1,
+    parameter bit TENSOR_SHARED_RAW_ACCUM = 0,
+    parameter bit LOCAL_CPU_RESET = 0,
+    parameter bit BUTTON_ENABLE = 0,
+    parameter bit TEXT_VIDEO_ENABLE = 0,
+    parameter bit UART_RX_ENABLE = 0
 ) (
     input wire clk, rst, irq_external,
-    output wire uart_tx_o,
+    input wire [4:0] buttons_n,
+    input wire pixel_clk,pixel_rst,hd_scl_i,hd_sda_i,
+    output wire [23:0] pixel_rgb,output wire pixel_hs,pixel_vs,pixel_de,
+    output wire hd_scl_low,hd_sda_low,hd_reset_n,
+    input wire uart_rx_i,output wire uart_tx_o,
     output wire [31:0] gpio,
     output wire console_valid,
     output wire [7:0] console_data,
@@ -62,13 +74,27 @@ module ag_npu_system #(
     wire [29:0] accel_qa;
     wire [255:0] accel_qd,accel_rd;
     wire [31:0] accel_qs;
+    wire shared_qv,shared_qr,shared_qw,shared_rv,shared_rr,shared_re;
+    wire [29:0] shared_qa;wire [255:0] shared_qd,shared_rd;wire [31:0] shared_qs;
+    wire pqr,prv,pre;wire [31:0] prd;
 
+    // Optional local reset: asynchronous assertion, synchronous release. CPU
+    // traffic starts one edge after the peripheral fabric leaves reset.
+    wire cpu_reset;
+    generate if(LOCAL_CPU_RESET)begin: cpu_reset_distribution
+        reg local_reset=1'b1 /* synthesis syn_preserve = 1 */;
+        always @(posedge clk or posedge rst)
+            if(rst)local_reset<=1'b1;else local_reset<=1'b0;
+        assign cpu_reset=local_reset;
+    end else begin: direct_cpu_reset
+        assign cpu_reset=rst;
+    end endgenerate
     ag_soc #(.RAM_WORDS(TCM_WORDS), .INIT_FILE(INIT_FILE), .CLOCK_HZ(CLOCK_HZ),
         .SIM_FAST_UART(SIM_FAST_UART), .DUAL_ISSUE(DUAL_ISSUE),
         .DDR_ENABLE(DDR_ENABLE), .CACHE_ENABLE(CACHE_ENABLE),
         .CACHE_SET_BITS(CACHE_SET_BITS), .MULH_PIPELINE(MULH_PIPELINE),
         .EXT_MMIO_ENABLE(1)) cpu_soc (
-        .clk(clk), .rst(rst), .irq_external(irq_external),
+        .clk(clk), .rst(cpu_reset), .irq_external(irq_external),
         .uart_tx_o(uart_tx_o), .gpio(gpio),
         .console_valid(console_valid), .console_data(console_data),
         .done(done), .exit_code(exit_code),
@@ -96,16 +122,21 @@ module ag_npu_system #(
     wire dma_select = qa >= 32'h10004000 && qa < 32'h10005000;
     wire sd_select = qa >= 32'h10005000 && qa < 32'h10006000;
     wire tensor_select = TENSOR_ENABLE && qa >= 32'h10006000 && qa < 32'h10007000;
+    wire partial_select=PARTIAL_SRAM_ENABLE&&qa>=32'h10007000&&qa<32'h10008000;
     wire lqr, lrv, lre, dqr, drv, dre, sqr, srv, sre,tqr,trv,tre;
+    wire bqr,brv,bre,vqr,vrv,vre,uqr,urv,ure;wire [31:0] brd,vrd,urd;
+    wire uart_rx_select=UART_RX_ENABLE&&qa>=32'h10001240&&qa<32'h10001250;
+    wire video_select=TEXT_VIDEO_ENABLE&&qa>=32'h10001100&&qa<32'h10001140;
+    wire button_select=BUTTON_ENABLE&&qa>=32'h10001210&&qa<32'h10001220;
     wire [31:0] lrd, drd, srd,trd;
     reg pending;
-    reg [2:0] target;
-    wire [2:0] selected = legacy_select ? 3'd0 : dma_select ? 3'd1 :
-                         sd_select ? 3'd2 : tensor_select ? 3'd3 : 3'd4;
-    assign qr = !rst && !pending && (selected==0 ? lqr : selected==1 ? dqr : selected==2 ? sqr : selected==3 ? tqr : 1'b1);
-    assign rv = !rst && pending && (target==0 ? lrv : target==1 ? drv : target==2 ? srv : target==3 ? trv : 1'b1);
-    assign rd = target==0 ? lrd : target==1 ? drd : target==2 ? srd : target==3 ? trd : 32'd0;
-    assign re = target==0 ? lre : target==1 ? dre : target==2 ? sre : target==3 ? tre : 1'b1;
+    reg [3:0] target;
+    wire [3:0] selected = legacy_select ? 4'd0 : dma_select ? 4'd1 :
+                         sd_select ? 4'd2 : tensor_select ? 4'd3 : partial_select ? 4'd4 : button_select ? 4'd5 : video_select ? 4'd6 : uart_rx_select ? 4'd7 : 4'd8;
+    assign qr = !rst && !pending && (selected==0 ? lqr : selected==1 ? dqr : selected==2 ? sqr : selected==3 ? tqr : selected==4 ? pqr : selected==5 ? bqr : selected==6 ? vqr : selected==7 ? uqr : 1'b1);
+    assign rv = !rst && pending && (target==0 ? lrv : target==1 ? drv : target==2 ? srv : target==3 ? trv : target==4 ? prv : target==5 ? brv : target==6 ? vrv : target==7 ? urv : 1'b1);
+    assign rd = target==0 ? lrd : target==1 ? drd : target==2 ? srd : target==3 ? trd : target==4 ? prd : target==5 ? brd : target==6 ? vrd : target==7 ? urd : 32'd0;
+    assign re = target==0 ? lre : target==1 ? dre : target==2 ? sre : target==3 ? tre : target==4 ? pre : target==5 ? bre : target==6 ? vre : target==7 ? ure : 1'b1;
     wire legacy_busy, legacy_done, legacy_error;
     wire [31:0] legacy_code, legacy_results, legacy_cycles;
     generate if (LEGACY_ENABLE) begin : legacy_diagnostics
@@ -123,7 +154,8 @@ module ag_npu_system #(
         assign legacy_busy=1'b0; assign legacy_done=1'b0; assign legacy_error=1'b0;
         assign legacy_code=32'd0; assign legacy_results=32'd0; assign legacy_cycles=32'd0;
     end endgenerate
-    npu_dma_top #(.REUSE_ACT_LINE(NPU_REUSE_ACT_LINE),.LANES(NPU_LANES)) dma (
+    npu_dma_top #(.REUSE_ACT_LINE(NPU_REUSE_ACT_LINE),.LANES(NPU_LANES),
+        .WEIGHT_DEPTH(DDR_OUTSTANDING>=4?DDR_OUTSTANDING:4)) dma (
         .clk(clk), .rst(rst),
         .req_valid(qv && !pending && selected==1), .req_ready(dqr),
         .req_write(qw), .req_addr(qa), .req_wdata(qd), .req_wstrb(qs),
@@ -157,7 +189,10 @@ module ag_npu_system #(
         wire tensor_busy,tensor_done,tensor_error;
         wire [31:0] tensor_error_code,tensor_cycles,tensor_results;
         wire accelerator_active,accelerator_owner;
-        npu_tensor_v2 tensor (
+        npu_tensor_v2 #(.PARALLEL_RAW(TENSOR_PARALLEL_RAW),
+            .PARALLEL_DELTA(TENSOR_PARALLEL_DELTA),
+            .SHARED_RAW_ACCUM(TENSOR_SHARED_RAW_ACCUM),
+            .DELTA_PREFETCH(DDR_OUTSTANDING>=4?DDR_OUTSTANDING:4)) tensor (
             .clk(clk),.rst(rst),
             .req_valid(qv && !pending && selected==3),.req_ready(tqr),
             .req_write(qw),.req_addr(qa),.req_wdata(qd),.req_wstrb(qs),
@@ -200,12 +235,55 @@ module ag_npu_system #(
         .b_req_valid(accel_qv), .b_req_ready(accel_qr), .b_req_addr(accel_qa),
         .b_req_write(accel_qw), .b_req_wdata(accel_qd), .b_req_wstrb(accel_qs),
         .b_rsp_valid(accel_rv), .b_rsp_ready(accel_rr), .b_rsp_data(accel_rd), .b_rsp_error(accel_re),
-        .mem_req_valid(mem_req_valid), .mem_req_ready(mem_req_ready), .mem_req_addr(mem_req_addr),
-        .mem_req_write(mem_req_write), .mem_req_wdata(mem_req_wdata), .mem_req_wstrb(mem_req_wstrb),
-        .mem_rsp_valid(mem_rsp_valid), .mem_rsp_ready(mem_rsp_ready),
-        .mem_rsp_data(mem_rsp_data), .mem_rsp_error(mem_rsp_error),
+        .mem_req_valid(shared_qv), .mem_req_ready(shared_qr), .mem_req_addr(shared_qa),
+        .mem_req_write(shared_qw), .mem_req_wdata(shared_qd), .mem_req_wstrb(shared_qs),
+        .mem_rsp_valid(shared_rv), .mem_rsp_ready(shared_rr),
+        .mem_rsp_data(shared_rd), .mem_rsp_error(shared_re),
         .active(ddr_transaction_active), .owner(ddr_transaction_owner)
     );
+    generate if(PARTIAL_SRAM_ENABLE)begin: partial_sram_enabled
+      npu_partial_sram #(.DDR_DEPTH(DDR_OUTSTANDING)) partial_store(
+       .clk(clk),.rst(rst),.req_valid(qv&&!pending&&selected==4),.req_ready(pqr),.req_write(qw),
+       .req_addr(qa),.req_wdata(qd),.req_wstrb(qs),.rsp_valid(prv),.rsp_ready(rr&&pending&&target==4),.rsp_rdata(prd),.rsp_error(pre),
+       .bus_req_valid(shared_qv),.bus_req_ready(shared_qr),.bus_req_addr(shared_qa),.bus_req_write(shared_qw),.bus_req_wdata(shared_qd),.bus_req_wstrb(shared_qs),
+       .bus_rsp_valid(shared_rv),.bus_rsp_ready(shared_rr),.bus_rsp_data(shared_rd),.bus_rsp_error(shared_re),
+       .mem_req_valid(mem_req_valid),.mem_req_ready(mem_req_ready),.mem_req_addr(mem_req_addr),.mem_req_write(mem_req_write),.mem_req_wdata(mem_req_wdata),.mem_req_wstrb(mem_req_wstrb),
+       .mem_rsp_valid(mem_rsp_valid),.mem_rsp_ready(mem_rsp_ready),.mem_rsp_data(mem_rsp_data),.mem_rsp_error(mem_rsp_error));
+    end else begin: no_partial_sram
+      assign mem_req_valid=shared_qv;assign shared_qr=mem_req_ready;assign mem_req_addr=shared_qa;assign mem_req_write=shared_qw;
+      assign mem_req_wdata=shared_qd;assign mem_req_wstrb=shared_qs;assign shared_rv=mem_rsp_valid;assign mem_rsp_ready=shared_rr;
+      assign shared_rd=mem_rsp_data;assign shared_re=mem_rsp_error;
+      assign pqr=1'b1;assign prv=1'b0;assign prd=32'd0;assign pre=1'b1;
+    end endgenerate
+    generate if(UART_RX_ENABLE)begin: board_uart_rx
+      ag_uart_rx_top #(.CLOCK_HZ(CLOCK_HZ)) receiver(
+       .clk(clk),.rst(rst),.rx_i(uart_rx_i),
+       .req_valid(qv&&!pending&&selected==7),.req_ready(uqr),.req_write(qw),
+       .req_addr(qa),.req_wdata(qd),.req_wstrb(qs),.rsp_valid(urv),.rsp_ready(rr&&pending&&target==7),.rsp_rdata(urd),.rsp_error(ure));
+    end else begin: no_board_uart_rx
+      assign uqr=1;assign urv=0;assign urd=0;assign ure=1;
+    end endgenerate
+    generate if(TEXT_VIDEO_ENABLE)begin: board_text_video
+      ag_text_video #(.WAIT_CYCLES(CLOCK_HZ)) display(
+       .clk(clk),.rst(rst),.pixel_clk(pixel_clk),.pixel_rst(pixel_rst),
+       .req_valid(qv&&!pending&&selected==6),.req_ready(vqr),.req_write(qw),
+       .req_addr(qa),.req_wdata(qd),.req_wstrb(qs),.rsp_valid(vrv),.rsp_ready(rr&&pending&&target==6),.rsp_rdata(vrd),.rsp_error(vre),
+       .pixel_rgb(pixel_rgb),.pixel_hs(pixel_hs),.pixel_vs(pixel_vs),.pixel_de(pixel_de),
+       .hd_scl_i(hd_scl_i),.hd_sda_i(hd_sda_i),.hd_scl_low(hd_scl_low),.hd_sda_low(hd_sda_low),.hd_reset_n(hd_reset_n));
+    end else begin: no_board_text_video
+      assign vqr=1;assign vrv=0;assign vrd=0;assign vre=1;
+      assign pixel_rgb=0;assign pixel_hs=1;assign pixel_vs=1;assign pixel_de=0;
+      assign hd_scl_low=0;assign hd_sda_low=0;assign hd_reset_n=0;
+    end endgenerate
+    generate if(BUTTON_ENABLE)begin: board_buttons
+      ag_button_top #(.CLOCK_HZ(CLOCK_HZ)) keys(
+       .clk(clk),.rst(rst),.buttons_n(buttons_n),
+       .req_valid(qv&&!pending&&selected==5),.req_ready(bqr),.req_write(qw),
+       .req_addr(qa),.req_wdata(qd),.req_wstrb(qs),
+       .rsp_valid(brv),.rsp_ready(rr&&pending&&target==5),.rsp_rdata(brd),.rsp_error(bre));
+    end else begin: no_board_buttons
+      assign bqr=1;assign brv=0;assign brd=0;assign bre=1;
+    end endgenerate
     reg last_legacy_done, last_dma_done;
     always @(posedge clk) begin
         if (rst) begin

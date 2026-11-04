@@ -8,12 +8,38 @@
 #include <stdexcept>
 #include <algorithm>
 #include <fstream>
+#include <array>
+#include <deque>
 struct Bench {
- Vnpu_tensor_v2 d; std::vector<uint8_t> mem; unsigned ticks=0, reads=0,writes=0; bool pending=false; unsigned delay=0,addr=0; bool fault=false,inject_read=false,inject_write=false; uint32_t data[8]={};
+ Vnpu_tensor_v2 d; std::vector<uint8_t> mem; unsigned ticks=0, reads=0,writes=0; bool pending=false;bool inject_read=false,inject_write=false;
+ struct Response {unsigned due;std::array<uint32_t,8> data{};bool error;};std::deque<Response> responses;
+ unsigned capacity=1,memory_latency=2,peak_pending=0;
  bool held=false,heldwrite=false;unsigned heldaddr=0,heldstrobe=0;uint32_t helddata[8]={};
- Bench():mem(2<<20,0xa5){d.rsp_ready=1;reset();}
- void reset(){held=false;d.rst=1;step();step();d.rst=0;pending=false;d.req_valid=0;step();}
- void step(){d.clk=0; d.mem_req_ready=!pending&&(ticks%5!=1);d.mem_rsp_valid=pending&&delay==0;d.mem_rsp_error=fault;for(int i=0;i<8;i++)d.mem_rsp_data[i]=data[i];d.eval();if(held&&!d.rst){if(!d.mem_req_valid||d.mem_req_addr!=heldaddr||bool(d.mem_req_write)!=heldwrite||d.mem_req_wstrb!=heldstrobe)throw std::runtime_error("DDR request changed under backpressure");for(int q=0;q<8;q++)if(d.mem_req_wdata[q]!=helddata[q])throw std::runtime_error("DDR payload changed under backpressure");}held=!d.rst&&d.mem_req_valid&&!d.mem_req_ready;if(held){heldaddr=d.mem_req_addr;heldwrite=d.mem_req_write;heldstrobe=d.mem_req_wstrb;for(int q=0;q<8;q++)helddata[q]=d.mem_req_wdata[q];}bool take=d.mem_req_valid&&d.mem_req_ready;bool rsp=d.mem_rsp_valid&&d.mem_rsp_ready; if(take){addr=d.mem_req_addr;if(addr+32>mem.size())throw std::runtime_error("DDR outside test memory");fault=d.mem_req_write?inject_write:inject_read;if(d.mem_req_write){writes++;if(!fault)for(int b=0;b<32;b++)if((d.mem_req_wstrb>>b)&1)mem[addr+b]=(d.mem_req_wdata[b/4]>>(8*(b%4)))&255;}else{reads++;memcpy(data,mem.data()+addr,32);}pending=true;delay=2+(ticks%3);}else if(rsp)pending=false;else if(pending&&delay)delay--;d.clk=1;d.eval();ticks++;}
+ Bench():mem(2<<20,0xa5){if(const char*s=std::getenv("NPU_BENCH_DEPTH"))capacity=std::stoul(s);if(const char*s=std::getenv("NPU_BENCH_LATENCY"))memory_latency=std::stoul(s);d.rsp_ready=1;reset();}
+ void reset(){held=false;responses.clear();d.rst=1;step();step();d.rst=0;pending=false;d.req_valid=0;step();}
+ void step(){
+  d.clk=0;d.mem_req_ready=!d.rst&&responses.size()<capacity&&(ticks%5!=1);
+  d.mem_rsp_valid=!d.rst&&!responses.empty()&&responses.front().due<=ticks;
+  d.mem_rsp_error=d.mem_rsp_valid&&responses.front().error;
+  for(int q=0;q<8;q++)d.mem_rsp_data[q]=responses.empty()?0:responses.front().data[q];
+  d.eval();
+  if(held&&!d.rst){
+   if(!d.mem_req_valid||d.mem_req_addr!=heldaddr||bool(d.mem_req_write)!=heldwrite||d.mem_req_wstrb!=heldstrobe)throw std::runtime_error("DDR request changed under backpressure");
+   for(int q=0;q<8;q++)if(d.mem_req_wdata[q]!=helddata[q])throw std::runtime_error("DDR payload changed under backpressure");
+  }
+  held=!d.rst&&d.mem_req_valid&&!d.mem_req_ready;
+  if(held){heldaddr=d.mem_req_addr;heldwrite=d.mem_req_write;heldstrobe=d.mem_req_wstrb;for(int q=0;q<8;q++)helddata[q]=d.mem_req_wdata[q];}
+  bool take=d.mem_req_valid&&d.mem_req_ready,ack=d.mem_rsp_valid&&d.mem_rsp_ready;
+  if(ack)responses.pop_front();
+  if(take){
+   unsigned addr=d.mem_req_addr;if(addr+32>mem.size())throw std::runtime_error("DDR outside test memory");
+   Response response{};response.due=ticks+memory_latency+(ticks%3)+1;response.error=d.mem_req_write?inject_write:inject_read;
+   if(d.mem_req_write){writes++;if(!response.error)for(int q=0;q<32;q++)if((d.mem_req_wstrb>>q)&1)mem[addr+q]=(d.mem_req_wdata[q/4]>>(8*(q%4)))&255;}
+   else {reads++;memcpy(response.data.data(),mem.data()+addr,32);}
+   responses.push_back(response);peak_pending=std::max(peak_pending,unsigned(responses.size()));
+  }
+  if(d.rst)responses.clear();pending=!responses.empty();d.clk=1;d.eval();ticks++;
+ }
  uint32_t csr(unsigned off,bool wr=false,uint32_t val=0){d.req_addr=0x10006000+off;d.req_write=wr;d.req_wdata=val;d.req_wstrb=15;d.req_valid=1;unsigned limit=0;while(!d.req_ready){step();if(++limit>100)throw std::runtime_error("MMIO ready");}step();d.req_valid=0;while(!d.rsp_valid){step();if(++limit>200)throw std::runtime_error("MMIO response");}if(d.rsp_error)throw std::runtime_error("MMIO error");auto r=d.rsp_rdata;step();return r;}
  void start(const npu_tensor_job &j){csr(0,true,2);const auto*p=(const uint32_t*)&j;for(int i=0;i<16;i++)csr(32+4*i,true,p[i]);csr(0,true,1);}
  void finish(){unsigned start=ticks;while(d.busy){step();if(ticks-start>20000000)throw std::runtime_error("completion timeout");}if(pending)throw std::runtime_error("done before DDR ACK");}
@@ -53,6 +79,116 @@ static void check_all_stats(Bench &b,const npu_tensor_job &j){
  for(unsigned i=0;i<6;i++)if(b.csr(off[i])!=want[i])throw std::runtime_error("pipeline final stats mismatch op"+std::to_string(j.opcode)+" field"+std::to_string(i));
  tests++;
 }
+static void vector_prefetch_benchmark(Bench &b){
+ b.mem.resize(2<<20,0xa5);
+ for(unsigned n:{64u,65u,128u,4096u})for(unsigned op:{1u,2u,3u,5u,15u,16u,22u}){
+  npu_tensor_job j{};j.opcode=op;j.n=n;j.a=0x1000;j.b=0x50000;j.out=0x100000;j.param0=4295;j.param1=1;
+  for(unsigned q=0;q<n;q++){put(b.mem,j.a+4*q,int32_t((q*7919u)%200001u)-100000);put(b.mem,j.b+4*q,int32_t((q*6151u)%180001u)-90000);}
+  unsigned start=b.ticks,reads=b.reads;check_all_stats(b,j);
+  printf("VECTOR_PREFETCH_PASS op=%u n=%u reads=%u cycles=%u\n",op,n,b.reads-reads,b.ticks-start);
+ }
+ npu_tensor_job j{};j.opcode=3;j.n=128;j.a=0x1000;j.b=0x50000;j.out=0x100000;
+ check_all_stats(b,j);put(b.mem,j.a,1234567);put(b.mem,j.b,-7654321);check_all_stats(b,j);
+ auto before=b.mem;unsigned writes=b.writes;b.inject_read=true;b.start(j);b.finish();b.inject_read=false;
+ if(!b.d.error||b.d.error_code!=10||b.d.done||b.mem!=before||b.writes!=writes)throw std::runtime_error("vector prefetch read error published output");
+ check_all_stats(b,j);
+ for(unsigned op:{2u,3u}){
+  j.opcode=op;
+  for(unsigned q=0;q<j.n;q++){put(b.mem,j.a+4*q,(q&1)?INT32_MIN:INT32_MAX);put(b.mem,j.b+4*q,(q&2)?INT32_MIN:INT32_MAX);}
+  check_all_stats(b,j);
+ }
+ if(b.capacity>1&&b.memory_latency>=24&&b.peak_pending<8)throw std::runtime_error("prefetch did not exercise multiple outstanding requests");
+ printf("VECTOR_PREFETCH_JOB_REFRESH_FAULT_PASS depth=%u latency=%u peak_pending=%u\n",b.capacity,b.memory_latency,b.peak_pending);
+}
+static void norm_benchmark(Bench &b){
+ b.mem.resize(2<<20,0xa5);
+ for(unsigned n:{1u,3u,64u,128u,1024u,4096u})for(unsigned op:{8u,22u}){
+  npu_tensor_job j{};j.opcode=op;j.n=n;j.a=0x1000;j.b=0x50000;j.out=0x100000;j.param0=4295;j.param1=1;
+  for(unsigned i=0;i<n;i++){put(b.mem,j.a+4*i,int(i*7919%200001)-100000);put(b.mem,j.b+4*i,int(i*17%10000)-5000);}
+  unsigned start=b.ticks;check_all_stats(b,j);
+  printf("NORM_BENCH_PASS op=%u n=%u ticks=%u engine_cycles=%u\n",op,n,b.ticks-start,b.d.cycle_count);
+ }
+}
+static void norm_extremes(Bench &b){
+ for(unsigned n:{64u,128u,1024u,4096u})for(unsigned op:{8u,22u})for(unsigned mode:{0u,1u,2u}){
+  npu_tensor_job j{};j.opcode=op;j.n=n;j.a=0x1000;j.b=0x50000;j.out=0x100000;j.param0=mode?1u:4295u;j.param1=mode==2;
+  for(unsigned q=0;q<n;q++){
+   put(b.mem,j.a+q*4,mode==0?((q&1)?INT32_MIN:INT32_MAX):mode==1?0:q==n-1?INT32_MIN:1);
+   put(b.mem,j.b+q*4,mode==2?((q&1)?INT32_MIN:INT32_MAX):65536);
+  }
+  check_all_stats(b,j);
+ }
+ puts("NORM_WIDE_SQUARE_EXTREMES_PASS");
+}
+static void delta_column_benchmark(Bench &b){
+ b.mem.resize(2<<20,0xa5);
+ for(unsigned op:{13u,20u})for(unsigned n:{8u,16u,128u}){
+  npu_tensor_job j{};j.opcode=op;j.n=n;j.a=0x1000;j.b=0x50000;j.c=0xa0000;
+  j.out=0x100000;j.state=0x110000;j.param0=1030792151;j.param1=536870912;
+  for(unsigned i=0;i<n;i++){
+   put(b.mem,j.a+4*i,int(i*7919%200001)-100000);
+   put(b.mem,j.b+4*i,int(i*6151%180001)-90000);
+   put(b.mem,j.c+4*i,int(i*3563%130001)-65000);
+  }
+  for(unsigned i=0;i<n*n;i++)put(b.mem,j.state+4*i,int(i*100003u%32000001u)-16000000);
+  unsigned reads=b.reads,ticks=b.ticks;check_all_stats(b,j);
+  printf("DELTA_COLUMN_BENCH_PASS op=%u n=%u reads=%u ticks=%u engine_cycles=%u\n",op,n,b.reads-reads,b.ticks-ticks,b.d.cycle_count);
+  check_all_stats(b,j); // state read-modify-write must work on a second token.
+  if(n==8||n==128){
+   j.param0=j.param1=1073741824;
+   for(unsigned i=0;i<n;i++){put(b.mem,j.a+4*i,i&1?INT32_MIN:INT32_MAX);put(b.mem,j.b+4*i,INT32_MAX);put(b.mem,j.c+4*i,INT32_MIN);}
+   for(unsigned i=0;i<n*n;i++)put(b.mem,j.state+4*i,i&1?INT32_MIN:INT32_MAX);
+   check_all_stats(b,j);
+   // Three positive INT64 products overflow before later negative rows cancel.
+   // Both II2 inner loops must retire in row order, including the last product.
+   j.param1=0;
+   for(unsigned i=0;i<n;i++){
+    put(b.mem,j.a+4*i,i<3?INT32_MIN:INT32_MAX);
+    put(b.mem,j.b+4*i,i<3?INT32_MIN:INT32_MAX);
+   }
+   for(unsigned i=0;i<n*n;i++)put(b.mem,j.state+4*i,INT32_MIN);
+   check_all_stats(b,j);
+  }
+ }
+ puts("DELTA_COLUMN_STATS_STATE_PASS");
+}
+static void conv_tap_benchmark(Bench &b){
+ b.mem.resize(2<<20,0xa5);
+ for(unsigned n:{1u,7u,8u,9u,128u,1024u})for(unsigned k:{1u,2u,4u,8u}){
+  npu_tensor_job j{};j.opcode=12;j.n=n;j.k=k;j.a=0x1000;j.b=0x50000;j.out=0x100000;j.state=0x110000;
+  for(unsigned i=0;i<n;i++)put(b.mem,j.a+4*i,int32_t((i*7919)%200001)-100000);
+  for(unsigned i=0;i<n*k;i++)put(b.mem,j.b+4*i,int32_t((i*6151)%180001)-90000);
+  for(unsigned i=0;i<n*(k-1);i++)put(b.mem,j.state+4*i,int32_t((i*100003u)%32000001u)-16000000);
+  unsigned reads=b.reads;check_all_stats(b,j);
+  printf("CONV_TAP_BENCH_PASS n=%u k=%u reads=%u engine_cycles=%u\n",n,k,b.reads-reads,b.d.cycle_count);
+  check_all_stats(b,j);
+ }
+ // Deliberate INT64 overflow then cancellation checks the order of saturating
+ // tap accumulation and its diagnostics; a balanced reduction is not equivalent.
+ for(unsigned k:{4u,8u}){
+  npu_tensor_job j{};j.opcode=12;j.n=8;j.k=k;j.a=0x1000;j.b=0x50000;j.out=0x100000;j.state=0x110000;
+  for(unsigned i=0;i<j.n;i++)put(b.mem,j.a+4*i,INT32_MIN);
+  for(unsigned i=0;i<j.n*k;i++)put(b.mem,j.b+4*i,i%k>=2?INT32_MAX:INT32_MIN);
+  for(unsigned i=0;i<j.n*(k-1);i++)put(b.mem,j.state+4*i,INT32_MIN);
+  check_all_stats(b,j);check_all_stats(b,j);
+ }
+ puts("CONV_TAP_STATS_STATE_PASS");
+}
+static void raw_stream_benchmark(Bench &b){
+ b.mem.resize(2<<20,0xa5);npu_tensor_job j{};j.opcode=19;j.n=32;j.m=32;
+ j.a=0x1000;j.b=0x50000;j.out=0x100000;j.stride_a=256;j.param0=65536;
+ for(unsigned row=0;row<j.n;row++)for(unsigned group=0;group<j.m;group++){
+  unsigned record=j.a+row*j.stride_a+group*8;
+  put(b.mem,record,(group<<16)|row);put(b.mem,record+4,int(row*719+group*997)-16000);
+  uint16_t scale=uint16_t(0x2400+((row*37+group*53)&0x7ff));
+  memcpy(b.mem.data()+j.b+(row*j.m+group)*2,&scale,2);
+ }
+ unsigned reads=b.reads,ticks=b.ticks;check_all_stats(b,j);
+ printf("RAW_STREAM_BENCH_PASS groups=%u reads=%u ticks=%u engine_cycles=%u\n",j.n*j.m,b.reads-reads,b.ticks-ticks,b.d.cycle_count);
+ // A second submission mutates an already cached scale and must see the new DDR data.
+ uint16_t changed=0x3000;memcpy(b.mem.data()+j.b,&changed,2);check_all_stats(b,j);
+ puts("RAW_STREAM_JOB_INVALIDATION_PASS");
+}
 static void pipeline_boundaries(Bench &b){
  b.mem.resize(2<<20,0xa5);npu_tensor_job j{};j.a=0x1000;j.b=0x50000;j.c=0xa0000;j.out=0x100000;j.state=0x110000;
  unsigned tails[]={1,3,7,8,9,15,31,32,33,63};
@@ -62,8 +198,20 @@ static void pipeline_boundaries(Bench &b){
   check_all_stats(b,j);
   j.opcode=1;check_all_stats(b,j);
  }
+ // Exact quantization quotient/remainder boundaries, including INT32_MIN and ties.
+ for(uint32_t magnitude:{1u,2u,3u,127u,128u,65535u,1073741824u,2147483647u,2147483648u}){
+  j={};j.opcode=15;j.n=32;j.a=0x1000;j.out=0x100000;
+  for(unsigned z=0;z<32;z++){
+   int64_t value=z==0?int64_t(magnitude):int64_t((uint64_t(magnitude)*z)/31u);
+   if(z&1)value=-value;
+   if(value>INT32_MAX)value=INT32_MAX;
+   put(b.mem,j.a+4*z,int32_t(value));
+  }
+  if(magnitude==2147483648u)put(b.mem,j.a,INT32_MIN);
+  check_all_stats(b,j);
+ }
  // Multiple clipping stages from a single stateful update must all count.
- j.opcode=20;j.n=1;j.param0=1073741824;j.param1=1073741824;
+ j.b=0x50000;j.c=0xa0000;j.state=0x110000;j.opcode=20;j.n=1;j.param0=1073741824;j.param1=1073741824;
  put(b.mem,j.a,INT32_MAX);put(b.mem,j.b,INT32_MIN);put(b.mem,j.c,INT32_MAX);put(b.mem,j.state,INT32_MAX);
  check_all_stats(b,j);
  if(b.csr(0x1c)<2)throw std::runtime_error("pipeline multiple saturation stages not exercised");
@@ -91,5 +239,11 @@ int main(int argc,char**argv){Verilated::commandArgs(argc,argv);try{Bench b;if(b
  for(int file=1;file<argc;file++)fixtures(b,argv[file]);
    printf("TENSOR_V2_CORE_PASS cases=%u reads=%u writes=%u cycles=%u\n",tests,b.reads,b.writes,b.ticks);
   pipeline_boundaries(b);
+  conv_tap_benchmark(b);
+  raw_stream_benchmark(b);
+  delta_column_benchmark(b);
+  norm_benchmark(b);
+  norm_extremes(b);
+  vector_prefetch_benchmark(b);
 printf("TENSOR_V2_PASS cases=%u reads=%u writes=%u cycles=%u\n",tests,b.reads,b.writes,b.ticks);return 0;
  }catch(const std::exception&e){fprintf(stderr,"FAIL: %s\n",e.what());return 1;}}

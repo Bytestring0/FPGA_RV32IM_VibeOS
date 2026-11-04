@@ -12,6 +12,7 @@ from pathlib import Path
 import re
 import subprocess
 import time
+from build_system import installed_pds,pds_environment
 
 SYSTEM=Path(__file__).resolve().parents[1]
 WORK=SYSTEM.parents[2]
@@ -23,7 +24,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--run',type=Path,required=True)
     p.add_argument('--report',type=Path)
-    p.add_argument('--pds',type=Path,default=Path(r'D:\pango\PDS_2022.2-SP6.4'))
+    p.add_argument('--pds',type=Path,default=Path(installed_pds()))
     a=p.parse_args()
     if os.name!='nt':p.error('use Windows Python and PDS')
     run=a.run.resolve()
@@ -53,10 +54,7 @@ def main():
     if not setup or not any(s.startswith('set_arch ') for s in setup):p.error('frozen project setup absent')
     setup.append('gen_bit_stream -force_to_run -input_db_file {place_route/ag_npu_board_top_pnr.adf} -write_drm_data TRUE -scbv {High Voltage} -unused_io_status UNUSED')
     script=run/'generate_candidate.tcl';script.write_text('\n'.join(setup)+'\n',encoding='utf-8')
-    env=dict(os.environ)
-    if not env.get('PANGO_LICENSE_FILE'):
-        import winreg
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER,'Environment') as key:env['PANGO_LICENSE_FILE']=winreg.QueryValueEx(key,'PANGO_LICENSE_FILE')[0]
+    env=pds_environment(a.pds)
     project=run/'ag_npu_board.pds';project_bytes=project.read_bytes()
     report={'passed':False,'board_programmed':False,'board_verified':False,'quality_approved':False,
             'internal_timing_passed':True,'sd_external_timing_verified':False,
@@ -69,7 +67,7 @@ def main():
         with (run/'generate_candidate.log').open('wb') as log:
             result=subprocess.run(command,cwd=run,env=env,stdout=log,stderr=subprocess.STDOUT,timeout=600,check=False)
         report['exit_code']=result.returncode
-        if result.returncode:raise RuntimeError('PDS candidate bitstream generation failed')
+        if result.returncode or re.search(r'^E:|Program Error Out\.',(run/'generate_candidate.log').read_text(encoding='utf-8-sig'),re.M):raise RuntimeError('PDS candidate bitstream generation failed')
         bit=run/'generate_bitstream/ag_npu_board_top.sbit'
         if not bit.is_file() or bit.stat().st_mtime<started-2:raise RuntimeError('no fresh candidate bitstream')
         report.update(passed=True,bitstream={'path':str(bit),'bytes':bit.stat().st_size,'sha256':sha(bit)})

@@ -2,10 +2,18 @@
 #include "qw_internal.h"
 #include "qw_tensor_v2.h"
 #include <string.h>
+#ifdef QW_FUSED_MATRIX
+#include "npu_fused_matrix.h"
+#ifdef QW_PRECISE_RAW_REDUCE
+#error "Fused mode1 implements exact opcode19; Q46 reduce requires a separate hardware mode"
+#endif
+#endif
 /* This version deliberately preserves the full graph, but declares new
  * rounding: Q16 activations/weights, Q24 recurrence, Q16 decay/beta promoted
  * to Q30, Q16 tile attention accumulation. It is NOT calibrated quality. */
-#define WS_BYTES (1024u*1024u)
+#define WS_BYTES (4u*1024u*1024u)
+#define FIXED_CACHE_VALUES 524288u
+typedef uint32_t tensor_alias_word __attribute__((__may_alias__));
 #define LANES 32768u
 /* Every array begins on a 32-byte boundary relative to the aligned workspace. */
 typedef struct {
@@ -13,6 +21,11 @@ typedef struct {
  int32_t attention[2048],gate[3584],up[3584],project[1024],scores[QW_CONTEXT_MAX];
  int32_t a[LANES],b[LANES*2u],c[8192],out[4096];
  int32_t temp[4096],ones[1024],cosine[32],sine[32];
+ int32_t soft[16],expal[16],decay[16];
+ _Alignas(32) int32_t fixed_values[FIXED_CACHE_VALUES];
+ unsigned char fixed_flags[FIXED_CACHE_VALUES];
+ uint32_t fixed_offset[QW_MAX_TENSORS];
+ npu_fixed_status fixed_status[QW_MAX_TENSORS];
 } tensor_work;
 _Static_assert(sizeof(tensor_work)<=WS_BYTES,"tensor workspace exceeds explicit budget");
 _Static_assert(QW_CONTEXT_MAX%8==0,"context workspace alignment");
@@ -28,8 +41,12 @@ static int32_t clip(qw_model*m,int64_t x){if(x>INT32_MAX||x<INT32_MIN){m->tensor
 static uint64_t divide_rne(uint64_t a,uint64_t b){uint64_t q=a/b,r=a%b;return q+(r>b-r||(r==b-r&&(q&1)));}
 static uint32_t pack_q16(int32_t x){
  uint32_t magnitude=x<0?0u-(uint32_t)x:(uint32_t)x;if(!magnitude)return 0;
- unsigned top=0;uint32_t scan=magnitude;while(scan>>1){scan>>=1;top++;}
- uint32_t sig=top>23?(uint32_t)divide_rne(magnitude,UINT64_C(1)<<(top-23)):magnitude<<(23-top);
+ unsigned top=0;uint32_t scan=magnitude;
+ if(scan>=65536u){scan>>=16;top+=16;}if(scan>=256u){scan>>=8;top+=8;}
+ if(scan>=16u){scan>>=4;top+=4;}if(scan>=4u){scan>>=2;top+=2;}if(scan>=2u)top++;
+ uint32_t sig;
+ if(top>23){unsigned right=top-23;uint32_t mask=(1u<<right)-1u,r=magnitude&mask,half=1u<<(right-1);sig=magnitude>>right;sig+=r>half||(r==half&&(sig&1u));}
+ else sig=magnitude<<(23-top);
  if(sig==0x1000000u){sig>>=1;top++;}return (x<0?0x80000000u:0u)|((top+111u)<<23)|(sig&0x7fffffu);
 }
 static void trace(qw_model*m,unsigned layer,const char*stage,const int32_t*p,unsigned n){
@@ -39,9 +56,38 @@ static void trace(qw_model*m,unsigned layer,const char*stage,const int32_t*p,uns
 }
 static uint16_t le16(const unsigned char*p){return (uint16_t)(p[0]|(uint16_t)p[1]<<8);}
 static uint32_t le32(const unsigned char*p){return (uint32_t)p[0]|(uint32_t)p[1]<<8|(uint32_t)p[2]<<16|(uint32_t)p[3]<<24;}
+static int32_t value_uncached(const qw_tensor*t,uint32_t i,npu_fixed_status*s){
+ if(t->dtype==QT_BF16)return npu_fixed_bf16_bits_to_q16(le16(t->data+(size_t)i*2),s);
+ return npu_fixed_f32_bits_to_q16(le32(t->data+(size_t)i*4),s);
+}
+static const int32_t*fixed_values(qw_model*m,const qw_tensor*t){
+ tensor_work*w=work(m);uint32_t index=(uint32_t)(t-m->tensors),at=w->fixed_offset[index];
+ return at==UINT32_MAX?0:w->fixed_values+at;
+}
+static void fixed_cache_prepare(qw_model*m){
+ tensor_work*w=work(m);uint32_t used=0;
+ for(unsigned t=0;t<QW_MAX_TENSORS;t++)w->fixed_offset[t]=UINT32_MAX;
+ for(unsigned t=0;t<m->tensor_count;t++){
+  const qw_tensor*item=m->tensors+t;
+  if((item->dtype!=QT_BF16&&item->dtype!=QT_F32)||item->count>32768u)continue;
+  used=(used+7u)&~7u;if(item->count>FIXED_CACHE_VALUES-used)continue;
+  w->fixed_offset[t]=used;
+  for(uint32_t i=0;i<item->count;i++){
+   npu_fixed_status s={0};w->fixed_values[used+i]=value_uncached(item,i,&s);
+   w->fixed_flags[used+i]=(unsigned char)(s.saturations|(s.underflows<<2)|(s.invalid_inputs<<3));
+   merge(w->fixed_status+t,&s);
+  }
+  used+=item->count;
+ }
+}
+static void fixed_tensor_status(qw_model*m,const qw_tensor*t){merge(&m->tensor_status.numeric,&work(m)->fixed_status[t-m->tensors]);}
 static int32_t value(qw_model*m,const qw_tensor*t,uint32_t i){
- if(t->dtype==QT_BF16)return npu_fixed_bf16_bits_to_q16(le16(t->data+(size_t)i*2),&m->tensor_status.numeric);
- return npu_fixed_f32_bits_to_q16(le32(t->data+(size_t)i*4),&m->tensor_status.numeric);
+ tensor_work*w=work(m);uint32_t at=w->fixed_offset[t-m->tensors];
+ if(at==UINT32_MAX)return value_uncached(t,i,&m->tensor_status.numeric);
+ unsigned f=w->fixed_flags[at+i];
+ if(f){npu_fixed_status s={0};s.saturations=f&3u;s.underflows=(f>>2)&1u;s.invalid_inputs=(f>>3)&1u;
+  s.status=(s.saturations?NPU_FIXED_STATUS_SATURATED:0)|(s.underflows?NPU_FIXED_STATUS_UNDERFLOW:0)|(s.invalid_inputs?NPU_FIXED_STATUS_NONFINITE:0);merge(&m->tensor_status.numeric,&s);}
+ return w->fixed_values[at+i];
 }
 static uint32_t address(qw_model*m,const void*p){
  uintptr_t u=(uintptr_t)p,s=(uintptr_t)m->tensor_scratch,a=(uintptr_t)m->arena;
@@ -62,16 +108,38 @@ static int submit(qw_model*m,npu_tensor_job*j,uint32_t*result){
  if(stats.numeric.status&NPU_FIXED_STATUS_ERROR_MASK)return QW_NUMERIC;
  if(result)*result=stats.result;return 0;
 }
+/* Use already-owned aligned DDR vectors directly. Small stack values and
+ * overlapping outputs retain the staging path; DMA ownership still uses the
+ * descriptor spans and the production publish/acquire driver. */
+static uint32_t vector_address(qw_model*m,const void*p,uint32_t n){
+ uint32_t at=address(m,p);if(at==UINT32_MAX||(at&31u)||n>4096u)return UINT32_MAX;
+ uintptr_t u=(uintptr_t)p,s=(uintptr_t)m->tensor_scratch,a=(uintptr_t)m->arena;
+ if(u>=s&&u-s<=m->tensor_scratch_bytes&&(size_t)n*4<=m->tensor_scratch_bytes-(u-s))return at;
+ if(u>=a&&u-a<=m->plan.arena_bytes&&(size_t)n*4<=m->plan.arena_bytes-(u-a))return at;
+ return UINT32_MAX;
+}
 static int operation(qw_model*m,uint32_t opcode,int32_t*dst,const int32_t*a,const int32_t*b,uint32_t n){
  tensor_work*w=work(m);if(!n||n>4096)return QW_ARGUMENT;
- memcpy(w->a,a,(size_t)n*4);if(b)memcpy(w->b,b,(size_t)n*4);
- npu_tensor_job j={0};j.opcode=opcode;j.n=n;j.a=address(m,w->a);j.b=address(m,w->b);j.out=address(m,w->out);
- int rc=submit(m,&j,0);if(!rc)memcpy(dst,w->out,(size_t)n*4);return rc;
+ uint32_t aa=vector_address(m,a,n),bb=b?vector_address(m,b,n):UINT32_MAX;
+ if(aa==UINT32_MAX){memcpy(w->a,a,(size_t)n*4);aa=address(m,w->a);}
+ if(b&&bb==UINT32_MAX){memcpy(w->b,b,(size_t)n*4);bb=address(m,w->b);}
+ uint32_t out=vector_address(m,dst,n),bytes=n*4u;
+ if(out==UINT32_MAX||(out<aa+bytes&&aa<out+bytes)||(b&&out<bb+bytes&&bb<out+bytes))out=address(m,w->out);
+ npu_tensor_job j={0};j.opcode=opcode;j.n=n;j.a=aa;j.b=b?bb:0;j.out=out;
+ int rc=submit(m,&j,0);if(!rc&&out!=address(m,dst))memcpy(dst,w->out,(size_t)n*4);return rc;
 }
 static int norm(qw_model*m,int32_t*dst,const int32_t*src,const qw_tensor*t,uint32_t n,uint32_t centered,uint32_t epsilon,int32_t constant){
- tensor_work*w=work(m);memcpy(w->a,src,(size_t)n*4);
- for(uint32_t i=0;i<n;i++)w->b[i]=t?value(m,t,i):constant;
- npu_tensor_job j={0};j.opcode=NPU_TENSOR_RMSNORM;j.n=n;j.a=address(m,w->a);j.b=address(m,w->b);j.out=address(m,w->out);j.param0=epsilon;j.param1=centered;
+ tensor_work*w=work(m);uint32_t input=vector_address(m,src,n);
+ if(input==UINT32_MAX){memcpy(w->a,src,(size_t)n*4);input=address(m,w->a);}
+ const int32_t*weights=t&&t->count==n?fixed_values(m,t):0;
+ if(weights)fixed_tensor_status(m,t);else {for(uint32_t i=0;i<n;i++)w->b[i]=t?value(m,t,i):constant;weights=w->b;}
+ npu_tensor_job j={0};
+#ifdef QW_PRECISE_NORM
+ j.opcode=NPU_TENSOR_RMSNORM_PRECISE;
+#else
+ j.opcode=NPU_TENSOR_RMSNORM;
+#endif
+j.n=n;j.a=input;j.b=address(m,weights);j.out=address(m,w->out);j.param0=epsilon;j.param1=centered;
  int rc=submit(m,&j,0);if(!rc)memcpy(dst,w->out,(size_t)n*4);return rc;
 }
 /* The fused device reads the ORIGINAL tagged raw records and FP16 scale bits.
@@ -81,7 +149,9 @@ static int matrix_prepare_activation(qw_model*m,const qw_tensor*t,const int32_t*
  tensor_work*w=work(m);qw_profile*p=m->options.profile_clock?m->options.profile:0;
  uint64_t start=p?m->options.profile_clock(m->options.profile_clock_user):0;
  memset(m->activation,0,m->plan.activation_bytes);
- memcpy(w->a,input,(size_t)t->k*4);npu_tensor_job quant={0};quant.opcode=NPU_TENSOR_QUANT_A8;quant.n=t->k;quant.a=address(m,w->a);quant.out=address(m,m->activation);
+ uint32_t input_address=vector_address(m,input,t->k);
+ if(input_address==UINT32_MAX){memcpy(w->a,input,(size_t)t->k*4);input_address=address(m,w->a);}
+ npu_tensor_job quant={0};quant.opcode=NPU_TENSOR_QUANT_A8;quant.n=t->k;quant.a=input_address;quant.out=address(m,m->activation);
  int rc=submit(m,&quant,maximum);
  if(p)p->quantize_ticks+=m->options.profile_clock(m->options.profile_clock_user)-start;
  return rc;
@@ -91,6 +161,10 @@ static int matrix_prepare_activation(qw_model*m,const qw_tensor*t,const int32_t*
 static int matrix_execute_slice(qw_model*m,const qw_tensor*t,int32_t*output,int output_float,uint32_t first_start,uint32_t max_rows,uint32_t maximum,uint32_t*done){
  tensor_work*w=work(m);if(done)*done=0;if(!t||t->dtype!=QT_W4||!t->k||t->k>4096||!max_rows||first_start>=t->n||!m->options.tile_rows)return QW_FORMAT;
  if(max_rows>m->options.tile_rows)max_rows=m->options.tile_rows;if(max_rows>4096u)max_rows=4096u;
+#ifdef QW_PARTIAL_SRAM
+ uint32_t capacity=qw_partial_tile_rows(m,t);if(max_rows>capacity)max_rows=capacity;
+ if(!max_rows)return QW_CAPACITY;
+#endif
  uint32_t end=max_rows>t->n-first_start?t->n:first_start+max_rows;
  qw_profile*p=m->options.profile_clock?m->options.profile:0;uint64_t start=0;
  if(p)p->matrix_calls++;
@@ -101,6 +175,28 @@ static int matrix_execute_slice(qw_model*m,const qw_tensor*t,int32_t*output,int 
    if(rows>m->options.tile_rows)rows=m->options.tile_rows;
   if(rows>4096u)rows=4096u;
   npu_raw_job raw={0};raw.rows=rows;raw.cols=t->k;raw.weight_offset=t->ddr+first*t->stride;raw.activation_offset=m->grants[1].offset;raw.partial_offset=m->grants[2].offset;raw.weight_stride=t->stride;raw.global_row_base=first;
+#ifdef QW_FUSED_MATRIX
+  if(m->raw.config.mode==NPU_RAW_HARDWARE){
+   if(m->tensor_status.unknown||m->raw.active||m->raw.cache_unknown)return QW_UNKNOWN;
+   const unsigned char *scale_bytes=(const unsigned char*)t->scales+(size_t)first*groups*2u;
+   npu_fused_matrix_job fused={0};fused.raw=raw;fused.scale_offset=address(m,scale_bytes);
+   fused.output_offset=address(m,w->out);fused.maximum=maximum;
+   fused.scale_region_offset=m->options.arena_ddr_offset;fused.scale_region_bytes=(uint32_t)m->plan.arena_bytes;
+   fused.output_region_offset=m->tensor_ddr;fused.output_region_bytes=(uint32_t)m->tensor_scratch_bytes;
+   npu_fused_matrix_stats stats={0};
+   if(p){p->jobs_started++;start=m->options.profile_clock(m->options.profile_clock_user);}
+   rc=npu_fused_matrix_execute(&m->raw,&fused,m->options.budgets,&stats);
+   if(p)p->rawexecute_ticks+=m->options.profile_clock(m->options.profile_clock_user)-start;
+   if(rc==NPU_RAW_UNKNOWN||m->raw.active||m->raw.cache_unknown){m->tensor_status.unknown=1;return QW_UNKNOWN;}
+   merge(&m->tensor_status.numeric,&stats.numeric);
+   if(rc||stats.error||stats.result_count!=rows)return QW_DEVICE;
+   m->npu_jobs++;m->tensor_status.raw_jobs++;
+   if(p){p->jobs_completed++;p->hardwarebusy_jobs++;p->hardwarebusy_cycles+=stats.cycles;}
+   if(stats.numeric.status&NPU_FIXED_STATUS_ERROR_MASK)return QW_NUMERIC;
+   if(p)start=m->options.profile_clock(m->options.profile_clock_user);
+  }else
+#endif
+  {
   npu_raw_layout layout;if(npu_raw_query(&raw,m->grants,3,&layout))return QW_FORMAT;
   if(p){p->jobs_started++;start=m->options.profile_clock(m->options.profile_clock_user);}
   const npu_raw_result_view*v=0;rc=npu_raw_execute(&m->raw,&raw,m->options.budgets,&v);
@@ -109,7 +205,12 @@ static int matrix_execute_slice(qw_model*m,const qw_tensor*t,int32_t*output,int 
   if(!v||!v->valid||v->rows!=rows||v->groups!=groups||v->stride!=layout.output_stride||v->physical_ddr_offset!=raw.partial_offset||v->global_row_base!=first||v->result_count!=layout.expected_result_count)return QW_DEVICE;
   m->npu_jobs++;m->tensor_status.raw_jobs++;
   if(p){p->jobs_completed++;if(m->options.mode==NPU_RAW_HARDWARE){p->hardwarebusy_jobs++;p->hardwarebusy_cycles+=v->cycles;}start=m->options.profile_clock(m->options.profile_clock_user);}
-  npu_tensor_job reduce={0};reduce.opcode=NPU_TENSOR_REDUCE_RAW_W4;
+  npu_tensor_job reduce={0};
+#ifdef QW_PRECISE_RAW_REDUCE
+  reduce.opcode=NPU_TENSOR_REDUCE_RAW_W4_Q46;
+#else
+  reduce.opcode=NPU_TENSOR_REDUCE_RAW_W4;
+#endif
   reduce.n=rows;reduce.m=groups;reduce.a=raw.partial_offset;
   const unsigned char *scale_bytes=(const unsigned char*)t->scales+(size_t)first*groups*2u;
   reduce.b=address(m,scale_bytes);
@@ -123,27 +224,34 @@ static int matrix_execute_slice(qw_model*m,const qw_tensor*t,int32_t*output,int 
   }
   reduce.out=address(m,w->out);reduce.stride_a=v->stride;reduce.param0=maximum;
   if((rc=submit(m,&reduce,0)))return rc;
+  } /* software reference or unfused hardware raw + exact tensor reduce */
   /* pack below is storage conversion only; neither trace nor logits do FP. */
   if(!output_float)memcpy(output+first,w->out,(size_t)rows*4);
   else for(uint32_t r=0;r<rows;r++){
    uint32_t packed=pack_q16(w->out[r]);
-   memcpy((unsigned char*)output+(size_t)(first+r)*4,&packed,4);
+   ((tensor_alias_word*)output)[first+r]=packed;
   }
   if(p)p->scale_reduce_ticks+=m->options.profile_clock(m->options.profile_clock_user)-start;
   first+=rows;
  }
  if(done)*done=end-first_start;return 0;
 }
-/* Body projections preserve the original per-slice quantization order. */
-static int matrix_slice(qw_model*m,const qw_tensor*t,const int32_t*input,int32_t*output,int output_float,uint32_t first_start,uint32_t max_rows,uint32_t*done){
- if(done)*done=0;
- if(!t||t->dtype!=QT_W4||!t->k||t->k>4096||!max_rows||first_start>=t->n||!m->options.tile_rows)return QW_FORMAT;
- uint32_t maximum=0;int rc=matrix_prepare_activation(m,t,input,&maximum);if(rc)return rc;
- return matrix_execute_slice(m,t,output,output_float,first_start,max_rows,maximum,done);
+/* The activation and maxabs remain immutable across all row tiles and sibling
+ * projections. Reduction only touches tensor scratch, never m->activation. */
+static int matrix_prepared(qw_model*m,const qw_tensor*t,int32_t*output,int output_float,uint32_t maximum){
+ if(!t||!t->n)return QW_FORMAT;uint32_t first=0;
+ while(first<t->n){uint32_t done=0;int rc=matrix_execute_slice(m,t,output,output_float,first,t->n-first,maximum,&done);if(rc)return rc;if(!done)return QW_DEVICE;first+=done;}
+ return 0;
 }
 static int matrix(qw_model*m,const qw_tensor*t,const int32_t*input,int32_t*output,int output_float){
- if(!t||!t->n)return QW_FORMAT;uint32_t first=0;
- while(first<t->n){uint32_t done=0;int rc=matrix_slice(m,t,input,output,output_float,first,t->n-first,&done);if(rc)return rc;if(!done)return QW_DEVICE;first+=done;}
+ uint32_t maximum=0;int rc=matrix_prepare_activation(m,t,input,&maximum);if(rc)return rc;
+ return matrix_prepared(m,t,output,output_float,maximum);
+}
+static int matrix_shared(qw_model*m,const qw_tensor*const*t,int32_t*const*out,unsigned count,const int32_t*input){
+ if(!count||count>4)return QW_ARGUMENT;
+ for(unsigned i=0;i<count;i++)if(!t[i]||t[i]->dtype!=QT_W4||!t[i]->n||t[i]->k!=t[0]->k)return QW_FORMAT;
+ uint32_t maximum=0;int rc=matrix_prepare_activation(m,t[0],input,&maximum);if(rc)return rc;
+ for(unsigned i=0;i<count;i++){rc=matrix_prepared(m,t[i],out[i],0,maximum);if(rc)return rc;}
  return 0;
 }
 static int rope(qw_model*m,int32_t*x){
@@ -157,34 +265,45 @@ static int rope(qw_model*m,int32_t*x){
 #define TRY(expr) do{int err_=(expr);if(err_)return err_;}while(0)
 static int linear(qw_model*m,unsigned layer){
  tensor_work*w=work(m);qw_layer*l=&m->layers[layer];unsigned index=layer-layer/4;
- TRY(matrix(m,l->qkv,w->normal,w->qkv,0));TRY(matrix(m,l->z,w->normal,w->z,0));TRY(matrix(m,l->a,w->normal,w->alpha,0));TRY(matrix(m,l->b,w->normal,w->beta,0));
+ const qw_tensor*projection[]={l->qkv,l->z,l->a,l->b};int32_t*outputs[]={w->qkv,w->z,w->alpha,w->beta};
+ TRY(matrix_shared(m,projection,outputs,4,w->normal));
  trace(m,layer,"linear.qkv",w->qkv,6144);
+ const int32_t*conv_weights=fixed_values(m,l->conv);if(conv_weights)fixed_tensor_status(m,l->conv);
  for(unsigned first=0;first<6144;first+=512){
-  memcpy(w->a,w->qkv+first,512u*4);for(unsigned c=0;c<512;c++)for(unsigned k=0;k<4;k++)w->b[c*4+k]=value(m,l->conv,(first+c)*4+k);
-  npu_tensor_job j={0};j.opcode=NPU_TENSOR_DWCONV;j.n=512;j.k=4;j.a=address(m,w->a);j.b=address(m,w->b);j.out=address(m,w->out);j.state=address(m,(int32_t*)m->conv+((size_t)index*6144+first)*3);
-  TRY(submit(m,&j,0));memcpy(w->qkv+first,w->out,512u*4);TRY(operation(m,NPU_TENSOR_SILU,w->qkv+first,w->qkv+first,0,512));
+  if(!conv_weights)for(unsigned c=0;c<512;c++)for(unsigned k=0;k<4;k++)w->b[c*4+k]=value(m,l->conv,(first+c)*4+k);
+  npu_tensor_job j={0};j.opcode=NPU_TENSOR_DWCONV;j.n=512;j.k=4;j.a=address(m,w->qkv+first);j.b=address(m,conv_weights?conv_weights+first*4:w->b);j.out=address(m,w->out);j.state=address(m,(int32_t*)m->conv+((size_t)index*6144+first)*3);
+  TRY(submit(m,&j,0));memcpy(w->qkv+first,w->out,512u*4);
  }
+ TRY(operation(m,NPU_TENSOR_SILU,w->qkv,w->qkv,0,4096));
+ TRY(operation(m,NPU_TENSOR_SILU,w->qkv+4096,w->qkv+4096,0,2048));
  trace(m,layer,"linear.conv",w->qkv,6144);
+ for(unsigned h=0;h<16;h++)w->alpha[h]=clip(m,(int64_t)w->alpha[h]+value(m,l->dt,h));
+ TRY(operation(m,NPU_TENSOR_SOFTPLUS,w->soft,w->alpha,0,16));
+ TRY(operation(m,NPU_TENSOR_SIGMOID,w->beta,w->beta,0,16));
+ for(unsigned h=0;h<16;h++){int32_t al=value(m,l->al,h);w->expal[h]=al>0?-al:al;}
+ TRY(operation(m,NPU_TENSOR_EXP_NEG,w->expal,w->expal,0,16));
+ for(unsigned h=0;h<16;h++)if(value(m,l->al,h)>0){if(w->expal[h]<=0)return QW_NUMERIC;w->expal[h]=clip(m,(int64_t)divide_rne(UINT64_C(1)<<32,(uint32_t)w->expal[h]));}
+ TRY(operation(m,NPU_TENSOR_MUL,w->decay,w->expal,w->soft,16));
+ for(unsigned h=0;h<16;h++)w->decay[h]=w->decay[h]==INT32_MIN?INT32_MAX:-w->decay[h];
+ TRY(operation(m,NPU_TENSOR_EXP_NEG,w->decay,w->decay,0,16));
  for(unsigned h=0;h<16;h++){
-  int32_t alpha=clip(m,(int64_t)w->alpha[h]+value(m,l->dt,h)),soft,beta,decay,expal;
-  TRY(operation(m,NPU_TENSOR_SOFTPLUS,&soft,&alpha,0,1));TRY(operation(m,NPU_TENSOR_SIGMOID,&beta,w->beta+h,0,1));
-  int32_t al=value(m,l->al,h),negative=al>0?-al:al;TRY(operation(m,NPU_TENSOR_EXP_NEG,&expal,&negative,0,1));
-  if(al>0){if(expal<=0)return QW_NUMERIC;expal=clip(m,(int64_t)divide_rne(UINT64_C(1)<<32,(uint32_t)expal));}
-  TRY(operation(m,NPU_TENSOR_MUL,&decay,&expal,&soft,1));decay=decay==INT32_MIN?INT32_MAX:-decay;TRY(operation(m,NPU_TENSOR_EXP_NEG,&decay,&decay,0,1));
+  int32_t decay=w->decay[h],beta=w->beta[h];
   int32_t*q=w->qkv+h*128,*k=w->qkv+2048+h*128,*v=w->qkv+4096+h*128,*o=w->attention+h*128;
   /* RMS epsilon RNE(4295/128)=34. Weights q=1/128 and k=1/sqrt128.
    * This preserves q/sqrt(d) and normalized k, with declared fixed rounding. */
   TRY(norm(m,q,q,0,128,0,34,512));TRY(norm(m,k,k,0,128,0,34,5793));
-  memcpy(w->a,q,128u*4);memcpy(w->b,k,128u*4);memcpy(w->c,v,128u*4);
-  npu_tensor_job j={0};j.opcode=NPU_TENSOR_DELTA_Q24;j.n=128;j.a=address(m,w->a);j.b=address(m,w->b);j.c=address(m,w->c);j.out=address(m,w->out);j.state=address(m,(int32_t*)m->delta+((size_t)index*16+h)*128*128);j.param0=(uint32_t)decay*16384u;j.param1=(uint32_t)beta*16384u;
-  TRY(submit(m,&j,0));memcpy(o,w->out,128u*4);TRY(norm(m,o,o,l->lnorm,128,0,281477120u,0));TRY(operation(m,NPU_TENSOR_SILU,w->temp,w->z+h*128,0,128));TRY(operation(m,NPU_TENSOR_MUL,o,o,w->temp,128));
+  npu_tensor_job j={0};j.opcode=NPU_TENSOR_DELTA_Q24;j.n=128;j.a=address(m,q);j.b=address(m,k);j.c=address(m,v);j.out=address(m,o);j.state=address(m,(int32_t*)m->delta+((size_t)index*16+h)*128*128);j.param0=(uint32_t)decay*16384u;j.param1=(uint32_t)beta*16384u;
+  TRY(submit(m,&j,0));TRY(norm(m,o,o,l->lnorm,128,0,281477120u,0));
  }
+ TRY(operation(m,NPU_TENSOR_SILU,w->temp,w->z,0,2048));
+ TRY(operation(m,NPU_TENSOR_MUL,w->attention,w->attention,w->temp,2048));
  trace(m,layer,"linear.gated",w->attention,2048);
  return matrix(m,l->out,w->attention,w->project,0);
 }
 static int attention(qw_model*m,unsigned layer){
  tensor_work*w=work(m);qw_layer*l=&m->layers[layer];
- TRY(matrix(m,l->q,w->normal,w->qkv,0));TRY(matrix(m,l->k,w->normal,w->qkv+4096,0));TRY(matrix(m,l->v,w->normal,w->qkv+4608,0));
+ const qw_tensor*projection[]={l->q,l->k,l->v};int32_t*outputs[]={w->qkv,w->qkv+4096,w->qkv+4608};
+ TRY(matrix_shared(m,projection,outputs,3,w->normal));
  int32_t*keys=(int32_t*)m->kv+(size_t)(layer/4)*m->options.context_tokens*1024,*values=keys+(size_t)m->options.context_tokens*512;
  for(unsigned h=0;h<2;h++){int32_t*k=w->qkv+4096+h*256;TRY(norm(m,k,k,l->kn,256,1,4295,0));TRY(rope(m,k));memcpy(keys+(size_t)m->position*512+h*256,k,256u*4);memcpy(values+(size_t)m->position*512+h*256,w->qkv+4608+h*256,256u*4);}
  for(unsigned h=0;h<8;h++){
@@ -213,6 +332,9 @@ int qw_tensor_enable(qw_model*m,qw_tensor_execute_fn execute,void*user,void*scra
  if(m->task_active||m->inside_step)return QW_BUSY;
   if(m->needs_reset||m->position)return QW_NEED_RESET;
  if(!m->output_head||m->output_head!=m->head_candidate||m->output_head->dtype!=QT_W4)return QW_FORMAT;
+#ifdef QW_TENSOR_ONLY_TARGET
+ if(m->raw.config.mode!=NPU_RAW_HARDWARE)return QW_FORMAT;
+#endif
  if(bytes<WS_BYTES||ddr>=NPU_TENSOR_DDR_LIMIT||bytes>NPU_TENSOR_DDR_LIMIT-ddr)return QW_CAPACITY;
  uintptr_t s=(uintptr_t)scratch,a=(uintptr_t)m->arena;
  if(bytes>UINTPTR_MAX-s||m->plan.arena_bytes>UINTPTR_MAX-a)return QW_ARGUMENT;
@@ -220,7 +342,7 @@ int qw_tensor_enable(qw_model*m,qw_tensor_execute_fn execute,void*user,void*scra
  if((uint64_t)ddr<(uint64_t)m->options.arena_ddr_offset+m->plan.arena_bytes&&(uint64_t)m->options.arena_ddr_offset<(uint64_t)ddr+bytes)return QW_ARGUMENT;
  m->tensor_execute=execute;m->tensor_user=user;m->tensor_scratch=scratch;m->tensor_scratch_bytes=bytes;m->tensor_ddr=ddr;
  memset(&m->tensor_status,0,sizeof m->tensor_status);m->tensor_status.enabled=1;m->tensor_status.numeric_version=NPU_TENSOR_NUMERIC_VERSION;
- memset(scratch,0,WS_BYTES);memset(m->arena+m->plan.state_offset,0,m->plan.state_bytes);m->logits_valid=0;return 0;
+ memset(scratch,0,WS_BYTES);fixed_cache_prepare(m);memset(m->arena+m->plan.state_offset,0,m->plan.state_bytes);m->logits_valid=0;return 0;
 }
 int qw_tensor_disable(qw_model*m){
  if(!m||m->magic!=QW_MAGIC)return QW_ARGUMENT;if(m->raw.active||m->raw.cache_unknown||m->tensor_status.unknown)return QW_UNKNOWN;if(m->task_active||m->inside_step)return QW_BUSY;if(m->position||m->needs_reset)return QW_NEED_RESET;
@@ -231,8 +353,11 @@ int qw_tensor_acknowledge_recovery(qw_model*m){if(!m||m->magic!=QW_MAGIC)return 
 static int forward_layer(qw_model*m,unsigned i){
  tensor_work*w=work(m);qw_layer*l=&m->layers[i];
  memcpy(w->residual,w->x,1024u*4);TRY(norm(m,w->normal,w->x,l->norm,1024,1,4295,0));TRY(i%4==3?attention(m,i):linear(m,i));
- TRY(operation(m,NPU_TENSOR_ADD,w->x,w->residual,w->project,1024));TRY(norm(m,w->normal,w->x,l->post,1024,1,4295,0));
- TRY(matrix(m,l->gate,w->normal,w->gate,0));TRY(matrix(m,l->up,w->normal,w->up,0));TRY(operation(m,NPU_TENSOR_SILU,w->gate,w->gate,0,3584));TRY(operation(m,NPU_TENSOR_MUL,w->gate,w->gate,w->up,3584));TRY(matrix(m,l->down,w->gate,w->project,0));TRY(operation(m,NPU_TENSOR_ADD,w->x,w->x,w->project,1024));
+ TRY(operation(m,NPU_TENSOR_ADD,w->x,w->residual,w->project,1024));trace(m,i,"residual.attn",w->x,1024);TRY(norm(m,w->normal,w->x,l->post,1024,1,4295,0));trace(m,i,"ffn.norm",w->normal,1024);
+ const qw_tensor*projection[]={l->gate,l->up};int32_t*outputs[]={w->gate,w->up};
+ TRY(matrix_shared(m,projection,outputs,2,w->normal));trace(m,i,"ffn.gate",w->gate,3584);trace(m,i,"ffn.up",w->up,3584);
+ TRY(operation(m,NPU_TENSOR_SILU,w->gate,w->gate,0,3584));TRY(operation(m,NPU_TENSOR_MUL,w->gate,w->gate,w->up,3584));trace(m,i,"ffn.product",w->gate,3584);
+ TRY(matrix(m,l->down,w->gate,w->project,0));trace(m,i,"ffn.down",w->project,1024);TRY(operation(m,NPU_TENSOR_ADD,w->x,w->x,w->project,1024));
  trace(m,i,"layer.output",w->x,1024);return 0;
 }
 static int task_overlap(const void*a,size_t n,const void*b,size_t k){
@@ -247,6 +372,9 @@ int qw_tensor_task_begin(qw_tensor_task*t,qw_model*m,uint32_t token,int emit){
  if(m->needs_reset)return QW_NEED_RESET;
  if(token>=QW_VOCAB)return QW_TOKEN;if(m->position>=m->options.context_tokens)return QW_CONTEXT_FULL;
  if(!m->tensor_status.enabled||!m->tensor_execute||!m->output_head||m->output_head!=m->head_candidate||m->output_head->dtype!=QT_W4)return QW_FORMAT;
+#ifdef QW_TENSOR_ONLY_TARGET
+ if(m->raw.config.mode!=NPU_RAW_HARDWARE)return QW_FORMAT;
+#endif
  if(t!=&m->sync_task&&(task_overlap(t,sizeof *t,m,sizeof *m)||task_overlap(t,sizeof *t,m->arena,m->arena_capacity)))return QW_ARGUMENT;
  if(task_overlap(t,sizeof *t,m->tensor_scratch,m->tensor_scratch_bytes)||task_overlap(t,sizeof *t,m->package.buffer,m->package.bytes))return QW_ARGUMENT;
  /* Caller zero-initializes task; live tasks cannot be rebound across models. */

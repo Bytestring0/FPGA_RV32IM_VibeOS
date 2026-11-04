@@ -1,0 +1,44 @@
+Integration proposal ONLY; npu_tensor_v2.sv has NOT been edited by this agent.
+
+Replace declaration:
+ reg signed [31:0] delta_q[0:127],delta_k[0:127],delta_v[0:127];
+with:
+ wire signed [31:0] delta_q_scalar,delta_k_scalar,conv_input_scalar;
+ wire [255:0] delta_v_vector;
+ wire signed [31:0] delta_v_lane[0:7];
+ npu_delta_vectors #(.DELTA_ENABLE(PARALLEL_DELTA),.CONV_ENABLE(PARALLEL_CONV)) delta_vectors(
+  .clk(clk),
+  .q_we(!rst && st==EXEC && PARALLEL_DELTA && pc==1701),
+  .k_we(!rst && st==EXEC && PARALLEL_DELTA && pc==1703),
+  .v_we(!rst && st==EXEC && PARALLEL_DELTA && pc==1705),
+  .conv_we(!rst && st==EXEC && PARALLEL_CONV && pc==1906),
+  .write_row(i[6:3]),.write_data(cache_data),.scalar_index(i[6:0]),
+  .v_read_row(j[6:3]),.conv_index(i[2:0]),
+  .q_scalar(delta_q_scalar),.k_scalar(delta_k_scalar),
+  .v_vector(delta_v_vector),.conv_scalar(conv_input_scalar));
+ genvar delta_vector_lane;
+ generate for(delta_vector_lane=0;delta_vector_lane<8;delta_vector_lane=delta_vector_lane+1)begin: delta_vector_unpack
+  assign delta_v_lane[delta_vector_lane]=$signed(delta_v_vector[delta_vector_lane*32+:32]);
+ end endgenerate
+
+1701: delete only 'for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1) delta_q[i+delta_lane]<=cache_data[delta_lane*32+:32];'
+Keep existing begin/end nesting and i<=i+8;pc<=1700; exactly.
+1703: same, delete delta_k write loop; keep i/pc.
+1705: same, delete delta_v write loop; keep i/pc.
+1906: delete only loop assigning delta_q[delta_lane]; keep t<=1;pc<=1900;.
+
+Replace all read expressions:
+ delta_q[i[2:0]] -> conv_input_scalar (2 uses, both1907)
+ delta_k[i] -> delta_k_scalar (3 uses)
+ delta_q[i] -> delta_q_scalar (2 uses)
+ delta_v[j+delta_lane][31] -> delta_v_lane[delta_lane][31]
+ delta_v[j+delta_lane] -> delta_v_lane[delta_lane]
+
+No numerical, diagnostic, pc, st, latency or reset-state edits required. Arrays
+are unreset and all active entries are loaded before use, as before. Same-edge
+write becomes visible through async read after edge, as original nonblocking
+array writes. Q/K scalar access valid index0..127. V row read uses j[6:3]
+which is guaranteed aligned by j+=8. QKV loading i+=8 makes write_row exact.
+CONV_ENABLE/PARALLEL_CONV and DELTA_ENABLE/PARALLEL_DELTA permit independent
+compile-time elimination. Add npu_delta_vectors.sv to explicit RTL source lists;
+existing *.sv source collection already discovers it.

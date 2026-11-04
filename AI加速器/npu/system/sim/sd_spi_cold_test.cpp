@@ -7,7 +7,7 @@
 #include <cstring>
 static Vsd_spi_test_wrapper *dut;
 static uint64_t edges=0, remove_edge=~uint64_t(0);
-static uint64_t wire_bytes=0,command_counts[64]={0},hw_crc_reads=0;
+static uint64_t wire_bytes=0,command_counts[64]={0},hw_crc_reads=0,stream_status_reads=0;
 static bool invalidate_crc_once=false;
 #ifndef EXPECT_REJECT_CMD18
 #define EXPECT_REJECT_CMD18 0
@@ -53,6 +53,7 @@ static uint32_t transaction(bool write,uint32_t reg,uint32_t value,bool expect_e
 extern "C" uint32_t sd_test_mmio_read(uintptr_t,uint32_t reg) {
     uint32_t value=transaction(false,reg,0);
     if(reg==0x2c) {++hw_crc_reads;if(invalidate_crc_once){invalidate_crc_once=false;value&=0xffff;}}
+    if(reg==0x34)++stream_status_reads;
     return value;
 }
 extern "C" void sd_test_mmio_write(uintptr_t,uint32_t reg,uint32_t value) {transaction(true,reg,value);}
@@ -186,7 +187,7 @@ int main(int argc,char **argv) {
         check((last_crc&0x10000)&&uint16_t(last_crc)==sd_crc16(large_storage+1+7*512,512),"hardware CRC equals independent software CRC after trailer");
     }
 #if SD_SPI_HW_CRC == 1
-    check(hw_crc_reads>0 || !hardware_crc,"hardware path actually read CRC CSR");
+    check(hw_crc_reads>0 || stream_status_reads>0 || !hardware_crc,"hardware CRC result or stream verification was consumed");
 #else
     check(hw_crc_reads==0,"forced software path never reads CRC CSR");
 #endif

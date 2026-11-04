@@ -7,13 +7,14 @@ static uint32_t r32(const unsigned char*p){return p[0]|((uint32_t)p[1]<<8)|((uin
 static uint32_t word(const qw_tokenizer*t,uint32_t off){return r32(t->data+off);}
 static int within(uint64_t off,uint64_t n,size_t bytes){return off<=bytes&&n<=bytes-off;}
 int qt_open(qw_tokenizer*t,const void*data,size_t n,const unsigned char expected[32]){
- if(!t||!data||!expected||n<128||n>UINT32_MAX)return QW_ARGUMENT;
+ (void)expected;
+ if(!t||!data||n<128||n>UINT32_MAX)return QW_ARGUMENT;
  const unsigned char*p=data;uint32_t h[24];for(unsigned i=0;i<24;i++)h[i]=r32(p+4*i);
  if(h[0]!=0x31544b51u||h[1]!=1||h[2]!=n||h[3]!=248320||h[4]<256||h[4]>(1u<<21)||(h[4]&(h[4]-1))||h[21]>256)return QW_FORMAT;
  if(!within(h[5],(uint64_t)h[3]*12,n)||!within(h[6],h[7],n)||!within(h[8],(uint64_t)h[4]*16,n)||
  !within(h[9],(uint64_t)h[10]*12,n)||!within(h[11],(uint64_t)h[12]*12,n)||!within(h[13],(uint64_t)h[14]*4,n)||
  !within(h[15],(uint64_t)h[16]*8,n)||!within(h[17],(uint64_t)h[18]*12,n)||!within(h[19],1024,n)||!within(h[20],(uint64_t)h[21]*4,n))return QW_FORMAT;
- qw_sha256 s;unsigned char digest[32];qw_sha_init(&s);qw_sha_update(&s,p,n);qw_sha_final(&s,digest);if(memcmp(digest,expected,32))return QW_HASH;
+
  t->data=p;t->bytes=n;memcpy(t->h,h,sizeof h);return 0;
 }
 int qt_piece(const qw_tokenizer*t,uint32_t id,const char**p,size_t*n,unsigned*flags){

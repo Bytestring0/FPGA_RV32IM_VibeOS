@@ -137,7 +137,8 @@ int qw_integer_head_execute(qw_model*m,const void*input_bits,void*output_bits){
  if(m->needs_reset)return QW_NEED_RESET;
  if(!m->head_integer_enabled||!selected_head(m)||!m->options.tile_rows)return QW_FORMAT;
  if(!m->activation||!m->partial||m->plan.activation_bytes<QW_HIDDEN)return QW_CAPACITY;
- const qw_tensor*t=m->output_head;int16_t hidden[QW_HIDDEN];int exponent=0;
+ const qw_tensor*t=m->output_head;uint32_t tile_rows=qw_partial_tile_rows(m,t);if(!tile_rows)return QW_CAPACITY;
+ int16_t hidden[QW_HIDDEN];int exponent=0;
  npu_fixed_a8_scale scale={0};npu_fixed_status status={0};
  qw_profile*p=profiling(m);uint64_t start=0;
  m->logits_valid=0;
@@ -152,7 +153,7 @@ int qw_integer_head_execute(qw_model*m,const void*input_bits,void*output_bits){
  if(p)p->quantize_ticks+=now(m)-start;
  if(rc)return finish(m,&status,rc);
  for(uint32_t first=0;first<t->n;){
-  uint32_t rows=t->n-first;if(rows>m->options.tile_rows)rows=m->options.tile_rows;
+  uint32_t rows=t->n-first;if(rows>tile_rows)rows=tile_rows;
   uint64_t weight=(uint64_t)t->ddr+(uint64_t)first*t->stride;
   if(weight>UINT32_MAX)return finish(m,&status,QW_FORMAT);
   npu_raw_job job={0};job.rows=rows;job.cols=t->k;job.weight_offset=(uint32_t)weight;

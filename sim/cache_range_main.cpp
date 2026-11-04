@@ -58,5 +58,16 @@ int main(int argc,char**argv){Verilated::commandArgs(argc,argv);
   // deliberately remains and no software may publish success without reset.
   b.start(0,32);b.wait();check(b.word(0)==w[0]&&b.t.maintenance_error,"failed dirty victim retained and error not cleared");
  }
+ {Bench b;Line w{};w[0]=0x654321ab;
+  // A short range crosses the last set into set0; both tags and both caches matter.
+  b.op(96,false,true,w,15);b.op(128,false,true,w,15);b.op(160,false,true,w,15);
+  auto untouched=b.word(40);b.flush(96,160,true);
+  check(b.word(24)==w[0]&&b.word(32)==w[0],"wrapped range writes both target sets");
+  check(b.word(40)==untouched&&b.op(160)[0]==w[0],"wrapped range preserves following dirty set");
+  b.flush(128,128,true);check(b.word(40)==untouched,"empty range preserves dirty data");
+  b.flush(0,4096,true);check(b.word(40)==w[0],"large range falls back to complete scan");
+  auto start=b.cycle;b.flush(0,32,true);
+  std::printf("CACHE_RANGE_EMPTY_LINE_CYCLES=%llu\n",(unsigned long long)(b.cycle-start));
+ }
  std::puts("PASS_CACHE_RANGE boundaries same-set-neighbor I/D-shared-line snapshot full-fallback late-ACK dirty-error-retention");return 0;
 }

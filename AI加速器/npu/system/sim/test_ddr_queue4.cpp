@@ -9,11 +9,14 @@
 #include <stdexcept>
 #include <string>
 #include <algorithm>
+#ifndef NPU_DDR_DEPTH
+#define NPU_DDR_DEPTH 4
+#endif
 using Line=std::array<uint32_t,8>;
 static void need(bool b,const char*s){if(!b)throw std::runtime_error(s);}
 struct Command {uint32_t addr;bool write=false,bad=false;Line data{};uint32_t strobe=0xffffffff;};
 struct Expected {Line data{};bool error=false;unsigned sequence=0;};
-struct Read {uint32_t addr;uint64_t due;};
+struct Read {uint32_t addr;uint64_t due;bool last=true;};
 struct Bench {
  Vddr_queue4_tb d;
  unsigned cpu_half,ui_half;uint64_t time=0,cpu_edges=0,ui_edges=0;
@@ -24,7 +27,7 @@ struct Bench {
  std::map<uint32_t,Line> memory,reference;
  bool wp=false,silent=false,ui_running=true,force_error=false,random_stall=true,hold_responses=false,expect_fault=false;
  bool bad_rid=false,bad_rlast=false,bad_wid=false,bad_wlast=false;
- unsigned latency=20;uint32_t wa=0;int lastowner=-1;
+ unsigned latency=20,read_commands=0,multi_commands=0;uint32_t wa=0,arlenheld=0;int lastowner=-1;
  bool held_rsp[3]={false,false,false},held_ar=false,held_aw=false;Expected held[3];uint32_t arheld=0,awheld=0;Line wheld{};uint32_t wsheld=0;
  Bench(unsigned a,unsigned b):cpu_half(a),ui_half(b){d.cpu_clk=0;d.ui_clk=0;d.reset_n=0;d.init_done=0;}
  static Line initial(uint32_t addr){Line l;for(unsigned i=0;i<8;i++)l[i]=0x126934afu^(addr*7919u+i*0x113579u);return l;}
@@ -49,18 +52,18 @@ struct Bench {
    else if(s==1){d.b_req_valid=v;d.b_req_addr=c.addr;d.b_req_write=c.write;d.b_req_wstrb=c.strobe;for(unsigned i=0;i<8;i++)d.b_req_wdata[i]=c.data[i];d.b_rsp_ready=!hold_responses&&(!random_stall||(rng&12u)!=0);}
    else {d.c_req_valid=v;d.c_req_addr=c.addr;d.c_req_write=c.write;d.c_req_wstrb=c.strobe;for(unsigned i=0;i<8;i++)d.c_req_wdata[i]=c.data[i];d.c_rsp_ready=!hold_responses&&(!random_stall||(rng&48u)!=0);}
   }
-  d.axi_arready=d.reset_n&&!silent&&(!random_stall||(rng&3u)!=0)&&readpipe.size()<4;
+  d.axi_arready=d.reset_n&&!silent&&(!random_stall||(rng&3u)!=0)&&readpipe.size()<NPU_DDR_DEPTH;
   d.axi_awready=d.reset_n&&!silent&&!wp&&(!random_stall||(rng&12u)!=0);
   d.axi_wready=d.reset_n&&!silent&&(wp||d.axi_awvalid)&&(!random_stall||(rng&48u)!=0);
   bool fast_read=latency==0&&readpipe.empty()&&d.axi_arvalid&&d.axi_arready;
   d.axi_rvalid=d.reset_n&&!silent&&((!readpipe.empty()&&readpipe.front().due<=ui_edges)||fast_read);
-  d.axi_rid=bad_rid?7:0;d.axi_rlast=!bad_rlast;d.axi_wusero_id=bad_wid?3:0;d.axi_wusero_last=!bad_wlast;
+  d.axi_rid=bad_rid?7:0;d.axi_rlast=(readpipe.empty()?d.axi_arlen==0:readpipe.front().last)^bad_rlast;d.axi_wusero_id=bad_wid?3:0;d.axi_wusero_last=!bad_wlast;
   Line rd=readpipe.empty()?line(memory,d.axi_araddr<<2):line(memory,readpipe.front().addr);
   for(unsigned i=0;i<8;i++)d.axi_rdata[i]=rd[i];
   d.eval();
   bool ar=ur&&d.axi_arvalid&&d.axi_arready,aw=ur&&d.axi_awvalid&&d.axi_awready;
   bool wc=ur&&d.axi_wready&&(wp||aw),rc=ur&&d.axi_rvalid;
-  uint32_t ara=d.axi_araddr<<2,awa=d.axi_awaddr<<2,wm=d.axi_wstrb;Line wd;for(unsigned i=0;i<8;i++)wd[i]=d.axi_wdata[i];
+  uint32_t ara=d.axi_araddr<<2,awa=d.axi_awaddr<<2,wm=d.axi_wstrb,beats=unsigned(d.axi_arlen)+1;Line wd;for(unsigned i=0;i<8;i++)wd[i]=d.axi_wdata[i];
   if(cr&&d.reset_n){
    cpu_edges++;
    for(unsigned s=0;s<3;s++){
@@ -86,17 +89,17 @@ struct Bench {
      source_accepts[s]++;
      for(unsigned k=0;k<3;k++){if(k==s||requests[k].empty())starvation[k]=0;else {starvation[k]++;max_starvation=std::max(max_starvation,starvation[k]);need(starvation[k]<=4,"two-level RR starvation bound");}}
      if(lastowner>=0&&lastowner!=int(s))owner_changes++;lastowner=int(s);
-     peak_credit=std::max(peak_credit,unsigned(owners.size()));need(owners.size()<=4,"accepted credit exceeds four");
+     peak_credit=std::max(peak_credit,unsigned(owners.size()));need(owners.size()<=NPU_DDR_DEPTH,"accepted credit exceeds configured depth");
     }
    }
   }
   if(ur&&d.reset_n){
    ui_edges++;
    if(!expect_fault){
-    if(held_ar)need(d.axi_arvalid&&d.axi_araddr==arheld,"AR changed under backpressure");
+    if(held_ar)need(d.axi_arvalid&&d.axi_araddr==arheld&&d.axi_arlen==arlenheld,"AR changed under backpressure");
     if(held_aw)need(d.axi_awvalid&&d.axi_awaddr==awheld&&wd==wheld&&wm==wsheld,"AW/payload changed under backpressure");
    }
-   held_ar=d.axi_arvalid&&!d.axi_arready;arheld=d.axi_araddr;
+   held_ar=d.axi_arvalid&&!d.axi_arready;arheld=d.axi_araddr;arlenheld=d.axi_arlen;
    held_aw=d.axi_awvalid&&!d.axi_awready;awheld=d.axi_awaddr;wheld=wd;wsheld=wm;
    if(wp)need(wd==wheld_pending&&wm==wm_pending,"write payload changed after AW");
   }
@@ -104,7 +107,7 @@ struct Bench {
   if(ur&&d.reset_n){
    bool immediate=rc&&readpipe.empty();
    if(rc&&!readpipe.empty())readpipe.pop_front();
-   if(ar){need(!(ara&31),"unaligned AR reached controller");if(!immediate)readpipe.push_back({ara,ui_edges+latency});reads++;peak_reads=std::max(peak_reads,unsigned(readpipe.size()));}
+   if(ar){need(!(ara&31),"unaligned AR reached controller");need((ara>>12)==((ara+(beats-1)*32)>>12),"burst crossed 4KiB");read_commands++;multi_commands+=beats>1;for(unsigned beat=immediate?1:0;beat<beats;beat++)readpipe.push_back({ara+beat*32,ui_edges+latency+beat,beat==beats-1});reads+=beats;peak_reads=std::max(peak_reads,unsigned(readpipe.size()));}
    if(aw){need(!(awa&31),"unaligned AW reached controller");wa=awa;wp=true;wheld_pending=wd;wm_pending=wm;}
    if(wc){apply(memory,wa,wd,wm);wp=false;writes++;}
   }
@@ -115,15 +118,25 @@ struct Bench {
  void drain(uint64_t limit=300000){while(limit--&&(!requests[0].empty()||!requests[1].empty()||!requests[2].empty()||!owners.empty()))step();need(requests[0].empty()&&requests[1].empty()&&requests[2].empty()&&owners.empty(),"drain watchdog");}
  void errors_for_pending(){force_error=true;for(auto &q:expected)for(auto &e:q){e.error=true;e.data={};}expect_fault=true;}
  void wait_reads(unsigned n){unsigned limit=20000;while(limit--&&readpipe.size()<n)step();need(readpipe.size()>=n,"did not pipeline requested AR count");}
+ void throughput(){
+  for(unsigned delay:{8u,16u,32u,48u}){
+   reset();latency=delay;random_stall=false;
+   uint64_t begin=cpu_edges;unsigned before=returned;
+   for(unsigned i=0;i<2048;i++)add(1,0x10000+i*32);
+   drain(20000000);
+   need(returned-before==2048&&!d.fault_cpu,"throughput data/ACK mismatch");
+   printf("DDR_STREAM_THROUGHPUT depth=%u ui_delay=%u cpu_cycles=%llu bytes=%u bytes_per_cpu_cycle=%.6f\n",unsigned(NPU_DDR_DEPTH),delay,(unsigned long long)(cpu_edges-begin),2048*32,double(2048*32)/(cpu_edges-begin));
+  }
+ }
  void traffic(){
-  reset(false);add(0,0x100);add(1,0x120);drain();need(!d.fault_cpu,"precalibration error must not fault");d.init_done=1;run(100);need(d.ready_cpu,"calibration ready");
+  reset(false);add(0,0x100);add(1,0x120);drain();need(!d.fault_cpu,"precalibration error must not fault");d.init_done=1;run(100*std::max(cpu_half,ui_half));need(d.ready_cpu,"calibration ready");
   latency=32;random_stall=true;
   for(unsigned i=0;i<80;i++){add(i%3,0x1000+i*32);if(i%9==0)add((i+1)%3,0x1804+i*32);}
   drain();need(!d.fault_cpu,"normal reads/unaligned fault");need(peak_reads>=3,"multiple AR not exercised");
   for(unsigned i=0;i<40;i++)add(i%3,0x4000+i*32,true,i%2?0x55555555u:0xffffffffu);drain();
   for(unsigned i=0;i<40;i++)add((i+1)%3,0x4000+i*32);drain();
-  hold_responses=true;for(unsigned i=0;i<4;i++)add(i%3,0x6000+i*32);run(800*std::max(cpu_half,ui_half));
-  need(owners.size()==4,"return credits not reserved");need(!d.fault_cpu,"consumer backpressure became fault");hold_responses=false;drain();
+  hold_responses=true;for(unsigned i=0;i<NPU_DDR_DEPTH;i++)add(i%3,0x6000+i*32);run(800*std::max(cpu_half,ui_half));
+  need(owners.size()==NPU_DDR_DEPTH,"return credits not reserved");need(!d.fault_cpu,"consumer backpressure became fault");hold_responses=false;drain();
   latency=0;random_stall=false;for(unsigned i=0;i<16;i++)add(i%3,0x7000+i*32);drain();
   for(unsigned i=0;i<6;i++)add(i%3,0x7800+i*32,true);drain();random_stall=true;latency=20;
  }
@@ -139,4 +152,4 @@ struct Bench {
   reset();latency=100;for(unsigned i=0;i<4;i++)add(i%3,0xe000+i*32);wait_reads(4);reset();run(1000);need(!d.a_rsp_valid&&!d.b_rsp_valid&&!d.c_rsp_valid,"common reset ghost response");add(0,0xf000);add(1,0xf020);drain();need(!d.fault_cpu,"common reset did not recover");
  }
 };
-int main(int argc,char**argv){Verilated::commandArgs(argc,argv);unsigned a=argc>1?std::stoul(argv[1]):5,b=argc>2?std::stoul(argv[2]):3;try{Bench t(a,b);t.traffic();t.fault_cases();printf("DDR_QUEUE4_SOURCES cpu=%u raw=%u tensor=%u max_other_accepts=%u reset_aborts=4\n",t.source_accepts[0],t.source_accepts[1],t.source_accepts[2],t.max_starvation);printf("DDR_QUEUE4_PASS {\"cpu_half\":%u,\"ui_half\":%u,\"accepted\":%u,\"returned\":%u,\"reads\":%u,\"writes\":%u,\"peak_reads\":%u,\"peak_credit\":%u,\"owner_changes\":%u,\"errors\":%u}\n",a,b,t.accepted,t.returned,t.reads,t.writes,t.peak_reads,t.peak_credit,t.owner_changes,t.errors);return 0;}catch(const std::exception&e){fprintf(stderr,"DDR_QUEUE4_FAIL ratio=%u:%u %s\n",a,b,e.what());return 1;}}
+int main(int argc,char**argv){Verilated::commandArgs(argc,argv);unsigned a=argc>1?std::stoul(argv[1]):5,b=argc>2?std::stoul(argv[2]):3;try{Bench t(a,b);if(argc>3&&std::string(argv[3])=="--throughput"){t.throughput();return 0;}t.traffic();t.fault_cases();printf("DDR_QUEUE_BURSTS commands=%u multi_beat=%u reads=%u\n",t.read_commands,t.multi_commands,t.reads);printf("DDR_QUEUE4_SOURCES cpu=%u raw=%u tensor=%u max_other_accepts=%u reset_aborts=4\n",t.source_accepts[0],t.source_accepts[1],t.source_accepts[2],t.max_starvation);printf("DDR_QUEUE4_PASS {\"cpu_half\":%u,\"ui_half\":%u,\"accepted\":%u,\"returned\":%u,\"reads\":%u,\"writes\":%u,\"peak_reads\":%u,\"peak_credit\":%u,\"owner_changes\":%u,\"errors\":%u}\n",a,b,t.accepted,t.returned,t.reads,t.writes,t.peak_reads,t.peak_credit,t.owner_changes,t.errors);return 0;}catch(const std::exception&e){fprintf(stderr,"DDR_QUEUE4_FAIL ratio=%u:%u %s\n",a,b,e.what());return 1;}}

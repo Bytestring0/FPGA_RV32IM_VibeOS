@@ -1,6 +1,6 @@
 // Two independent 2-way caches. Synchronous line/tag reads infer block RAM.
 // One external 32-byte transaction at a time; D is write-back/write-allocate.
-module ag_l1cache #(parameter integer SET_BITS=7) (
+module ag_l1cache #(parameter integer SET_BITS=7, parameter bit FAST_RANGE_SCAN=1) (
  input logic clk,rst, maintenance_req,
  input logic maintenance_range,
  input logic [31:0] maintenance_start,maintenance_end,
@@ -39,9 +39,14 @@ module ag_l1cache #(parameter integer SET_BITS=7) (
  logic [29:0] address,evict_addr;
  logic [255:0] write_data;
  logic [31:0] write_mask;
- logic [SET_BITS-1:0] scan;
- // Scan every set; reconstruct DDR byte addresses independently for each I/D
- // way from synchronous tags. This filters a full scan, not O(span) lookup.
+ logic [SET_BITS-1:0] scan,scan_stop;
+ wire [31:0] pending_last_byte=pending_end-32'd1;
+ wire [31:0] pending_lines=(pending_last_byte>>5)-(pending_start>>5)+32'd1;
+ wire short_range=FAST_RANGE_SCAN&&pending_range&&pending_end>pending_start&&pending_lines<SETS&&
+                  !(maintenance_req&&!maintenance_range);
+ // Small ranges scan only the affected set indices, wrapping modulo SETS.
+ // Reconstruct complete physical tags for both ways; aliases outside the range
+ // remain valid/dirty. Ranges covering every set and full FENCE.I scan all sets.
  wire [31:0] scan_d0={2'b00,dt0,scan,5'b0},scan_d1={2'b00,dt1,scan,5'b0};
  wire [31:0] scan_i0={2'b00,it0,scan,5'b0},scan_i1={2'b00,it1,scan,5'b0};
  wire match_d0=!active_range||(scan_d0>=active_start&&scan_d0<active_end);
@@ -109,7 +114,7 @@ module ag_l1cache #(parameter integer SET_BITS=7) (
   if(rst) begin
    state<=RESET_SCAN;
    store_commit<=0;store_way<=0;
-   flush_pending<=0;flushing<=0;maintenance_error<=0;scan<=0;
+   flush_pending<=0;flushing<=0;maintenance_error<=0;scan<=0;scan_stop<=0;
    pending_range<=0;active_range<=0;
    pending_start<=0;pending_end<=0;active_start<=0;active_end<=0;
    rsp_valid<=0;rsp_data<=0;rsp_error<=0;
@@ -136,7 +141,9 @@ module ag_l1cache #(parameter integer SET_BITS=7) (
     end
     IDLE: begin
      if(flush_pending && !rsp_valid) begin
-      flushing<=1;flush_pending<=0;scan<=0;state<=SCAN_READ;
+      flushing<=1;flush_pending<=0;state<=SCAN_READ;
+      scan<=short_range?pending_start[5+:SET_BITS]:{SET_BITS{1'b0}};
+      scan_stop<=short_range?pending_last_byte[5+:SET_BITS]:{SET_BITS{1'b1}};
       active_range<=pending_range && !(maintenance_req && !maintenance_range);
       active_start<=pending_start;active_end<=pending_end;
      end else if(req_valid && req_ready) begin
@@ -217,7 +224,7 @@ module ag_l1cache #(parameter integer SET_BITS=7) (
        d_meta[scan]<={dmr[4],dmr[3]&&!match_d1,dmr[2]&&!match_d0,
                      dmr[1]&&!match_d1,dmr[0]&&!match_d0};
       end
-      if(&scan) begin flushing<=0;state<=IDLE;end
+      if(scan==scan_stop) begin flushing<=0;state<=IDLE;end
       else begin scan<=scan+1'b1;state<=SCAN_READ;end
      end
     end

@@ -19,11 +19,11 @@ uint32_t npu_tensor_query(const npu_tensor_job *job,npu_tensor_layout *layout)
  if(!job||!layout)return NPU_TENSOR_ERR_ARGUMENT;
  if(native_overlap(job,sizeof(*job),layout,sizeof(*layout)))return NPU_TENSOR_ERR_OVERLAP;
  j=*job;
- if(j.opcode<1||j.opcode>20)return NPU_TENSOR_ERR_OPCODE;
+ if(j.opcode<1||j.opcode>22)return NPU_TENSOR_ERR_OPCODE;
  if(j.n==0||j.n>4096)return NPU_TENSOR_ERR_DIMENSION;
  na=no=j.n;
  switch(j.opcode){
- case 2:case 3:case 8:nb=j.n;break;
+ case 2:case 3:case 8:case 22:nb=j.n;break;
  case 10:if(j.n&1)return NPU_TENSOR_ERR_DIMENSION;nb=nc=j.n/2;break;
  case 11:if(!j.m||j.m>32)return NPU_TENSOR_ERR_DIMENSION;na=nb=j.n*j.m;nc=j.param0?j.n:0;break;
  case 12:if(j.n>1024||!j.k||j.k>8)return NPU_TENSOR_ERR_DIMENSION;nb=j.n*j.k;ns=j.n*(j.k-1);break;
@@ -33,15 +33,15 @@ uint32_t npu_tensor_query(const npu_tensor_job *job,npu_tensor_layout *layout)
  case 16:no=1;break;
  case 17:if(j.n>32||!j.k||j.k>4096)return NPU_TENSOR_ERR_DIMENSION;na=j.n*j.k;nb=j.k;break;
  case 18:if(j.n>32||!j.k||j.k>256)return NPU_TENSOR_ERR_DIMENSION;nb=j.n*j.k;no=j.k;break;
- case 19:if(!j.m||j.m>32)return NPU_TENSOR_ERR_DIMENSION;na=0;raw_bytes=(uint64_t)(j.n-1)*j.stride_a+(uint64_t)j.m*8;break;
+ case 19:case 21:if(!j.m||j.m>32)return NPU_TENSOR_ERR_DIMENSION;na=0;raw_bytes=(uint64_t)(j.n-1)*j.stride_a+(uint64_t)j.m*8;break;
  default:break;
  }
- if((j.opcode==8&&j.param1>1)||(j.opcode==11&&j.param0>1)||
+ if(((j.opcode==8||j.opcode==22)&&j.param1>1)||(j.opcode==11&&j.param0>1)||
     ((j.opcode==13||j.opcode==20)&&(j.param0>1073741824u||j.param1>1073741824u))||
     (j.opcode==14&&j.param0>INT32_MAX)||
-    (j.opcode==19&&(j.param0>UINT32_C(0x80000000)||j.c||j.param1||j.param2)))return NPU_TENSOR_ERR_PARAMETER;
- if((j.opcode==19?(j.stride_a<j.m*8||(j.stride_a&31)):j.stride_a)||j.stride_b||j.stride_out||j.flags)return NPU_TENSOR_ERR_STRIDE;
- if(j.opcode==19){
+    ((j.opcode==19||j.opcode==21)&&(j.param0>UINT32_C(0x80000000)||j.c||j.param1||j.param2)))return NPU_TENSOR_ERR_PARAMETER;
+ if(((j.opcode==19||j.opcode==21)?(j.stride_a<j.m*8||(j.stride_a&31)):j.stride_a)||j.stride_b||j.stride_out||j.flags)return NPU_TENSOR_ERR_STRIDE;
+ if((j.opcode==19||j.opcode==21)){
   l.spans[l.span_count++]=(npu_tensor_span){j.a,raw_bytes>UINT32_MAX?UINT32_MAX:(uint32_t)raw_bytes,1};
   l.spans[l.span_count++]=(npu_tensor_span){j.b,j.n*j.m*2,1};
  }else {span(&l,j.a,na,1);span(&l,j.b,nb,1);span(&l,j.c,nc,1);}
@@ -103,12 +103,15 @@ static int32_t load(const npu_tensor_mapping *m,uint32_t base,uint32_t i)
 {uint32_t u=loadu(m,base+4*i);return u<=INT32_MAX?(int32_t)u:-1-(int32_t)(UINT32_MAX-u);}
 static uint16_t load16(const npu_tensor_mapping *m,uint32_t off)
 {const uint8_t *p=m->data+(size_t)(off-m->ddr_base);return (uint16_t)((uint16_t)p[0]|(uint16_t)p[1]<<8);}
-static int32_t raw_coefficient(uint16_t bits,uint32_t maximum,npu_fixed_status *s)
+static int32_t raw_coefficient(uint16_t bits,uint32_t maximum,int high_precision,unsigned *extra,npu_fixed_status *s)
 {
  unsigned e=(bits>>10)&31,mant=bits&1023;int sh=e?(int)e-11:-10;
  uint64_t numerator,denominator=127;
  if(e)mant|=1024;
  numerator=(uint64_t)mant*maximum;
+ *extra=0;
+ if(high_precision&&numerator){unsigned top=0;uint64_t scan=numerator;while(scan>>1){scan>>=1;top++;}
+  int room=36-(int)top-sh;*extra=room>16?16:room>0?(unsigned)room:0;sh+=(int)*extra;}
  if(sh>=0)numerator<<=(unsigned)sh;else denominator<<=(unsigned)-sh;
  return narrow(divide((int64_t)numerator,denominator,s),s);
 }
@@ -149,14 +152,16 @@ static void compute(const npu_tensor_job *j,const npu_tensor_mapping *m,npu_tens
    else if(j->opcode==6)out[i]=npu_fixed_softplus_q16(a,NPU_FIXED_LUT_LINEAR,s);
    else out[i]=(int32_t)divide(expq(a,s),16384,s);
   }break;
- case 8:{
+ case 8:case 22:{
   uint64_t mean=0,rem=0,eps=j->param0?j->param0:4295,root;
   for(i=0;i<j->n;i++){uint64_t a=mag(load(m,j->a,i)),sq=a*a;mean+=sq/j->n;rem+=sq%j->n;}
   mean+=rem/j->n;rem%=j->n;if(rem>j->n-rem||(rem==j->n-rem&&(mean&1)))++mean;
   if(UINT64_MAX-mean<eps){mean=UINT64_MAX;flag(s,2);}else mean+=eps;
-  root=sqrt_floor(mean); /* epsilon>=1 guarantees nonzero denominator. */
+  unsigned fraction=0;if(j->opcode==22){uint64_t scan=mean;unsigned top=0;while(scan>>1){scan>>=1;top++;}fraction=(63-top)/2;if(fraction>8)fraction=8;}
+  root=sqrt_floor(mean<<(fraction*2)); /* epsilon>=1 guarantees nonzero denominator. */
+  int64_t reciprocal=j->opcode==22?divide(INT64_C(1)<<(48+fraction),root,s):0;
   for(i=0;i<j->n;i++){
-   int64_t norm=divide((int64_t)load(m,j->a,i)*65536,root,s);
+   int64_t norm=j->opcode==22?mulshift(load(m,j->a,i),reciprocal,32,s):divide((int64_t)load(m,j->a,i)*65536,root,s);
    int64_t weight=(int64_t)load(m,j->b,i)+(j->param1?65536:0);
    out[i]=narrow(mulshift(norm,weight,16,s),s);
   }break;
@@ -205,12 +210,12 @@ static void compute(const npu_tensor_job *j,const npu_tensor_mapping *m,npu_tens
   for(i=0;i<j->n;i++){acc=0;for(t=0;t<j->k;t++)acc=add(acc,(int64_t)load(m,j->a,i*j->k+t)*load(m,j->b,t),s);out[i]=narrow(divide(acc,65536,s),s);}break;
  case 18:
   no=j->k;for(t=0;t<j->k;t++){acc=0;for(i=0;i<j->n;i++)acc=add(acc,(int64_t)load(m,j->a,i)*load(m,j->b,i*j->k+t),s);out[t]=narrow(divide(acc,65536,s),s);}break;
- case 19:
+ case 19:case 21:
   for(i=0;i<j->n;i++){
    acc=0;for(t=0;t<j->m;t++){
     int32_t partial=load(m,j->a+i*j->stride_a+t*8+4,0);
-    int32_t coef=raw_coefficient(load16(m,j->b+(i*j->m+t)*2),j->param0,s);
-    acc=add(acc,mulshift(partial,coef,14,s),s);
+    unsigned extra=0;int32_t coef=raw_coefficient(load16(m,j->b+(i*j->m+t)*2),j->param0,j->opcode==21,&extra,s);
+    acc=add(acc,mulshift(partial,coef,14+extra,s),s);
    }out[i]=narrow(acc,s);
   }break;
  default:break;
@@ -237,7 +242,7 @@ uint32_t npu_tensor_reference(const npu_tensor_job *job,const npu_tensor_mapping
    if(native_overlap(p,s->bytes,job,sizeof(*job))||native_overlap(p,s->bytes,mapping,sizeof(*mapping))){e=NPU_TENSOR_ERR_OVERLAP;break;}
   }
  }
- if(!e&&j.opcode==19)for(i=0;i<j.n&&!e;i++)for(t=0;t<j.m;t++){
+ if(!e&&(j.opcode==19||j.opcode==21))for(i=0;i<j.n&&!e;i++)for(t=0;t<j.m;t++){
   uint16_t bits;
   if(loadu(&m,j.a+i*j.stride_a+t*8)!=(i|(t<<16))){e=NPU_TENSOR_ERR_TAG;break;}
   bits=load16(&m,j.b+(i*j.m+t)*2);

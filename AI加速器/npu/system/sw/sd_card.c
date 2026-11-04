@@ -27,6 +27,10 @@
 #define RXWORD    0x24u
 #define RXBURST   0x28u
 #define RXCRC16   0x2cu
+#define RXSTREAM  0x30u
+#define STREAM_STATUS 0x34u
+#define STREAM_VERIFIED 0x38u
+#define CAP_STREAM 0x08u
 #define CAP_CRC16 0x04u
 #define CRC_VALID 0x10000u
 #define BUSY      0x01u
@@ -48,6 +52,7 @@ static uint8_t initialized;
 static uint8_t high_capacity;
 #if SD_SPI_HW_CRC == 1
 static uint8_t hardware_crc;
+static uint8_t hardware_stream;
 #endif
 #if SD_SPI_MULTIBLOCK == 1
 static uint8_t multiblock_supported;
@@ -269,7 +274,7 @@ static int stop_read(uintptr_t base, uint32_t timeout)
      * is still running. Never submit TXBYTE into that active transaction. */
     int rc = wait_rx(base, 0, timeout);
     if (rc) return rc;
-    for (i = 0; i < 512u && rd(base, RXCOUNT); ++i) (void)rd(base, RXBYTE);
+    for (i = 0; i < 1024u && rd(base, RXCOUNT); ++i) (void)rd(base, RXBYTE);
     if (rd(base, RXCOUNT)) return SD_E_BUS;
     rc = cmd(base, 12, 0, &r1, timeout);
     if (rc) return rc;
@@ -349,6 +354,7 @@ int sd_card_init(uintptr_t base, uint32_t timeout)
     wr(base, DIVIDER, SD_SPI_DATA_DIVIDER);
 #if SD_SPI_HW_CRC == 1
     hardware_crc = (uint8_t)((rd(base, CAP) & CAP_CRC16) != 0);
+    hardware_stream = (uint8_t)((rd(base, CAP) & CAP_STREAM) != 0);
 #endif
 #if SD_SPI_MULTIBLOCK == 1
     multiblock_supported = 1;
@@ -363,6 +369,49 @@ fail:
     wr(base, CTRL, 4);
     return rc;
 }
+
+#if SD_SPI_HW_CRC == 1
+typedef uint32_t sd_copy_word __attribute__((__may_alias__));
+static void drain_sector(uintptr_t base,uint8_t *out)
+{
+    if (!((uintptr_t)out & 3u)) {
+        sd_copy_word *words=(sd_copy_word *)out;
+        for (uint32_t i=0;i<128u;i+=4u) {
+            uint32_t a=rd(base,RXWORD),b=rd(base,RXWORD),c=rd(base,RXWORD),d=rd(base,RXWORD);
+            words[i]=a;words[i+1u]=b;words[i+2u]=c;words[i+3u]=d;
+        }
+    } else {
+        for (uint32_t i=0;i<512u;i+=4u) {
+            uint32_t word=rd(base,RXWORD);
+            out[i]=(uint8_t)word;out[i+1u]=(uint8_t)(word>>8);
+            out[i+2u]=(uint8_t)(word>>16);out[i+3u]=(uint8_t)(word>>24);
+        }
+    }
+}
+#endif
+#if SD_SPI_HW_CRC == 1 && SD_SPI_MULTIBLOCK == 1
+static int receive_stream(uintptr_t base,uint8_t *out,uint32_t count,uint32_t timeout)
+{
+    wr(base,RXSTREAM,count);
+    for(uint32_t sector=0;sector<count;++sector) {
+        uint32_t remaining=timeout;
+        for (;;) {
+            uint32_t status=rd(base,STATUS),stream=rd(base,STREAM_STATUS);
+            int rc=state_check(status);if(rc)return rc;
+            if(stream&4u)return SD_E_CRC;
+            if(stream&8u)return SD_E_TOKEN;
+            if(rd(base,RXCOUNT)>=512u)break;
+            if(!(stream&1u))return SD_E_BUS;
+            if(!remaining--)return SD_E_TIMEOUT;
+        }
+        drain_sector(base,out+sector*512u);
+        ++statistics.crc_hardware;++statistics.crc_verified;
+    }
+    uint32_t status=rd(base,STREAM_STATUS);
+    if((status&15u)!=2u||rd(base,STREAM_VERIFIED)!=count)return SD_E_BUS;
+    return SD_OK;
+}
+#endif
 
 int sd_card_read_blocks(uintptr_t base, uint32_t lba, uint32_t count,
                         void *destination, uint32_t timeout)
@@ -414,6 +463,17 @@ int sd_card_read_blocks(uintptr_t base, uint32_t lba, uint32_t count,
         } else if (r1 != 0) { rc = SD_E_R1; goto fail; }
     }
 #endif
+#if SD_SPI_HW_CRC == 1 && SD_SPI_MULTIBLOCK == 1
+    if (multiple && hardware_crc && hardware_stream && count<=65535u) {
+        rc=receive_stream(base,dst,count,timeout);
+        if(rc){wr(base,RXSTREAM,0);goto fail;}
+        stream_started=0;
+        rc=stop_read(base,timeout);
+        if(rc){initialized=0;goto fail;}
+        statistics.blocks_completed+=count;
+        return SD_OK;
+    }
+#endif
     for (sector = 0; sector != count; ++sector) {
 #if SD_SPI_MULTIBLOCK == 1
         if (!multiple) {
@@ -448,6 +508,10 @@ int sd_card_read_blocks(uintptr_t base, uint32_t lba, uint32_t count,
         if (!hardware_crc)
 #endif
             ++statistics.crc_software;
+#if SD_SPI_HW_CRC == 1
+        if (hardware_crc) drain_sector(base,dst+sector*512u);
+        else
+#endif
         for (i = 0; i != 128; ++i) {
             word = rd(base, RXWORD);
 #if SD_SPI_HW_CRC == 1

@@ -4,9 +4,15 @@ module ag_npu_tensor_sim #(
     parameter bit CACHE_ENABLE=1,
     parameter bit TENSOR_ENABLE=1,
     parameter integer MATRIX_LANES=64,
-    parameter integer DDR_OUTSTANDING=1
+    parameter integer DDR_OUTSTANDING=1,
+    parameter bit PARTIAL_SRAM_ENABLE=0,
+    parameter bit TENSOR_PARALLEL_RAW=1,TENSOR_PARALLEL_DELTA=1,
+    parameter bit TENSOR_SHARED_RAW_ACCUM=0,
+    parameter bit LOCAL_CPU_RESET=0,
+    parameter bit BUTTON_ENABLE=0,TEXT_VIDEO_ENABLE=0,UART_RX_ENABLE=0,
+    parameter integer CLOCK_HZ=102000000
 ) (
-    input wire clk,rst,card_present,
+    input wire clk,rst,card_present,uart_rx_i,
     output wire console_valid, output wire [7:0] console_data,
     output wire done, output wire [31:0] exit_code,
     output wire trap_valid, output wire [31:0] trap_pc,trap_cause,trap_value,
@@ -29,10 +35,14 @@ module ag_npu_tensor_sim #(
     output wire tensor_request,matrix_request,cpu_request,
     output wire matrix_outstanding,tensor_outstanding
 );
-    ag_npu_system #(.SIM_FAST_UART(1),.DUAL_ISSUE(DUAL_ISSUE),
+    ag_npu_system #(.CLOCK_HZ(CLOCK_HZ),.UART_RX_ENABLE(UART_RX_ENABLE),.SIM_FAST_UART(1),.DUAL_ISSUE(DUAL_ISSUE),
         .CACHE_ENABLE(CACHE_ENABLE),.LEGACY_ENABLE(0),.TENSOR_ENABLE(TENSOR_ENABLE),.NPU_LANES(MATRIX_LANES),
-        .DDR_OUTSTANDING(DDR_OUTSTANDING)) dut (
-        .clk(clk),.rst(rst),.irq_external(1'b0),.uart_tx_o(),.gpio(),
+        .DDR_OUTSTANDING(DDR_OUTSTANDING),.PARTIAL_SRAM_ENABLE(PARTIAL_SRAM_ENABLE),
+        .TENSOR_PARALLEL_RAW(TENSOR_PARALLEL_RAW),.TENSOR_PARALLEL_DELTA(TENSOR_PARALLEL_DELTA),
+        .TENSOR_SHARED_RAW_ACCUM(TENSOR_SHARED_RAW_ACCUM),.LOCAL_CPU_RESET(LOCAL_CPU_RESET),.BUTTON_ENABLE(BUTTON_ENABLE),.TEXT_VIDEO_ENABLE(TEXT_VIDEO_ENABLE)) dut (
+        .clk(clk),.rst(rst),.irq_external(1'b0),.uart_rx_i(uart_rx_i),.uart_tx_o(),.gpio(),
+        .buttons_n(5'b11111),.pixel_clk(clk),.pixel_rst(rst),.hd_scl_i(1'b1),.hd_sda_i(1'b1),
+        .pixel_rgb(),.pixel_hs(),.pixel_vs(),.pixel_de(),.hd_scl_low(),.hd_sda_low(),.hd_reset_n(),
         .console_valid(console_valid),.console_data(console_data),
         .done(done),.exit_code(exit_code),.trap_valid(trap_valid),
         .trap_pc(trap_pc),.trap_cause(trap_cause),.trap_value(trap_value),
@@ -57,7 +67,7 @@ module ag_npu_tensor_sim #(
     assign tensor_request=dut.tensor_qv&&dut.tensor_qr;
     assign matrix_request=dut.dma_qv&&dut.dma_qr;
     assign cpu_request=dut.cpu_qv&&dut.cpu_qr;
-    reg [3:0] matrix_inflight,tensor_inflight;
+    reg [$clog2(DDR_OUTSTANDING+1):0] matrix_inflight,tensor_inflight;
     wire matrix_ack=dut.dma_rv&&dut.dma_rr;
     wire tensor_ack=dut.tensor_rv&&dut.tensor_rr;
     always @(posedge clk)begin

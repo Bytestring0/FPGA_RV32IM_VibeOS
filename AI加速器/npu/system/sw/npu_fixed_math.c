@@ -498,8 +498,32 @@ static int32_t decode_to_q16(uint32_t bits, uint32_t fraction_bits,
         power = (int32_t)exponent - bias - (int32_t)fraction_bits;
         mantissa |= UINT64_C(1) << fraction_bits;
     }
-    return saturate_q16(signed_scaled(mantissa, negative, (int64_t)power + 16,
-                                      1, s), s);
+    if (!mantissa) return 0;
+    int32_t shift = power + 16;
+    uint32_t magnitude = (uint32_t)mantissa, rounded;
+    if (shift >= 0) {
+        uint32_t limit32 = negative ? UINT32_C(0x80000000) : INT32_MAX;
+        if (shift >= 32 || magnitude > (limit32 >> (unsigned)shift)) {
+            /* Keep both clipping events of the original int64 -> int32 path. */
+            uint64_t limit64 = negative ? (UINT64_C(1) << 63) : INT64_MAX;
+            if (shift >= 64 || mantissa > (limit64 >> (unsigned)shift))
+                flag(s, NPU_FIXED_STATUS_SATURATED);
+            flag(s, NPU_FIXED_STATUS_SATURATED);
+            return negative ? INT32_MIN : INT32_MAX;
+        }
+        rounded = magnitude << (unsigned)shift;
+    } else {
+        unsigned right = (unsigned)-shift;
+        if (right >= 32) rounded = 0;
+        else {
+            uint32_t remainder = magnitude & ((UINT32_C(1) << right) - 1);
+            uint32_t half = UINT32_C(1) << (right - 1);
+            rounded = magnitude >> right;
+            rounded += remainder > half || (remainder == half && (rounded & 1));
+        }
+        if (!rounded) flag(s, NPU_FIXED_STATUS_UNDERFLOW);
+    }
+    return negative ? (int32_t)(0u - rounded) : (int32_t)rounded;
 }
 
 int32_t npu_fixed_fp16_bits_to_q16(uint16_t bits, npu_fixed_status *s)

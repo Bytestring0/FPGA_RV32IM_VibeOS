@@ -1,7 +1,11 @@
 // Experimental tensor numerical ABI 0x20000. One outstanding line transaction.
 // All write spans validated before reads. Results/state buffered until computed.
-// 17,408 x 32-bit shared scratch (68 KiB), streaming input operands, one line cache.
-module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
+// 17,408 x 32-bit shared scratch (68 KiB), streaming operands.
+// Raw-W4 scale reads have a separate line cache to preserve the partial stream.
+module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000,
+ parameter bit SPLIT_READ_CACHE=1, parameter bit PARALLEL_DELTA=1, parameter bit PARALLEL_RAW=1,
+ parameter bit SHARED_RAW_ACCUM=0, parameter bit PARALLEL_CONV=1,
+ parameter integer DELTA_PREFETCH=4)(
  input wire clk,rst,input wire req_valid,output wire req_ready,input wire req_write,
  input wire [31:0] req_addr,req_wdata,input wire [3:0] req_wstrb,
  output reg rsp_valid,input wire rsp_ready,output reg [31:0] rsp_rdata,output reg rsp_error,
@@ -9,61 +13,208 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
  output wire mem_req_write,output wire [255:0] mem_req_wdata,output wire [31:0] mem_req_wstrb,
  input wire mem_rsp_valid,output wire mem_rsp_ready,input wire [255:0] mem_rsp_data,input wire mem_rsp_error,
  output reg busy,done,error,output reg [31:0] error_code,cycle_count,result_count);
- localparam IDLE=0,VALIDATE=1,EXEC=2,RREQ=3,RRSP=4,WREQ=5,WRSP=6,DIVIDE=7,DIVEND=8,SQROOT=9,PACKREAD=10,PACKSAVE=11,WRITEBEGIN=12,DIV127=13,MULWAIT=14,READBEGIN=15,DIAG_DRAIN=16;
+ localparam IDLE=0,VALIDATE=1,EXEC=2,RREQ=3,RRSP=4,WREQ=5,WRSP=6,DIVIDE=7,DIVEND=8,SQROOT=9,PACKREAD=10,PACKSAVE=11,WRITEBEGIN=12,DIV127=13,MULWAIT=14,READBEGIN=15,DIAG_DRAIN=16,POW2DIV=17,ROUND_STAGE=18,DELTA_ROUND_STAGE=19,DIVCLASS=20,DIVENC=21,QUANT_DIV=22,QUANT_DONE=23,DELTA_LOAD=24,DELTA_LOAD_DRAIN=25,DELTA_VECTOR_PIPE=26,STREAM_PACK_READ=27,STREAM_PACK_SAVE=28,STREAM_WRITE=29,STREAM_WRITE_DRAIN=30,MULTIPLY_DELAY=31,DELTA_DOT_SETUP=32,DELTA_DOT_STREAM=33,VECTOR_LOAD_SETUP=34,VECTOR_READ=35,NORM_SQUARE_SETUP=36,NORM_SQUARE_STREAM=37,NORM_SQUARE_SUM=38,NORM_SQUARE_FINISH=39,QUANT_VECTOR_DIV=40,QUANT_VECTOR_DONE=41,NORM_OUTPUT_SETUP=42,NORM_OUTPUT_STREAM=43;
+ wire raw_w4_op=op==19||op==21;
+ reg [4:0] coefficient_extra;
+ wire raw_parallel8=PARALLEL_RAW&&m[2:0]==0;
+ reg [31:0] raw_tags[0:7];reg signed [31:0] raw_partials[0:7];
+ reg [15:0] raw_scales[0:7];
+ reg [62:0] raw_digits[0:7];reg [63:0] raw_numerator[0:7],raw_quotient[0:7];
+ reg [6:0] raw_mod[0:7];reg [4:0] raw_shift[0:7],raw_extra[0:7];
+ reg [1:0] raw_div_steps;reg [31:0] raw_bad;reg [15:0] raw_scale_bits;
+ reg signed [63:0] raw_sum;reg [63:0] raw_remainder,raw_denominator;reg signed [63:0] raw_partial_sum;
+ reg [2:0] raw_acc_lane;
+ integer raw_lane,raw_bit,raw_top,raw_room,raw_exponent;
+ integer coefficient_top,coefficient_room,coefficient_exponent,coefficient_bit;
  reg [62:0] coefficient_digits;
  reg [63:0] coefficient_numerator,coefficient_quotient,coefficient_remainder,coefficient_denominator;
  reg [6:0] coefficient_mod;
  reg [7:0] coefficient_sum;
  reg [6:0] coefficient_digit;
+ reg [62:0] coefficient_next_digits;
+ reg [63:0] coefficient_next_quotient;
+ reg [6:0] coefficient_next_mod;
+ integer coefficient_step;
  reg [3:0] coefficient_steps;
  reg [4:0] coefficient_shift;
- reg [4:0] st;
+ reg [5:0] st;
  reg [31:0] cfg[0:15],d[0:15];
  wire [31:0] op=d[0],n=d[1],m=d[2],k=d[3];
  wire [3:0] convolution_history=k[3:0]-4'd1;
  // Split the non-power-of-two depth explicitly: a single17408-word array
  // rounds up to32768 words in PDS, wasting15 DRM36K blocks. These banks keep
  // exactly the same synchronous read latency and one write per cycle.
- reg signed [31:0] scratch_low[0:16383];
- reg signed [31:0] scratch_high[0:1023];
+ // Eight striped banks preserve the scalar address space and add a line port.
+ reg vector_delta,vector_pack;reg [1:0] quant_pack_part;
+ reg [37:0] quant_vector_remainder[0:7];reg [6:0] quant_vector_quotient[0:7];
+ reg [7:0] quant_vector_negative,quant_vector_nonzero;
+ wire quant_byte_stream=op==15&&vector_pack&&!write_state;
+ wire [31:0] quant_vector_magnitude[0:7];
+ wire [37:0] quant_vector_numerator[0:7];
+ wire [7:0] quant_vector_result[0:7];
+ genvar quant_lane;
+ generate for(quant_lane=0;quant_lane<8;quant_lane=quant_lane+1)begin: quant_lanes
+  assign quant_vector_magnitude[quant_lane]=vector_rd[quant_lane][31]?-vector_rd[quant_lane]:vector_rd[quant_lane];
+  assign quant_vector_numerator[quant_lane]={quant_vector_magnitude[quant_lane],6'd0}+{quant_vector_magnitude[quant_lane],6'd0}-{6'd0,quant_vector_magnitude[quant_lane]};
+  wire [31:0] remainder=quant_vector_remainder[quant_lane][31:0];
+  wire increment=remainder>peak-remainder||(remainder==peak-remainder&&quant_vector_quotient[quant_lane][0]);
+  assign quant_vector_result[quant_lane]={1'b0,quant_vector_quotient[quant_lane]}+{7'd0,increment};
+ end endgenerate
+ reg vector_inputs_valid,vector_input_loading;reg [2:0] vector_input_bank;
+ reg [14:0] vector_input_base;
+ reg [31:0] vector_input_spans[0:4];
+ reg [12:0] norm_square_issued,norm_square_retired;
+ reg [4:0] norm_square_valid;reg [3:0] norm_square_shift;reg [2:0] norm_square_lane;
+ reg [73:0] norm_square_sums[0:7];reg [75:0] norm_square_total;
+ reg [12:0] norm_output_issued;reg [4:0] norm_output_valid;reg [12:0] norm_output_tag[0:4];
+ wire norm_output_active=st==NORM_OUTPUT_STREAM;
+ wire norm_output_issue=norm_output_active&&norm_output_issued<n[12:0];
+ wire norm_square_active=st==NORM_SQUARE_STREAM;
+ wire norm_square_issue=norm_square_active&&norm_square_issued<n[12:0];
+ wire convolution_prefetch=PARALLEL_CONV&&op==12&&n[2:0]==0;
+ wire vector_input_eligible=(n>=64&&((op>=1&&op<=8)||op==10||op==15||op==16||op==22))||convolution_prefetch;
+ wire vector_input_a=vector_inputs_valid&&read_address>=d[4]&&read_address-d[4]<vector_input_spans[0];
+ wire vector_input_b=vector_inputs_valid&&vector_input_spans[1]!=0&&read_address>=d[5]&&read_address-d[5]<vector_input_spans[1];
+ wire vector_input_c=vector_inputs_valid&&vector_input_spans[2]!=0&&read_address>=d[6]&&read_address-d[6]<vector_input_spans[2];
+ wire vector_input_state=vector_inputs_valid&&convolution_prefetch&&vector_input_spans[4]!=0&&read_address>=d[8]&&read_address-d[8]<vector_input_spans[4];
+ wire vector_input_hit=vector_input_a||vector_input_b||vector_input_c||vector_input_state;
+ wire [31:0] vector_input_offset=read_address-(vector_input_a?d[4]:vector_input_b?d[5]:vector_input_c?d[6]:d[8]);
+ wire [14:0] vector_input_index=(vector_input_state?{2'd0,no}:convolution_prefetch?(vector_input_a?15'd16384:15'd8192):(vector_input_a?15'd4096:vector_input_b?15'd8192:15'd12288))+{2'd0,vector_input_offset[14:2]};
+ reg delta_dot_q;reg [7:0] delta_dot_issued,delta_dot_retired;
+ reg [6:0] delta_dot_read_row;reg [4:0] delta_dot_valid;
+ wire delta_dot_active=st==DELTA_DOT_STREAM;
+ wire delta_dot_issue=delta_dot_active&&delta_dot_issued<128;
+ wire [14:0] delta_dot_address={2'd0,no}+{1'b0,delta_dot_issued[6:0],7'd0}+{8'd0,j[6:0]};
+ reg [5:0] stream_write_pending;reg stream_write_error;
+ wire streaming_write=st==STREAM_PACK_READ||st==STREAM_PACK_SAVE||st==STREAM_WRITE||st==STREAM_WRITE_DRAIN;
+ wire stream_write_response=streaming_write&&stream_write_pending!=0&&mem_rsp_valid;
+ wire stream_write_accept=st==STREAM_WRITE&&mem_req_ready;
+ reg delta_pipe_update;reg [11:0] delta_pipe_sent,delta_pipe_retired;
+ reg [6:0] delta_pipe_row,delta_pipe_col,delta_pipe_read_row,delta_pipe_read_col;
+ reg [6:0] delta_pipe_valid;reg [14:0] delta_pipe_tag[0:6];
+ reg signed [31:0] delta_pipe_old[0:4][0:7];
+ wire delta_pipe_active=st==DELTA_VECTOR_PIPE;
+ wire delta_pipe_issue=delta_pipe_active&&delta_pipe_sent<delta_load_lines;
+ wire [14:0] delta_pipe_read_address={2'd0,no}+{1'b0,delta_pipe_row,7'd0}+{8'd0,delta_pipe_col};
+ wire delta_pipe_residual_write=vector_delta&&n==128&&vector_we&&vector_wa>={2'd0,no}+{ns}&&vector_wa<{2'd0,no}+{ns}+15'd128;
+ wire [255:0] delta_pipe_residual_data={vector_wd[7],vector_wd[6],vector_wd[5],vector_wd[4],vector_wd[3],vector_wd[2],vector_wd[1],vector_wd[0]};
+ reg [11:0] delta_load_sent,delta_load_received,delta_load_lines;
+ reg [5:0] delta_load_pending;reg delta_load_error;
+ wire delta_loading=st==DELTA_LOAD||st==DELTA_LOAD_DRAIN;
+ reg delta_load_valid;
+ wire delta_load_offer=delta_loading&&delta_load_valid;
+ wire delta_load_accept=delta_load_offer&&mem_req_ready;
+ wire delta_load_return=delta_loading&&delta_load_pending!=0&&mem_rsp_valid;
+ reg vector_we;reg [14:0] vector_wa,vector_ra;
+ reg signed [31:0] vector_wd[0:7];wire signed [31:0] vector_rd[0:7];
+ reg [2:0] scalar_read_lane;
+ genvar scratch_lane;
+ generate for(scratch_lane=0;scratch_lane<8;scratch_lane=scratch_lane+1)begin: scratch_banks
+  reg signed [31:0] low_bank[0:2047];reg signed [31:0] high_bank[0:127];
+  reg signed [31:0] low_q,high_q;reg bank_q;
+  wire [14:0] ra=norm_square_active?(15'd4096+{2'd0,norm_square_issued}):delta_dot_active?delta_dot_address:delta_pipe_active?delta_pipe_read_address:vector_delta&&(st==EXEC||st==MULTIPLY_DELAY)&&pc>=1710&&pc<=1729?vector_ra:scratch_ra;
+  always @(posedge clk)begin
+   bank_q<=ra[14];
+   if(ra[14])high_q<=high_bank[ra[9:3]];else low_q<=low_bank[ra[13:3]];
+   if(!rst)begin
+    if(vector_we)begin
+     if(vector_wa[14])high_bank[vector_wa[9:3]]<=vector_wd[scratch_lane];
+     else low_bank[vector_wa[13:3]]<=vector_wd[scratch_lane];
+    end else if(scratch_we&&scratch_wa[2:0]==scratch_lane)begin
+     if(scratch_wa[14])high_bank[scratch_wa[9:3]]<=scratch_wd;
+     else low_bank[scratch_wa[13:3]]<=scratch_wd;
+    end
+   end
+  end
+  assign vector_rd[scratch_lane]=bank_q?high_q:low_q;
+ end endgenerate
  // Keeping both RAM writes outside the asynchronous reset process is required
  // for physical block-RAM inference. No output/state policy changes here.
  reg scratch_we;
  reg [14:0] scratch_wa;
  reg signed [31:0] scratch_wd;
- always @(posedge clk) if(scratch_we&&!rst) begin
-  if(scratch_wa[14])scratch_high[scratch_wa[9:0]]<=scratch_wd;
-  else scratch_low[scratch_wa[13:0]]<=scratch_wd;
- end
+ always @(posedge clk)scalar_read_lane<=scratch_ra[2:0];
  task automatic putscratch(input [31:0] address,input signed [31:0] value);
  begin scratch_we<=1; scratch_wa<=address[14:0];scratch_wd<=value;end
  endtask
  wire signed [31:0] sv;
- reg signed [31:0] scratch_read_low,scratch_read_high;
- reg scratch_read_bank;
- assign sv=scratch_read_bank?scratch_read_high:scratch_read_low;
+ assign sv=vector_rd[scalar_read_lane];
  reg [14:0] scratch_ra;
  always @* begin
   scratch_ra=0;
-  if(st==PACKREAD) scratch_ra=(write_scratch+(op==15&&!write_state?write_index:write_index/4));
+  if(norm_output_active)scratch_ra=15'd4096+{2'd0,norm_output_issued};
+  else if(st==READBEGIN&&vector_input_hit)scratch_ra=vector_input_index;
+   else if(st==PACKREAD||st==STREAM_PACK_READ) scratch_ra=(write_scratch+(op==15&&!write_state?write_index+{10'd0,quant_pack_part,3'd0}:write_index/4));
   else if(st==MULWAIT)scratch_ra=multiplier_scratch_ra;
   else if(st==EXEC)case(pc)
-   92,93,931,94,145:scratch_ra=(softbase+i);
-   133,1372,1390:scratch_ra=(no+i*n+j);
+   2000,2100:scratch_ra=15'd4096+i[14:0];
+    2200:scratch_ra=i[14:0];
+    2001,2002,2201,2202:scratch_ra=15'd8192+i[14:0];
+    92,93,931,933,934,935,937,938,94,145:scratch_ra=(softbase+i);
+   133,1372,1390:scratch_ra=(no+i[7:0]*n[7:0]+j);
    137:scratch_ra=(no+ns+j);
    default:begin end
   endcase
  end
- always @(posedge clk) begin
-  scratch_read_bank<=scratch_ra[14];
-  if(scratch_ra[14])scratch_read_high<=scratch_high[scratch_ra[9:0]];
-  else scratch_read_low<=scratch_low[scratch_ra[13:0]];
+ wire signed [31:0] delta_q_scalar,delta_k_scalar,conv_input_scalar;
+ wire [255:0] delta_v_vector;
+ wire signed [31:0] delta_v_lane[0:7];
+ npu_delta_vectors #(.DELTA_ENABLE(PARALLEL_DELTA),.CONV_ENABLE(PARALLEL_CONV)) delta_vectors(
+  .clk(clk),
+  .q_we(!rst && st==EXEC && PARALLEL_DELTA && pc==1701),
+  .k_we(!rst && st==EXEC && PARALLEL_DELTA && pc==1703),
+  .v_we(!rst && ((st==EXEC && PARALLEL_DELTA && pc==1705)||delta_pipe_residual_write)),
+  .conv_we(!rst && st==EXEC && PARALLEL_CONV && pc==1906),
+  .write_row(delta_pipe_residual_write?vector_wa[6:3]:i[6:3]),
+   .write_data(delta_pipe_residual_write?delta_pipe_residual_data:cache_data),
+   .scalar_index(delta_dot_active?delta_dot_read_row:delta_pipe_active?delta_pipe_read_row:i[6:0]),
+  .v_read_row(delta_pipe_active?delta_pipe_read_col[6:3]:j[6:3]),.conv_index(i[2:0]),
+  .q_scalar(delta_q_scalar),.k_scalar(delta_k_scalar),
+  .v_vector(delta_v_vector),.conv_scalar(conv_input_scalar));
+ genvar delta_vector_lane;
+ generate for(delta_vector_lane=0;delta_vector_lane<8;delta_vector_lane=delta_vector_lane+1)begin: delta_vector_unpack
+  assign delta_v_lane[delta_vector_lane]=$signed(delta_v_vector[delta_vector_lane*32+:32]);
+ end endgenerate
+ reg signed [32:0] delta_ma[0:7],delta_mb[0:7];
+ reg signed [65:0] delta_product[0:7] /* synthesis syn_preserve = 1 */;reg signed [63:0] delta_acc[0:7];
+ integer delta_lane;
+ reg multiply_delay_count;reg [14:0] multiply_delay_pc;
+ genvar delta_multiply_lane;
+ generate for(delta_multiply_lane=0;delta_multiply_lane<8;delta_multiply_lane=delta_multiply_lane+1)begin: delta_multiplier
+  wire [15:0] al=delta_ma[delta_multiply_lane][15:0],bl=delta_mb[delta_multiply_lane][15:0];
+  wire signed [16:0] ah=delta_ma[delta_multiply_lane][32:16],bh=delta_mb[delta_multiply_lane][32:16];
+  reg [31:0] ll /* synthesis syn_preserve = 1 */;
+  reg signed [33:0] lh,hl,hh /* synthesis syn_preserve = 1 */;
+  reg signed [49:0] low_pair,high_pair /* synthesis syn_preserve = 1 */;
+  always @(posedge clk)begin
+   ll<=al*bl;lh<=$signed({1'b0,al})*bh;hl<=ah*$signed({1'b0,bl});hh<=ah*bh;
+   low_pair<=$signed({18'd0,ll})+($signed({{16{lh[33]}},lh})<<<16);
+   high_pair<=$signed({{16{hl[33]}},hl})+($signed({{16{hh[33]}},hh})<<<16);
+   delta_product[delta_multiply_lane]<=$signed({{16{low_pair[49]}},low_pair})+$signed({high_pair,16'd0});
+  end
+ end endgenerate
+ task automatic wait_delta_product(input [14:0] nextpc);
+ begin multiply_delay_count<=1;multiply_delay_pc<=nextpc;st<=MULTIPLY_DELAY;end
+ endtask
+ always @*begin
+  vector_ra=0;
+  case(pc)
+   1710,1711,1712,1713:vector_ra=no+i[14:0];
+    1714,1715,1716,1717,1725,1726,1727,1728:vector_ra=no+i[7:0]*n[7:0]+j;
+   1721:vector_ra=no+ns+j;
+   1722,1723,1724:vector_ra=no+i[7:0]*n[7:0]+j;
+   default:begin end
+  endcase
  end
+ task automatic putvector(input [31:0] address);
+ begin vector_we<=1;vector_wa<=address[14:0];end
+ endtask
  reg signed [31:0] rv,x,y,z,w,maxval;
- reg signed [63:0] acc,ma,norm,delta;
+ reg signed [63:0] acc,norm,delta;
+  reg signed [63:0] ma /* synthesis syn_preserve = 1 */;
  // Every B operand is signed INT32, unsigned Q30, or centered INT32+65536.
  // Retain the wide A accumulator required by scaled attention scores.
- reg signed [32:0] mb;
+ reg signed [32:0] mb /* synthesis syn_preserve = 1 */;
  wire signed [96:0] product_narrow=ma*mb;
  reg signed [96:0] product_registered;
  reg [14:0] multiplier_scratch_ra;
@@ -75,14 +226,14 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
   end
  end
  wire signed [127:0] product={{31{product_registered[96]}},product_registered};
- reg [31:0] i,j,t,pc,no,ns,softbase,peak,best;
+ reg [15:0] i,j;reg t;reg [14:0] pc,ns;reg [12:0] no,softbase,best;reg [31:0] peak;
  reg [31:0] sat_count,num_status,domain_count,under_count,zero_count,invalid_count;
- reg [3:0] sat_events,domain_events,under_events,zero_events,invalid_events;
+ reg [5:0] sat_events,domain_events,under_events,zero_events,invalid_events;
  reg [31:0] numeric_events;
  reg diagnostics_clear;
   // Detection and accumulation use different cycles: wide arithmetic flags no
   // longer share a combinational path with a saturating32-bit counter add.
-  reg [3:0] sat_pending,domain_pending,under_pending,zero_pending,invalid_pending;
+  reg [5:0] sat_pending,domain_pending,under_pending,zero_pending,invalid_pending;
   reg [31:0] numeric_pending;
   reg [31:0] terminal_error;
   reg [31:0] pack_mask;
@@ -90,9 +241,9 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
   reg [1:0] pack_byte;
   reg pack_byte_mode;
   integer pack_index;
- function automatic [31:0] diagnostic_add(input [31:0] previous,input [3:0] events);
+ function automatic [31:0] diagnostic_add(input [31:0] previous,input [5:0] events);
   reg [32:0] sum;
-  begin sum={1'b0,previous}+{29'd0,events};diagnostic_add=sum[32]?32'hffffffff:sum[31:0];end
+  begin sum={1'b0,previous}+{27'd0,events};diagnostic_add=sum[32]?32'hffffffff:sum[31:0];end
  endfunction
  reg [63:0] raw_span;
  reg [12:0] validation_rows_minus_one;
@@ -104,16 +255,30 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
  reg [31:0] read_address;
  reg [255:0] cache_data,pack;
  reg cache_valid;
+ reg scale_cache_valid;
+ reg [29:0] scale_cache_addr;
+ reg [255:0] scale_cache_data;
+ // readword installs the return PC before READBEGIN; PC163 is the scale stream.
+ wire use_scale_cache=SPLIT_READ_CACHE&&((raw_w4_op&&(pc==163||pc==1802))||
+  ((op==8||op==22)&&pc==89)||((op==2||op==3)&&pc==12)||(op==12&&pc==1902));
  reg [2:0] rsel;
  reg [31:0] strobes,write_base,write_bytes,write_index,write_scratch;
  reg write_state;
  reg [63:0] usum,remsum,denom;
  reg [63:0] dq,dd,dr;
- reg [6:0] dc;
+ reg [63:0] divide_next_q,divide_next_r;reg [64:0] divide_trial;integer divide_step;
+ reg [37:0] quant_remainder,quant_divisor;reg [6:0] quant_quotient;reg [2:0] quant_bit;reg quant_negative;
+ wire [31:0] quant_magnitude=rv[31]?(~$unsigned(rv)+32'd1):$unsigned(rv);
+ wire [37:0] quant_numerator={quant_magnitude,6'd0}+{quant_magnitude,6'd0}-{6'd0,quant_magnitude};
+ wire [31:0] quant_rest=quant_remainder[31:0];
+ wire quant_increment=quant_rest>peak-quant_rest||(quant_rest==peak-quant_rest&&quant_quotient[0]);
+ reg [6:0] dc;reg [5:0] divisor_shift;integer divisor_bit;
+ reg [3:0] norm_fraction;reg signed [63:0] norm_reciprocal;
+ reg [63:0] norm_variance_q;integer norm_leading,norm_bit;
  reg dneg,dround,dtrack,dnonzero;
  reg signed [63:0] dv;
  reg [63:0] divrem;
- reg [31:0] returnpc;
+ reg [14:0] returnpc;
  reg [63:0] sqrad,sqrem,sqroot;
  reg [5:0] sqcount;
  reg [64:0] remnext,trial;
@@ -128,7 +293,14 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
  reg signed [63:0] lutarg,lutval;
  // The two exp clients time-share one pair of table read ports. Endpoint
  // knots are scalar constants, avoiding a doubled physical ROM depth.
- wire signed [63:0] exp_lookup_arg=(pc==93||pc==931)?($signed({{32{sv[31]}},sv})-$signed({{32{maxval[31]}},maxval})):$signed({{32{rv[31]}},rv});
+ reg signed [32:0] exp_lookup_arg;
+ reg [15:0] exp_coordinate_q;reg exp_underflow_q,exp_domain_q;
+ always @(posedge clk)begin
+  exp_lookup_arg<=(op==9||op==14)?$signed({sv[31],sv})-$signed({maxval[31],maxval}):$signed({rv[31],rv});
+  exp_coordinate_q<=exp_lookup_coord[15:0];
+  exp_underflow_q<=exp_lookup_arg!=0&&exp_lookup_rounded==0;
+  exp_domain_q<=exp_lookup_arg<0?exp_lookup_rounded>32768:exp_lookup_rounded!=0;
+ end
  wire [32:0] exp_lookup_magnitude=exp_lookup_arg<0 ? -exp_lookup_arg[32:0] : exp_lookup_arg[32:0];
  wire [27:0] exp_lookup_rounded=exp_lookup_magnitude[32:5]+{27'd0,(exp_lookup_magnitude[4:0]>16||(exp_lookup_magnitude[4:0]==16&&exp_lookup_magnitude[5]))};
  wire [31:0] exp_lookup_coord=exp_lookup_arg>=0 ? 32'd0 : exp_lookup_rounded>32768 ? 32'd32768 : {4'd0,exp_lookup_rounded};
@@ -136,13 +308,30 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
  reg [30:0] exp_lookup_l0,exp_lookup_l1;
  reg [15:0] exp_coord_registered;
  reg exp_underflow_registered,exp_domain_registered;
- wire [11:0] exp_next_index=exp_lookup_coord[14:3]+12'd1;
+ reg [30:0] exp_difference_q;reg [2:0] exp_fraction_q;
+ reg [34:0] exp_base_q,exp_base_product_q,exp_interpolation_q;
+ reg [33:0] exp_product_q;
+ reg [2:0] exp_underflow_pipe,exp_domain_pipe;
+ wire [30:0] exp_left=exp_coord_registered==32768?lut_exp(4096):exp_lookup_l0;
+ wire [30:0] exp_right=exp_coord_registered>=32760?lut_exp(4096):exp_lookup_l1;
+ always @(posedge clk)begin
+  exp_difference_q<=exp_left-exp_right;exp_fraction_q<=exp_coord_registered[2:0];
+  exp_base_q<={1'b0,exp_left,3'd0};
+  exp_product_q<=exp_difference_q*exp_fraction_q;exp_base_product_q<=exp_base_q;
+  exp_interpolation_q<=exp_base_product_q-{1'b0,exp_product_q};
+  exp_underflow_pipe<={exp_underflow_pipe[1:0],exp_underflow_registered};
+  exp_domain_pipe<={exp_domain_pipe[1:0],exp_domain_registered};
+ end
+ wire [11:0] exp_next_index=exp_coordinate_q[14:3]+12'd1;
  wire [31:0] activation_lookup_coord=rv<0?-$unsigned(rv):$unsigned(rv);
  wire [9:0] activation_next_index=activation_lookup_coord[19:10]+10'd1;
  reg [16:0] activation_sig0,activation_sig1;
  reg [20:0] activation_silu0,activation_silu1,activation_soft0,activation_soft1;
  reg [31:0] activation_coord_registered,activation_interpolation;
  reg [20:0] activation_knot0,activation_knot1;
+ reg signed [21:0] activation_difference_q;reg [9:0] activation_fraction_q;
+ reg [31:0] activation_base_q,activation_base_product_q;
+ reg signed [31:0] activation_product_q;
  always @* begin
   case(op)
    4:begin activation_knot0={4'd0,activation_sig0};activation_knot1={4'd0,activation_sig1};end
@@ -157,14 +346,18 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
  end
  always @(posedge clk)begin
   activation_coord_registered<=activation_lookup_coord;
-  activation_interpolation<=({11'd0,activation_knot0}<<10)+
-      ({11'd0,activation_knot1}-{11'd0,activation_knot0})*{22'd0,activation_coord_registered[9:0]};
+   activation_difference_q<=$signed({1'b0,activation_knot1})-$signed({1'b0,activation_knot0});
+   activation_fraction_q<=activation_coord_registered[9:0];
+   activation_base_q<={activation_knot0,10'd0};
+   activation_product_q<=activation_difference_q*$signed({1'b0,activation_fraction_q});
+   activation_base_product_q<=activation_base_q;
+   activation_interpolation<=activation_base_product_q+$unsigned(activation_product_q);
  end
  always @(posedge clk)begin
-  exp_coord_registered<=exp_lookup_coord[15:0];
-  exp_underflow_registered<=exp_lookup_arg!=0&&exp_lookup_rounded==0;
-  exp_domain_registered<=exp_lookup_arg<0 ? exp_lookup_rounded>32768 : exp_lookup_rounded!=0;
-  exp_lookup_l0<=lut_exp({20'd0,exp_lookup_coord[14:3]});
+  exp_coord_registered<=exp_coordinate_q;
+  exp_underflow_registered<=exp_underflow_q;
+  exp_domain_registered<=exp_domain_q;
+  exp_lookup_l0<=lut_exp({20'd0,exp_coordinate_q[14:3]});
   exp_lookup_l1<=lut_exp({20'd0,exp_next_index});
   activation_sig0<=lut_sigmoid({22'd0,activation_lookup_coord[19:10]});
   activation_sig1<=lut_sigmoid({22'd0,activation_next_index});
@@ -195,13 +388,19 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
  endfunction
  // Floor quotient plus nonnegative low-bit remainder is valid for both
  // signs. Ties-even therefore needs one increment, with no wide abs/negate.
- function automatic signed [127:0] rne(input signed [127:0] v,input integer sh);
- reg signed [127:0] q;
- reg [127:0] r,half;
+ // All scale inputs are sign-extended 97-bit products or <=66-bit sums.
+ // Legal shifts are 8..46. Guard/sticky rounding avoids a second wide
+ // variable shifter, a 128-bit subtract and a 128-bit remainder comparator.
+ function automatic signed [127:0] rne(input signed [127:0] v,input [5:0] sh);
+ reg signed [96:0] q;
+ reg [96:0] sticky_mask;
+ reg guard_bit,sticky;
  begin
-  q=v>>>sh;r=$unsigned(v)&((128'd1<<sh)-1);half=128'd1<<(sh-1);
-  if(r>half||(r==half&&q[0]))q=q+1;
-  rne=q;
+  q=$signed(v[96:0])>>>sh;
+  sticky_mask=(97'd1<<(sh-1))-1;
+  guard_bit=v[sh-1];sticky=|(v[96:0]&sticky_mask);
+  if(guard_bit&&(sticky||q[0]))q=q+1;
+  rne={{31{q[96]}},q};
  end endfunction
  function automatic signed [63:0] narrow64(input signed [127:0] v);
  begin
@@ -224,15 +423,139 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
   if(sum[64]==sum[63])add64=sum[63:0];
   else begin add64=sum[64]?64'sh8000000000000000:64'sh7fffffffffffffff;flag_sink=flag_sat(1'b0);end
  end endfunction
- task automatic readword(input [31:0] address,input [31:0] nextpc);
+ // Scalar arithmetic is physically shared across microcode states. Operand
+ // selection occurs BEFORE rounding/saturation, rather than expanding one
+ // full-width datapath per caller. This does not add execution clocks.
+ reg signed [96:0] scalar_round_input;
+ reg [5:0] scalar_round_shift;
+ reg signed [96:0] scalar_round_input_q;
+ reg [5:0] scalar_round_shift_q;
+ reg signed [63:0] scalar_scaled,scalar_saved_a;
+ reg scalar_scale_sat,scalar_scale_under,scalar_rope_sat,scalar_round_valid;
+ wire signed [63:0] scalar_scaled_comb;
+ wire scalar_scale_sat_comb,scalar_scale_under_comb;
+ reg scalar_round_needed;
+ always @*begin
+  scalar_round_needed=0;
+  case(pc)
+   13,872,891,106,108,132,1361,138,144,164,1905:scalar_round_needed=1;
+   113:scalar_round_needed=op==11;
+   115:scalar_round_needed=op!=11;
+   120:scalar_round_needed=i<n&&j==k;
+   133:scalar_round_needed=j<n&&i==n;
+   1390:scalar_round_needed=j<n&&i==n;
+   145:scalar_round_needed=j<k&&i==n;
+   default:begin end
+  endcase
+ end
+ wire signed [63:0] rope_rhs=pc==106?-$signed(product[63:0]):$signed(product[63:0]);
+ wire signed [64:0] rope_sum=$signed({acc[63],acc})+$signed({rope_rhs[63],rope_rhs});
+ wire rope_sat=rope_sum[64]!=rope_sum[63];
+ wire signed [63:0] rope_value=rope_sat?(rope_sum[64]?64'sh8000000000000000:64'sh7fffffffffffffff):rope_sum[63:0];
+ always @*begin
+  scalar_round_input=product_registered;scalar_round_shift=16;
+  case(pc)
+   872:scalar_round_shift=32;
+   106,108:begin scalar_round_input={{33{rope_value[63]}},rope_value};scalar_round_shift=30;end
+   113:scalar_round_shift=14;
+   115,120,145,1905:scalar_round_input={{33{acc[63]}},acc};
+   132,1361:scalar_round_shift=30;
+   133:begin scalar_round_input={{33{acc[63]}},acc};scalar_round_shift=24;end
+   138:scalar_round_shift=8;
+   1390:begin scalar_round_input={{33{acc[63]}},acc};scalar_round_shift=op==20?16:24;end
+   144:scalar_round_shift=46;
+   164:scalar_round_shift=14+coefficient_extra;
+   default:begin end
+  endcase
+ end
+ npu_tensor_round_shared #(.WIDTH(97)) scalar_rounder(
+  .value(scalar_round_input_q),.shift(scalar_round_shift_q),.result(scalar_scaled_comb),
+  .saturated(scalar_scale_sat_comb),.underflow(scalar_scale_under_comb));
+ reg signed [63:0] scalar_add_a,scalar_add_b;
+ wire signed [64:0] scalar_sum=$signed({scalar_add_a[63],scalar_add_a})+$signed({scalar_add_b[63],scalar_add_b});
+ wire scalar_add_sat=scalar_sum[64]!=scalar_sum[63];
+ wire signed [63:0] scalar_added=scalar_add_sat?(scalar_sum[64]?64'sh8000000000000000:64'sh7fffffffffffffff):scalar_sum[63:0];
+ always @*begin
+  scalar_add_a=acc;scalar_add_b=product[63:0];
+  case(pc)
+   113:if(op==11)scalar_add_b=scalar_scaled;
+   114:scalar_add_b={{32{rv[31]}},rv};
+   138:begin scalar_add_a=scalar_saved_a;scalar_add_b=scalar_scaled;end
+   164:scalar_add_b=scalar_scaled;
+   1904:scalar_add_b=delta_product[j[2:0]][63:0];
+   default:begin end
+  endcase
+ end
+ function automatic signed [63:0] shared_scale(input unused);
+ begin
+  if(scalar_scale_under)flag_sink=flag_under(1'b0);
+  if(scalar_scale_sat)flag_sink=flag_sat(1'b0);
+  if((pc==106||pc==108)&&scalar_rope_sat)flag_sink=flag_sat(1'b0);
+  shared_scale=scalar_scaled;
+ end endfunction
+ function automatic signed [63:0] shared_add(input unused);
+ begin if(scalar_add_sat)flag_sink=flag_sat(1'b0);shared_add=scalar_added;end
+ endfunction
+ function automatic signed [63:0] shared_scale_add(input unused);
+ begin flag_sink=0;shared_scale_add=shared_scale(1'b0);shared_scale_add=shared_add(1'b0);end
+ endfunction
+ // One round/clip and one saturated adder per Delta lane, shared across
+ // decay, residual, update and output states. Eight lanes remain parallel.
+ reg delta_round_valid;
+ wire delta_round_needed=PARALLEL_DELTA&&(pc==1713||pc==1718||pc==1720||pc==1724||pc==1729||pc==2004||pc==2204);
+ reg signed [65:0] delta_round_input_q[0:7];reg [5:0] delta_round_shift_q;
+ reg signed [63:0] lane_scaled[0:7];wire signed [63:0] lane_scaled_comb[0:7],lane_added[0:7];
+ reg signed [31:0] delta_saved_vector[0:7];
+ wire signed [31:0] lane_clipped[0:7];
+ reg [7:0] lane_scale_sat,lane_scale_under;
+ wire [7:0] lane_scale_sat_comb,lane_scale_under_comb,lane_add_sat,lane_clip_sat;
+ genvar alu_lane;
+ generate for(alu_lane=0;alu_lane<8;alu_lane=alu_lane+1)begin: delta_shared_alu
+  wire from_acc=pc==1718||pc==1729;
+  wire [5:0] amount=pc==1718?6'd24:pc==1729?(op==20?6'd16:6'd24):pc==1724?6'd8:6'd30;
+  wire signed [65:0] round_value=from_acc?{{2{delta_acc[alu_lane][63]}},delta_acc[alu_lane]}:delta_product[alu_lane];
+  npu_tensor_round_shared #(.WIDTH(66),.DELTA_SHIFTS(1)) rounder(.value(delta_round_input_q[alu_lane]),.shift(delta_round_shift_q),.result(lane_scaled_comb[alu_lane]),
+   .saturated(lane_scale_sat_comb[alu_lane]),.underflow(lane_scale_under_comb[alu_lane]));
+   // Separate feedback arithmetic so a dot-product result cannot traverse the
+   // update clip mux and return to the multiplier input in the same clock.
+   wire signed [63:0] dot_a=delta_acc[alu_lane],dot_b=delta_product[alu_lane][63:0];
+   wire signed [64:0] dot_sum=$signed({dot_a[63],dot_a})+$signed({dot_b[63],dot_b});
+   wire dot_sat=dot_sum[64]!=dot_sum[63];
+   wire signed [63:0] update_a={{32{delta_saved_vector[alu_lane][31]}},delta_saved_vector[alu_lane]};
+   wire signed [63:0] update_b=lane_scaled[alu_lane];
+   wire signed [64:0] update_sum=$signed({update_a[63],update_a})+$signed({update_b[63],update_b});
+   wire update_sat=update_sum[64]!=update_sum[63];
+   wire signed [63:0] update_value=update_sat?(update_sum[64]?64'sh8000000000000000:64'sh7fffffffffffffff):update_sum[63:0];
+   assign lane_add_sat[alu_lane]=pc==1724?update_sat:dot_sat;
+   assign lane_added[alu_lane]=dot_sat?(dot_sum[64]?64'sh8000000000000000:64'sh7fffffffffffffff):dot_sum[63:0];
+   wire signed [63:0] clip_value=pc==1724?update_value:lane_scaled[alu_lane];
+  assign lane_clip_sat[alu_lane]=clip_value[63:31]!={33{clip_value[31]}};
+  assign lane_clipped[alu_lane]=lane_clip_sat[alu_lane]?(clip_value[63]?32'sh80000000:32'sh7fffffff):clip_value[31:0];
+ end endgenerate
+ function automatic signed [31:0] shared_delta_clip(input [2:0] which);
+ begin
+  if(lane_scale_under[which])flag_sink=flag_under(1'b0);
+  if(lane_scale_sat[which])flag_sink=flag_sat(1'b0);
+  if(pc==1724&&lane_add_sat[which])flag_sink=flag_sat(1'b0);
+  if(lane_clip_sat[which])flag_sink=flag_sat(1'b0);
+  shared_delta_clip=lane_clipped[which];
+ end endfunction
+ function automatic signed [63:0] shared_delta_add(input [2:0] which);
+ begin if(lane_add_sat[which])flag_sink=flag_sat(1'b0);shared_delta_add=lane_added[which];end
+ endfunction
+ task automatic readword(input [31:0] address,input [14:0] nextpc);
  begin
   pc<=nextpc;read_address<=address;st<=READBEGIN;
  end endtask
- task automatic divide(input signed [63:0] numerator,input [63:0] denominator,input bit roundit,input bit track,input [31:0] nextpc);
- begin dq<=numerator<0?-$unsigned(numerator):$unsigned(numerator);dd<=denominator;dr<=0;dc<=64;dneg<=numerator<0;dnonzero<=numerator!=0;dround<=roundit;dtrack<=track;returnpc<=nextpc;st<=DIVIDE;end
+ task automatic divide(input signed [63:0] numerator,input [63:0] denominator,input bit roundit,input bit track,input [14:0] nextpc);
+ begin
+  dq<=numerator<0?-$unsigned(numerator):$unsigned(numerator);dd<=denominator;dr<=0;dc<=64;
+  dneg<=numerator<0;dnonzero<=numerator!=0;dround<=roundit;dtrack<=track;returnpc<=nextpc;
+  st<=DIVCLASS;
+ end
  endtask
  task automatic startwrite;
- begin write_state<=0;write_base<=d[7];write_bytes<=op==15?n:no*4;write_index<=0;write_scratch<=0;pack<=0;strobes<=0;pack_lane<=0;pack_byte<=0;st<=WRITEBEGIN;end
+ begin quant_pack_part<=0;write_state<=0;write_base<=d[7];write_bytes<=op==15?n:no*4;write_index<=0;write_scratch<=0;pack<=0;strobes<=0;pack_lane<=0;pack_byte<=0;stream_write_pending<=0;stream_write_error<=0;st<=vector_pack?STREAM_PACK_READ:WRITEBEGIN;end
  endtask
  task automatic fail(input [31:0] code);
  begin terminal_error<=code;st<=DIAG_DRAIN;end
@@ -246,18 +569,11 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
  reg [31:0] q;
  reg [2:0] frac;
  begin
-  // Coordinate and diagnostic metadata are captured with the two ROM reads.
-  // Callers already wait for this read latency; no numerical/cycle change.
-  if(exp_underflow_registered)flag_sink=flag_under(1'b0);
-  if(exp_domain_registered)flag_sink=flag_domain(1'b0);
-  idx={1'b0,exp_coord_registered[14:3]};
-  if(exp_coord_registered==16'd32768)idx=13'd4096;
-  frac=exp_coord_registered[2:0];
-  l0=idx==4096?lut_exp(4096):exp_lookup_l0;
-  l1=idx>=4095?lut_exp(4096):exp_lookup_l1;
-  interp=({4'd0,l0}<<3)-{4'd0,l0-l1}*{32'd0,frac};q=interp>>3;
-  if(interp[2:0]>4||(interp[2:0]==4&&q[0]))q=q+1;
-  exponential=$signed({32'd0,q});
+   if(exp_underflow_pipe[2])flag_sink=flag_under(1'b0);
+   if(exp_domain_pipe[2])flag_sink=flag_domain(1'b0);
+   q=exp_interpolation_q>>3;
+   if(exp_interpolation_q[2:0]>4||(exp_interpolation_q[2:0]==4&&q[0]))q=q+1;
+   exponential=$signed({32'd0,q});
  end endfunction
  function automatic signed [31:0] activation(input [31:0] opcode,input signed [31:0] value);
  reg [31:0] coord,q;
@@ -274,7 +590,7 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
  always @* begin
   na=n;nb=0;nc=0;nout=n;nstate=0;validation=0;
   case(op)
-   2,3,8:nb=n;
+   2,3,8,22:nb=n;
    10:begin nb=n/2;nc=n/2;end
    11:begin na=n[12:0]*m[5:0];nb=na;nc=d[9]!=0?n:0;end
    12:begin nb=n[10:0]*k[3:0];nstate=n[10:0]*convolution_history;end
@@ -283,44 +599,84 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
    16:nout=1;
    17:begin na=n[5:0]*k[12:0];nb=k;end
    18:begin nb=n[5:0]*k[8:0];nout=k;end
-   19:begin nb=0;end
+   19,21:begin nb=0;end
    default:begin end
   endcase
   bases[0]=d[4];bases[1]=d[5];bases[2]=d[6];bases[3]=d[7];bases[4]=d[8];
   lengths[0]=na*4;lengths[1]=nb*4;lengths[2]=nc*4;lengths[3]=op==15?n:nout*4;lengths[4]=nstate*4;
-  if(op==19)begin lengths[0]=|raw_span[63:32]?32'hffffffff:raw_span[31:0];lengths[1]=(n[12:0]*m[5:0])<<1;end
-  if(op<1||op>20)validation=2;
-  else if(n==0||n>4096||(op==10&&n[0])||((op==11||op==19)&&(m==0||m>32))||(op==12&&(n>1024||k==0||k>8))||((op==13||op==20)&&n>128)||(op==14&&(n>32||k==0||k>256))||(op==17&&(n>32||k==0||k>4096))||(op==18&&(n>32||k==0||k>256)))validation=3;
-  else if((op==8&&d[10]>1)||(op==11&&d[9]>1)||((op==13||op==20)&&(d[9]>1073741824||d[10]>1073741824))||(op==14&&d[9]>2147483647)||(op==19&&(d[9]>32'h80000000||d[6]!=0||d[10]!=0||d[11]!=0)))validation=4;
-  else if((op==19?(d[12]<m*8||d[12][4:0]!=0):d[12]!=0)||d[13]!=0||d[14]!=0||d[15]!=0)validation=5;
+  if(raw_w4_op)begin lengths[0]=|raw_span[63:32]?32'hffffffff:raw_span[31:0];lengths[1]=(n[12:0]*m[5:0])<<1;end
+  if(op<1||op>22)validation=2;
+  else if(n==0||n>4096||(op==10&&n[0])||((op==11||raw_w4_op)&&(m==0||m>32))||(op==12&&(n>1024||k==0||k>8))||((op==13||op==20)&&n>128)||(op==14&&(n>32||k==0||k>256))||(op==17&&(n>32||k==0||k>4096))||(op==18&&(n>32||k==0||k>256)))validation=3;
+  else if(((op==8||op==22)&&d[10]>1)||(op==11&&d[9]>1)||((op==13||op==20)&&(d[9]>1073741824||d[10]>1073741824))||(op==14&&d[9]>2147483647)||(raw_w4_op&&(d[9]>32'h80000000||d[6]!=0||d[10]!=0||d[11]!=0)))validation=4;
+  else if((raw_w4_op?(d[12]<m*8||d[12][4:0]!=0):d[12]!=0)||d[13]!=0||d[14]!=0||d[15]!=0)validation=5;
   // Ordered whole-class validation gives the reference's stable error precedence.
-  for(validation_u=0;validation_u<5;validation_u=validation_u+1)if(validation==0&&lengths[validation_u]!=0&&bases[validation_u][4:0]!=0)validation=6;
-  if(validation==0&&op==19&&({32'd0,bases[0]}+raw_span)>64'h40000000)validation=7;
-  for(validation_u=0;validation_u<5;validation_u=validation_u+1)if(validation==0&&lengths[validation_u]!=0&&({32'd0,bases[validation_u]}+{32'd0,lengths[validation_u]})>64'h40000000)validation=7;
-  for(validation_u=0;validation_u<5;validation_u=validation_u+1)for(validation_v=0;validation_v<validation_u;validation_v=validation_v+1)if(validation==0&&lengths[validation_u]!=0&&lengths[validation_v]!=0&&(validation_u>=3||validation_v>=3)&&{32'd0,bases[validation_u]}<({32'd0,bases[validation_v]}+lengths[validation_v])&&{32'd0,bases[validation_v]}<({32'd0,bases[validation_u]}+lengths[validation_u]))validation=8;
+  for(validation_u=0;validation_u<5;validation_u=validation_u+1)if(validation==0&&vector_input_spans[validation_u]!=0&&bases[validation_u][4:0]!=0)validation=6;
+  if(validation==0&&raw_w4_op&&({32'd0,bases[0]}+raw_span)>64'h40000000)validation=7;
+  for(validation_u=0;validation_u<5;validation_u=validation_u+1)if(validation==0&&vector_input_spans[validation_u]!=0&&({32'd0,bases[validation_u]}+{32'd0,vector_input_spans[validation_u]})>64'h40000000)validation=7;
+  for(validation_u=0;validation_u<5;validation_u=validation_u+1)for(validation_v=0;validation_v<validation_u;validation_v=validation_v+1)if(validation==0&&vector_input_spans[validation_u]!=0&&vector_input_spans[validation_v]!=0&&(validation_u>=3||validation_v>=3)&&{32'd0,bases[validation_u]}<({32'd0,bases[validation_v]}+vector_input_spans[validation_v])&&{32'd0,bases[validation_v]}<({32'd0,bases[validation_u]}+vector_input_spans[validation_u]))validation=8;
  end
  assign req_ready=!rst&&!rsp_valid;
- assign mem_req_valid=!rst&&busy&&(st==RREQ||st==WREQ);
- assign mem_req_write=st==WREQ;
+ assign mem_req_valid=!rst&&busy&&(st==RREQ||st==WREQ||delta_load_offer||st==STREAM_WRITE);
+ assign mem_req_write=st==WREQ||st==STREAM_WRITE;
  assign mem_req_addr=dma_addr;
  assign mem_req_wdata=pack;
- assign mem_req_wstrb=st==WREQ?strobes:0;
- assign mem_rsp_ready=!rst&&busy&&(st==RRSP||st==WRSP);
+ assign mem_req_wstrb=(st==WREQ||st==STREAM_WRITE)?strobes:0;
+ assign mem_rsp_ready=!rst&&busy&&(st==RRSP||st==WRSP||(delta_loading&&delta_load_pending!=0)||(streaming_write&&stream_write_pending!=0));
  always @(posedge clk or posedge rst)begin
   if(rst)begin
-   st<=IDLE;validation_phase<=0;validation_latched<=0;raw_span<=0;validation_rows_minus_one<=0;validation_stride_product<=0;busy<=0;done<=0;error<=0;error_code<=0;cycle_count<=0;result_count<=0;rsp_valid<=0;rsp_rdata<=0;rsp_error<=0;
-   scratch_we<=0;scratch_wa<=0;scratch_wd<=0;
-    exp_result<=0;coefficient_digits<=0;coefficient_numerator<=0;coefficient_quotient<=0;coefficient_remainder<=0;coefficient_denominator<=127;coefficient_mod<=0;coefficient_steps<=0;coefficient_shift<=0;
+   norm_output_issued<=0;norm_output_valid<=0;
+   norm_square_issued<=0;norm_square_retired<=0;norm_square_valid<=0;norm_square_shift<=0;norm_square_lane<=0;norm_square_total<=0;
+   vector_inputs_valid<=0;vector_input_loading<=0;vector_input_bank<=0;vector_input_base<=0;
+   delta_dot_q<=0;delta_dot_issued<=0;delta_dot_retired<=0;delta_dot_read_row<=0;delta_dot_valid<=0;
+   stream_write_pending<=0;stream_write_error<=0;
+   delta_pipe_update<=0;delta_pipe_sent<=0;delta_pipe_retired<=0;delta_pipe_row<=0;delta_pipe_col<=0;delta_pipe_read_row<=0;delta_pipe_read_col<=0;delta_pipe_valid<=0;
+   delta_load_sent<=0;delta_load_received<=0;delta_load_lines<=0;delta_load_pending<=0;delta_load_error<=0;delta_load_valid<=0;
+   quant_pack_part<=0;quant_vector_negative<=0;quant_vector_nonzero<=0;
+   quant_remainder<=0;quant_divisor<=0;quant_quotient<=0;quant_bit<=0;quant_negative<=0;
+   st<=IDLE;raw_acc_lane<=0;validation_phase<=0;validation_latched<=0;raw_span<=0;validation_rows_minus_one<=0;validation_stride_product<=0;busy<=0;done<=0;error<=0;error_code<=0;cycle_count<=0;result_count<=0;rsp_valid<=0;rsp_rdata<=0;rsp_error<=0;
+   scratch_we<=0;scratch_wa<=0;scratch_wd<=0;vector_we<=0;vector_wa<=0;
+   delta_round_valid<=0;delta_round_shift_q<=30;
+   scalar_round_valid<=0;scalar_round_input_q<=0;scalar_round_shift_q<=16;vector_delta<=0;vector_pack<=0;
+   scalar_scaled<=0;scalar_saved_a<=0;scalar_scale_sat<=0;scalar_scale_under<=0;scalar_rope_sat<=0;
+    exp_result<=0;coefficient_extra<=0;coefficient_digits<=0;coefficient_numerator<=0;coefficient_quotient<=0;coefficient_remainder<=0;coefficient_denominator<=127;coefficient_mod<=0;coefficient_steps<=0;coefficient_shift<=0;
    sat_count<=0;num_status<=0;domain_count<=0;under_count<=0;zero_count<=0;invalid_count<=0;
     sat_pending<=0;domain_pending<=0;under_pending<=0;zero_pending<=0;invalid_pending<=0;numeric_pending<=0;
     terminal_error<=0;pack_mask<=0;pack_byte_mode<=0;
-   cache_valid<=0;read_address<=0;dma_addr<=0;cache_addr<=0;cache_data<=0;pack<=0;strobes<=0;rsel<=0;
+   cache_valid<=0;scale_cache_valid<=0;read_address<=0;dma_addr<=0;cache_addr<=0;cache_data<=0;pack<=0;strobes<=0;rsel<=0;
    for(a=0;a<16;a=a+1)begin cfg[a]<=0;d[a]<=0;end
    pc<=0;i<=0;j<=0;t<=0;no<=0;ns<=0;softbase<=0;peak<=0;best<=0;acc<=0;ma<=0;mb<=0;norm<=0;delta<=0;rv<=0;x<=0;y<=0;z<=0;w<=0;maxval<=0;
-   write_base<=0;write_bytes<=0;write_index<=0;write_scratch<=0;pack_lane<=0;pack_byte<=0;write_state<=0;usum<=0;remsum<=0;denom<=1;dq<=0;dd<=1;dr<=0;dc<=0;dneg<=0;dround<=0;dtrack<=0;dnonzero<=0;dv<=0;divrem<=0;returnpc<=0;sqrad<=0;sqrem<=0;sqroot<=0;sqcount<=0;
+   write_base<=0;write_bytes<=0;write_index<=0;write_scratch<=0;pack_lane<=0;pack_byte<=0;write_state<=0;usum<=0;remsum<=0;denom<=1;dq<=0;dd<=1;dr<=0;dc<=0;dneg<=0;dround<=0;dtrack<=0;dnonzero<=0;dv<=0;divrem<=0;returnpc<=0;sqrad<=0;sqrem<=0;sqroot<=0;sqcount<=0;norm_fraction<=0;norm_reciprocal<=0;divisor_shift<=0;
   end else begin
    sat_events=0;domain_events=0;under_events=0;zero_events=0;invalid_events=0;numeric_events=0;diagnostics_clear=0;
-   scratch_we<=0;
+   scratch_we<=0;vector_we<=0;
+    if(streaming_write)begin
+      case({stream_write_accept,stream_write_response})
+       2'b10:stream_write_pending<=stream_write_pending+5'd1;
+       2'b01:stream_write_pending<=stream_write_pending-5'd1;
+       default:begin end
+      endcase
+      if(stream_write_response&&mem_rsp_error)stream_write_error<=1;
+     end
+     if(delta_loading)begin
+     case({delta_load_accept,delta_load_return})
+      2'b10:delta_load_pending<=delta_load_pending+5'd1;
+      2'b01:delta_load_pending<=delta_load_pending-5'd1;
+      default:begin end
+     endcase
+     if(!delta_load_valid&&st==DELTA_LOAD&&!delta_load_error&&delta_load_sent<delta_load_lines&&delta_load_pending<DELTA_PREFETCH)delta_load_valid<=1;
+     if(delta_load_accept)begin
+      delta_load_sent<=delta_load_sent+12'd1;dma_addr<=dma_addr+30'd32;
+      delta_load_valid<=st==DELTA_LOAD&&!delta_load_error&&!(delta_load_return&&mem_rsp_error)&&delta_load_sent+12'd1<delta_load_lines&&(delta_load_pending<DELTA_PREFETCH-1||delta_load_return);
+     end
+     if(delta_load_return)begin
+      delta_load_received<=delta_load_received+12'd1;
+      if(mem_rsp_error)delta_load_error<=1;
+      else if(!delta_load_error)begin
+       putvector((vector_input_loading?{17'd0,vector_input_base}:{19'd0,no})+{17'd0,delta_load_received,3'b0});
+       for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)vector_wd[delta_lane]<=$signed(mem_rsp_data[delta_lane*32+:32]);
+      end
+     end
+    end
    if(rsp_valid&&rsp_ready)rsp_valid<=0;
    if(busy)cycle_count<=cycle_count+1;
    if(req_valid&&req_ready)begin
@@ -332,7 +688,11 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
      else if(req_addr[11:0]==0)begin
       if(req_wdata==2&&!busy)begin done<=0;error<=0;error_code<=0;result_count<=0;cycle_count<=0;diagnostics_clear=1;end
       else if(req_wdata==1&&!busy&&!done&&!error)begin
-       for(a=0;a<16;a=a+1)d[a]<=cfg[a];busy<=1;st<=VALIDATE;validation_phase<=0;cycle_count<=0;result_count<=0;cache_valid<=0;diagnostics_clear=1;
+       vector_delta<=PARALLEL_DELTA&&(cfg[0]==13||cfg[0]==20)&&cfg[1][2:0]==0;
+       vector_pack<=((PARALLEL_DELTA&&(cfg[0]==13||cfg[0]==20))||(PARALLEL_CONV&&cfg[0]==12)||
+          (cfg[1]>=64&&((cfg[0]>=1&&cfg[0]<=8)||cfg[0]==10||cfg[0]==22||(cfg[0]==15&&cfg[1][4:0]==0))))&&cfg[1][2:0]==0;
+       vector_inputs_valid<=0;vector_input_loading<=0;
+        for(a=0;a<16;a=a+1)d[a]<=cfg[a];busy<=1;st<=VALIDATE;validation_phase<=0;cycle_count<=0;result_count<=0;cache_valid<=0;scale_cache_valid<=0;diagnostics_clear=1;
       end else rsp_error<=1;
      end else rsp_error<=1;
     end else if(req_addr[11:0]>=32&&req_addr[11:0]<96)rsp_rdata<=cfg[(req_addr[11:0]-32)/4];
@@ -350,16 +710,27 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
      0:begin validation_rows_minus_one<=n[12:0]-13'd1;validation_phase<=1;end
      1:begin validation_stride_product<=validation_rows_minus_one*d[12];validation_phase<=2;end
      2:begin raw_span<={19'd0,validation_stride_product}+({32'd0,m}<<3);validation_phase<=3;end
-     3:begin validation_latched<=validation;no<=nout;ns<=nstate;validation_phase<=4;end
-     default:if(validation_latched!=0)fail(validation_latched);else begin i<=0;j<=0;t<=0;acc<=0;usum<=0;remsum<=0;peak<=0;best<=0;pc<=0;st<=EXEC;end
+     3:begin no<=nout;ns<=nstate;
+       for(a=0;a<5;a=a+1)vector_input_spans[a]<=lengths[a];validation_phase<=4;end
+      4:begin validation_latched<=validation;validation_phase<=5;end
+     default:if(validation_latched!=0)fail(validation_latched);else begin
+       i<=0;j<=0;t<=0;acc<=0;usum<=0;remsum<=0;peak<=0;best<=0;pc<=0;st<=EXEC;
+       if(vector_input_eligible)begin vector_input_bank<=0;vector_input_loading<=1;st<=VECTOR_LOAD_SETUP;end
+      end
     endcase
     READBEGIN:begin
-     if(cache_valid&&cache_addr=={read_address[29:5],5'b0})begin
+     if(vector_input_hit)st<=VECTOR_READ;
+      else if(use_scale_cache&&scale_cache_valid&&scale_cache_addr=={read_address[29:5],5'b0})begin
+      rv<=$signed(scale_cache_data[read_address[4:2]*32+:32]);st<=EXEC;
+     end else if(!use_scale_cache&&cache_valid&&cache_addr=={read_address[29:5],5'b0})begin
       rv<=$signed(cache_data[read_address[4:2]*32+:32]);st<=EXEC;
      end else begin dma_addr<={read_address[29:5],5'b0};rsel<=read_address[4:2];st<=RREQ;end
     end
     RREQ:if(mem_req_ready)st<=RRSP;
-    RRSP:if(mem_rsp_valid)begin if(mem_rsp_error)fail(10);else begin cache_addr<=dma_addr;cache_data<=mem_rsp_data;cache_valid<=1;rv<=$signed(mem_rsp_data[rsel*32+:32]);st<=EXEC;end end
+    RRSP:if(mem_rsp_valid)begin if(mem_rsp_error)fail(10);else begin
+     if(use_scale_cache)begin scale_cache_addr<=dma_addr;scale_cache_data<=mem_rsp_data;scale_cache_valid<=1;end
+     else begin cache_addr<=dma_addr;cache_data<=mem_rsp_data;cache_valid<=1;end
+     rv<=$signed(mem_rsp_data[rsel*32+:32]);st<=EXEC;end end
     WREQ:if(mem_req_ready)st<=WRSP;
     WRSP:if(mem_rsp_valid)begin
      if(mem_rsp_error)fail(11);
@@ -378,7 +749,12 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
        else pack_mask[pack_index]<=(pack_lane==(pack_index/4));
       st<=PACKSAVE;
      end
-     PACKSAVE:begin
+     PACKSAVE:if(vector_pack)begin
+      // Aligned Delta output/state spans use the existing eight-bank read port.
+      // One synchronous line read replaces sixteen scalar packing clocks.
+      for(pack_index=0;pack_index<8;pack_index=pack_index+1)pack[pack_index*32+:32]<=vector_rd[pack_index];
+      strobes<=32'hffffffff;write_index<=write_index+32;st<=WREQ;
+     end else begin
       // All slices are constant: only a registered one-hot byte enable reaches
       // each pack byte, replacing the wide dynamic partial-write/barrel mux.
       for(pack_index=0;pack_index<32;pack_index=pack_index+1)
@@ -398,10 +774,244 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
       // is delayed until that same edge, with DDR write ACK already consumed.
       busy<=0;done<=terminal_error==0;error<=terminal_error!=0;error_code<=terminal_error;st<=IDLE;
      end
+    NORM_OUTPUT_SETUP:begin norm_output_issued<=0;norm_output_valid<=0;st<=NORM_OUTPUT_STREAM;end
+    NORM_OUTPUT_STREAM:begin
+     norm_output_valid<={norm_output_valid[3:0],norm_output_issue};
+     if(norm_output_issue)begin norm_output_tag[0]<=norm_output_issued;norm_output_issued<=norm_output_issued+13'd1;end
+     if(norm_output_valid[0])begin ma<=norm_reciprocal;mb<=sv;norm_output_tag[1]<=norm_output_tag[0];end
+     if(norm_output_valid[1])norm_output_tag[2]<=norm_output_tag[1];
+     if(norm_output_valid[2])begin scalar_round_input_q<=product_registered;scalar_round_shift_q<=32;norm_output_tag[3]<=norm_output_tag[2];end
+     if(norm_output_valid[3])begin
+      scalar_scaled<=scalar_scaled_comb;scalar_scale_under<=scalar_scale_under_comb;scalar_scale_sat<=scalar_scale_sat_comb;
+      norm_output_tag[4]<=norm_output_tag[3];
+     end
+     if(norm_output_valid[4])begin
+      putscratch({19'd0,norm_output_tag[4]},narrow32($signed({{64{scalar_scaled[63]}},scalar_scaled})));
+      if(scalar_scale_under)flag_sink=flag_under(1'b0);
+      if(scalar_scale_sat)flag_sink=flag_sat(1'b0);
+      if(norm_output_tag[4]+13'd1==n[12:0])begin i<=0;pc<=2200;st<=EXEC;end
+     end
+    end
+    NORM_SQUARE_SETUP:begin
+     norm_square_issued<=0;norm_square_retired<=0;norm_square_valid<=0;norm_square_shift<=0;
+     for(a=0;a<13;a=a+1)if(n[a])norm_square_shift<=a[3:0];
+     for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)norm_square_sums[delta_lane]<=0;
+     st<=NORM_SQUARE_STREAM;
+    end
+    NORM_SQUARE_STREAM:begin
+     norm_square_valid<={norm_square_valid[3:0],norm_square_issue};
+     if(norm_square_issue)norm_square_issued<=norm_square_issued+13'd8;
+     if(norm_square_valid[0])for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+      delta_ma[delta_lane]<=vector_rd[delta_lane];delta_mb[delta_lane]<=vector_rd[delta_lane];
+     end
+     if(norm_square_valid[4])begin
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)norm_square_sums[delta_lane]<=norm_square_sums[delta_lane]+{10'd0,delta_product[delta_lane][63:0]};
+      norm_square_retired<=norm_square_retired+13'd8;
+      if(norm_square_retired+13'd8==n[12:0])begin norm_square_total<=0;norm_square_lane<=0;st<=NORM_SQUARE_SUM;end
+     end
+    end
+    NORM_SQUARE_SUM:begin
+     norm_square_total<=norm_square_total+{2'd0,norm_square_sums[norm_square_lane]};
+     if(norm_square_lane==7)st<=NORM_SQUARE_FINISH;else norm_square_lane<=norm_square_lane+3'd1;
+    end
+    NORM_SQUARE_FINISH:begin
+     usum<=norm_square_total>>norm_square_shift;dv<=0;
+     divrem<=norm_square_total&({44'd0,n}-76'd1);pc<=83;st<=EXEC;
+    end
+    VECTOR_LOAD_SETUP:begin
+     delta_load_sent<=0;delta_load_received<=0;delta_load_pending<=0;delta_load_error<=0;delta_load_valid<=0;
+     if(vector_input_spans[vector_input_bank]==0)begin
+      if((convolution_prefetch&&vector_input_bank==4)||(!convolution_prefetch&&vector_input_bank==2))begin vector_inputs_valid<=1;vector_input_loading<=0;st<=EXEC;end
+      else vector_input_bank<=convolution_prefetch?(vector_input_bank==0?3'd1:3'd4):vector_input_bank+3'd1;
+     end else begin
+      dma_addr<=bases[vector_input_bank][29:0];
+      delta_load_lines<=vector_input_spans[vector_input_bank][16:5]+{11'd0,(|vector_input_spans[vector_input_bank][4:0])};
+      case(vector_input_bank)
+       0:vector_input_base<=convolution_prefetch?16384:4096;
+       1:vector_input_base<=8192;
+       4:vector_input_base<={2'd0,no};
+       default:vector_input_base<=12288;
+      endcase
+      st<=DELTA_LOAD;
+     end
+    end
+    VECTOR_READ:begin
+     rv<=sv;for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)cache_data[delta_lane*32+:32]<=vector_rd[delta_lane];
+     cache_valid<=0;st<=EXEC;
+    end
+    DELTA_DOT_SETUP:begin
+     delta_dot_issued<=0;delta_dot_retired<=0;delta_dot_read_row<=0;delta_dot_valid<=0;
+     for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)delta_acc[delta_lane]<=0;
+     pc<=delta_dot_q?1728:1717;st<=DELTA_DOT_STREAM;
+    end
+    DELTA_DOT_STREAM:begin
+     delta_dot_valid<={delta_dot_valid[3:0],delta_dot_issue};
+     if(delta_dot_issue)begin
+      delta_dot_read_row<=delta_dot_issued[6:0];delta_dot_issued<=delta_dot_issued+8'd1;
+     end
+     if(delta_dot_valid[0])for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+      delta_ma[delta_lane]<=vector_rd[delta_lane];
+      delta_mb[delta_lane]<=delta_dot_q?delta_q_scalar:delta_k_scalar;
+     end
+     if(delta_dot_valid[4])begin
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)delta_acc[delta_lane]<=shared_delta_add(delta_lane[2:0]);
+      delta_dot_retired<=delta_dot_retired+8'd1;
+      if(delta_dot_retired==127)begin i<=128;pc<=delta_dot_q?1729:1718;st<=EXEC;end
+     end
+    end
+    MULTIPLY_DELAY:if(multiply_delay_count) multiply_delay_count<=0;else begin pc<=multiply_delay_pc;st<=EXEC;end
+    STREAM_PACK_READ:begin
+     if(stream_write_error||(stream_write_response&&mem_rsp_error))st<=STREAM_WRITE_DRAIN;
+     else if(stream_write_pending<DELTA_PREFETCH)begin
+      if(write_index>=write_bytes)begin
+       if(!write_state&&ns!=0)begin
+        write_state<=1;write_base<=d[8];write_bytes<=ns*4;write_index<=0;write_scratch<=no;
+       end else st<=STREAM_WRITE_DRAIN;
+      end else begin dma_addr<=write_base[29:0]+{write_index[29:5],5'd0};st<=STREAM_PACK_SAVE;end
+     end
+    end
+    STREAM_PACK_SAVE:begin
+     if(stream_write_error||(stream_write_response&&mem_rsp_error))st<=STREAM_WRITE_DRAIN;
+     else begin
+      if(quant_byte_stream)begin
+       for(pack_index=0;pack_index<32;pack_index=pack_index+1)
+        if(pack_index/8==quant_pack_part)pack[pack_index*8+:8]<=vector_rd[pack_index%8][7:0];
+       if(quant_pack_part==3)begin strobes<=32'hffffffff;st<=STREAM_WRITE;end
+       else begin quant_pack_part<=quant_pack_part+2'd1;st<=STREAM_PACK_READ;end
+      end else begin
+       for(pack_index=0;pack_index<8;pack_index=pack_index+1)pack[pack_index*32+:32]<=vector_rd[pack_index];
+       strobes<=32'hffffffff;st<=STREAM_WRITE;
+      end
+     end
+    end
+    STREAM_WRITE:if(mem_req_ready)begin quant_pack_part<=0;write_index<=write_index+32;st<=STREAM_PACK_READ;end
+    STREAM_WRITE_DRAIN:if(stream_write_pending==0)begin terminal_error<=stream_write_error?11:0;st<=DIAG_DRAIN;end
+    DELTA_VECTOR_PIPE:begin
+     delta_pipe_valid<={delta_pipe_valid[5:0],delta_pipe_issue};
+     if(delta_pipe_issue)begin
+      delta_pipe_sent<=delta_pipe_sent+12'd1;delta_pipe_tag[0]<=delta_pipe_read_address;
+      delta_pipe_read_row<=delta_pipe_row;delta_pipe_read_col<=delta_pipe_col;
+      if(delta_pipe_col==120)begin delta_pipe_col<=0;delta_pipe_row<=delta_pipe_row+7'd1;end
+      else delta_pipe_col<=delta_pipe_col+7'd8;
+     end
+     if(delta_pipe_valid[0])begin
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+       delta_ma[delta_lane]<=delta_pipe_update?delta_k_scalar:vector_rd[delta_lane];
+       delta_mb[delta_lane]<=delta_pipe_update?delta_v_lane[delta_lane]:$signed({1'b0,d[9]});
+       delta_pipe_old[0][delta_lane]<=vector_rd[delta_lane];
+      end
+      delta_pipe_tag[1]<=delta_pipe_tag[0];
+     end
+     if(delta_pipe_valid[1])begin
+      delta_pipe_tag[2]<=delta_pipe_tag[1];
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)delta_pipe_old[1][delta_lane]<=delta_pipe_old[0][delta_lane];
+     end
+     if(delta_pipe_valid[2])begin
+      delta_pipe_tag[3]<=delta_pipe_tag[2];
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)delta_pipe_old[2][delta_lane]<=delta_pipe_old[1][delta_lane];
+     end
+     if(delta_pipe_valid[3])begin
+      delta_pipe_tag[4]<=delta_pipe_tag[3];
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)delta_pipe_old[3][delta_lane]<=delta_pipe_old[2][delta_lane];
+     end
+     if(delta_pipe_valid[4])begin
+      delta_pipe_tag[5]<=delta_pipe_tag[4];delta_round_shift_q<=delta_pipe_update?6'd8:6'd30;
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+       delta_round_input_q[delta_lane]<=delta_product[delta_lane];
+       delta_pipe_old[4][delta_lane]<=delta_pipe_old[3][delta_lane];
+      end
+     end
+     if(delta_pipe_valid[5])begin
+      delta_pipe_tag[6]<=delta_pipe_tag[5];
+      lane_scale_sat<=lane_scale_sat_comb;lane_scale_under<=lane_scale_under_comb;
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+       lane_scaled[delta_lane]<=lane_scaled_comb[delta_lane];
+       delta_saved_vector[delta_lane]<=delta_pipe_old[4][delta_lane];
+      end
+     end
+     if(delta_pipe_valid[6])begin
+      putvector({17'd0,delta_pipe_tag[6]});delta_pipe_retired<=delta_pipe_retired+12'd1;
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)vector_wd[delta_lane]<=shared_delta_clip(delta_lane[2:0]);
+
+      if(delta_pipe_retired+12'd1==delta_load_lines)begin
+       i<=0;j<=0;pc<=delta_pipe_update?1725:1714;st<=EXEC;
+       for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)delta_acc[delta_lane]<=0;
+      end
+     end
+    end
+     DELTA_LOAD:begin
+      if(delta_load_return&&mem_rsp_error)st<=DELTA_LOAD_DRAIN;
+      else if(delta_load_received==delta_load_lines)begin
+       if(vector_input_loading)begin
+        if((convolution_prefetch&&vector_input_bank==4)||(!convolution_prefetch&&vector_input_bank==2))begin vector_inputs_valid<=1;vector_input_loading<=0;st<=EXEC;end
+        else begin vector_input_bank<=convolution_prefetch?(vector_input_bank==0?3'd1:3'd4):vector_input_bank+3'd1;st<=VECTOR_LOAD_SETUP;end
+       end else begin
+        i<=0;pc<=1710;st<=EXEC;
+        if(n==128)begin delta_pipe_update<=0;delta_pipe_sent<=0;delta_pipe_retired<=0;
+         delta_pipe_row<=0;delta_pipe_col<=0;delta_pipe_valid<=0;pc<=1713;st<=DELTA_VECTOR_PIPE;end
+       end
+      end
+     end
+
+    DELTA_LOAD_DRAIN:if(delta_load_pending==0&&!delta_load_valid)fail(10);
+    QUANT_VECTOR_DIV:begin
+     for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+      if(quant_vector_remainder[delta_lane]>=quant_divisor)begin
+       quant_vector_remainder[delta_lane]<=quant_vector_remainder[delta_lane]-quant_divisor;
+       quant_vector_quotient[delta_lane]<={quant_vector_quotient[delta_lane][5:0],1'b1};
+      end else quant_vector_quotient[delta_lane]<={quant_vector_quotient[delta_lane][5:0],1'b0};
+     end
+     quant_divisor<=quant_divisor>>1;
+     if(quant_bit==0)st<=QUANT_VECTOR_DONE;else quant_bit<=quant_bit-3'd1;
+    end
+    QUANT_VECTOR_DONE:begin
+     putvector({16'd0,i});
+     for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+      vector_wd[delta_lane]<=quant_vector_negative[delta_lane]?-$signed({24'd0,quant_vector_result[delta_lane]}):$signed({24'd0,quant_vector_result[delta_lane]});
+      if(quant_vector_nonzero[delta_lane]&&quant_vector_result[delta_lane]==0)flag_sink=flag_under(1'b0);
+     end
+     i<=i+8;pc<=2100;st<=EXEC;
+    end
+    QUANT_DIV:begin
+     if(quant_remainder>=quant_divisor)begin
+      quant_remainder<=quant_remainder-quant_divisor;
+      quant_quotient<={quant_quotient[5:0],1'b1};
+     end else quant_quotient<={quant_quotient[5:0],1'b0};
+     quant_divisor<=quant_divisor>>1;
+     if(quant_bit==0)st<=QUANT_DONE;else quant_bit<=quant_bit-3'd1;
+    end
+    QUANT_DONE:begin
+     if(quant_magnitude!=0&&quant_quotient==0&&!quant_increment)flag_sink=flag_under(1'b0);
+     dv<=quant_negative?-$signed({57'd0,quant_quotient}+{63'd0,quant_increment}):
+                             $signed({57'd0,quant_quotient}+{63'd0,quant_increment});
+     pc<=155;st<=EXEC;
+    end
+    DIVCLASS:begin
+     if(dd!=0&&(dd&(dd-1))==0)st<=DIVENC;else st<=DIVIDE;
+    end
+    DIVENC:begin
+     // dd is one-hot here: six independent OR trees replace a 64-way priority chain.
+     divisor_shift[5]<=|dd[63:32];
+     divisor_shift[4]<=|{dd[63:48],dd[31:16]};
+     divisor_shift[3]<=|{dd[63:56],dd[47:40],dd[31:24],dd[15:8]};
+     divisor_shift[2]<=|{dd[63:60],dd[55:52],dd[47:44],dd[39:36],dd[31:28],dd[23:20],dd[15:12],dd[7:4]};
+     divisor_shift[1]<=|(dd&64'hcccccccccccccccc);
+     divisor_shift[0]<=|(dd&64'haaaaaaaaaaaaaaaa);
+     st<=POW2DIV;
+    end
+    POW2DIV:begin
+     dq<=dq>>divisor_shift;dr<=dq&(dd-1);st<=DIVEND;
+    end
     DIVIDE:begin
-     remnext={dr,1'b0}|dq[63];qnext=dq<<1;
-     if(remnext>={1'b0,dd})begin remnext=remnext-{1'b0,dd};qnext[0]=1;end
-     dr<=remnext[63:0];dq<=qnext;dc<=dc-1;if(dc==1)st<=DIVEND;
+      // Two exact restoring bits keep the carry/compare chain short.
+      // Quotient, remainder and ties-even rounding remain unchanged.
+     divide_next_q=dq;divide_next_r=dr;
+     for(divide_step=0;divide_step<2;divide_step=divide_step+1)begin
+      divide_trial={divide_next_r,1'b0}|divide_next_q[63];divide_next_q=divide_next_q<<1;
+      if(divide_trial>={1'b0,dd})begin divide_trial=divide_trial-{1'b0,dd};divide_next_q[0]=1;end
+      divide_next_r=divide_trial[63:0];
+     end
+     dr<=divide_next_r;dq<=divide_next_q;dc<=dc-2;if(dc==2)st<=DIVEND;
     end
     DIVEND:begin
      qnext=dq;if(dround&&(dr>dd-dr||(dr==dd-dr&&dq[0])))qnext=dq+1;
@@ -410,12 +1020,19 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
     end
     MULWAIT:st<=EXEC;
     DIV127:begin
-      // Base128:128*r+b =127*r+(r+b), with r<127,b<128.
-      coefficient_sum={1'b0,coefficient_mod}+{1'b0,coefficient_digits[62:56]};
-      coefficient_digit=coefficient_mod+(coefficient_sum>=8'd127 ? 7'd1:7'd0);
-      coefficient_mod<=coefficient_sum>=8'd127 ? coefficient_sum-8'd127:coefficient_sum;
-      coefficient_quotient<=(coefficient_quotient<<7)|{57'd0,coefficient_digit};
-      coefficient_digits<=coefficient_digits<<7;
+      // Exact base128 long division, three small radix steps per clock.
+      // 128*r+b =127*r+(r+b), r<127,b<128: only 8-bit add/compare.
+      coefficient_next_digits=coefficient_digits;
+      coefficient_next_quotient=coefficient_quotient;coefficient_next_mod=coefficient_mod;
+      for(coefficient_step=0;coefficient_step<3;coefficient_step=coefficient_step+1)begin
+       coefficient_sum={1'b0,coefficient_next_mod}+{1'b0,coefficient_next_digits[62:56]};
+       coefficient_digit=coefficient_next_mod+(coefficient_sum>=8'd127 ? 7'd1:7'd0);
+       coefficient_next_mod=coefficient_sum>=8'd127 ? coefficient_sum-8'd127:coefficient_sum;
+       coefficient_next_quotient=(coefficient_next_quotient<<7)|{57'd0,coefficient_digit};
+       coefficient_next_digits=coefficient_next_digits<<7;
+      end
+      coefficient_mod<=coefficient_next_mod;coefficient_quotient<=coefficient_next_quotient;
+      coefficient_digits<=coefficient_next_digits;
       coefficient_steps<=coefficient_steps-1;
       if(coefficient_steps==1)begin pc<=1632;st<=EXEC;end
      end
@@ -424,20 +1041,86 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
      if(remnext>=trial)begin sqrem<=remnext-trial;sqroot<=(sqroot<<1)|1;end else begin sqrem<=remnext;sqroot<=sqroot<<1;end
      sqrad<=sqrad<<2;sqcount<=sqcount-1;if(sqcount==1)begin pc<=85;st<=EXEC;end
     end
-    EXEC:case(pc)
+    ROUND_STAGE:begin
+     scalar_scaled<=scalar_scaled_comb;scalar_scale_sat<=scalar_scale_sat_comb;
+     scalar_scale_under<=scalar_scale_under_comb;scalar_round_valid<=1;st<=EXEC;
+    end
+    DELTA_ROUND_STAGE:begin
+     for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)lane_scaled[delta_lane]<=lane_scaled_comb[delta_lane];
+     lane_scale_sat<=lane_scale_sat_comb;lane_scale_under<=lane_scale_under_comb;
+     delta_round_valid<=1;st<=EXEC;
+    end
+    EXEC:if(delta_round_needed&&!delta_round_valid)begin
+     for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+      delta_round_input_q[delta_lane]<=(pc==1718||pc==1729)?{{2{delta_acc[delta_lane][63]}},delta_acc[delta_lane]}:delta_product[delta_lane];
+      delta_saved_vector[delta_lane]<=vector_rd[delta_lane];
+     end
+     delta_round_shift_q<=(pc==2004||pc==2204)?16:pc==1718?24:pc==1729?(op==20?16:24):pc==1724?8:30;
+     st<=DELTA_ROUND_STAGE;
+    end else if(scalar_round_needed&&!scalar_round_valid)begin
+     scalar_round_input_q<=scalar_round_input;scalar_round_shift_q<=scalar_round_shift;
+     scalar_rope_sat<=rope_sat;scalar_saved_a<={{32{sv[31]}},sv};st<=ROUND_STAGE;
+    end else begin
+     scalar_round_valid<=0;delta_round_valid<=0;
+     case(pc)
      0:case(op)
-      1,2,3,4,5,6,7:pc<=10;
-      8:pc<=80;
+      1,2,3:pc<=vector_inputs_valid&&n[2:0]==0?2000:10;
+      4,5,6,7:pc<=10;
+      8,22:if(vector_inputs_valid&&(n&(n-1))==0)st<=NORM_SQUARE_SETUP;else pc<=80;
       9:begin softbase<=n;pc<=90;maxval<=32'sh80000000;end
       10:pc<=100;
       11,17,18:pc<=110;
-      12:pc<=120;
-      13,20:pc<=130;
+      12:pc<=PARALLEL_CONV?1900:120;
+      13,20:pc<=vector_delta?1700:130;
       14:begin softbase<=k;maxval<=32'sh80000000;pc<=140;end
       15,16:begin maxval<=32'sh80000000;pc<=150;end
-      19:pc<=160;
+      19,21:pc<=PARALLEL_RAW&&m[1:0]==0?1800:160;
       default:fail(2);
      endcase
+     // Reuse the eight Delta arithmetic lanes for aligned elementwise jobs.
+     2000:if(i==n)startwrite();else pc<=2001;
+     2001:begin
+      if(op==1)begin
+       putvector({16'd0,i});
+       for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)vector_wd[delta_lane]<=vector_rd[delta_lane];
+       i<=i+8;pc<=2000;
+      end else begin
+       for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)delta_ma[delta_lane]<=vector_rd[delta_lane];
+       pc<=2002;
+      end
+     end
+     2002:begin
+      if(op==2)begin
+       putvector({16'd0,i});
+       for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)
+        vector_wd[delta_lane]<=narrow32($signed({{95{delta_ma[delta_lane][32]}},delta_ma[delta_lane]})+$signed({{96{vector_rd[delta_lane][31]}},vector_rd[delta_lane]}));
+       i<=i+8;pc<=2000;
+      end else begin
+       for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)delta_mb[delta_lane]<=vector_rd[delta_lane];
+       pc<=2003;
+      end
+     end
+     2003:wait_delta_product(2004);
+     2004:begin
+      putvector({16'd0,i});
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)vector_wd[delta_lane]<=shared_delta_clip(delta_lane[2:0]);
+      i<=i+8;pc<=2000;
+     end
+     2200:if(i==n)startwrite();else pc<=2201;
+     2201:begin
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)delta_ma[delta_lane]<=vector_rd[delta_lane];pc<=2202;
+     end
+     2202:begin
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)
+       delta_mb[delta_lane]<=$signed({vector_rd[delta_lane][31],vector_rd[delta_lane]})+(d[10]!=0?33'sd65536:33'sd0);
+      pc<=2203;
+     end
+     2203:wait_delta_product(2204);
+     2204:begin
+      putvector({16'd0,i});
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)vector_wd[delta_lane]<=shared_delta_clip(delta_lane[2:0]);
+      i<=i+8;pc<=2200;
+     end
      // Elementwise and LUT pipeline.
      10:if(i==n)startwrite();else readword(d[4]+i*4,11);
      11:begin x<=rv;if(op==2||op==3)readword(d[5]+i*4,12);else begin
@@ -445,9 +1128,16 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
       if(op==1)begin i<=i+1;pc<=10;end else pc<=71;
      end end
      71:begin
-      if(op==7)begin exp_result<=exponential({{32{rv[31]}},rv});pc<=72;end
-      else pc<=73;
+      if(op==7)pc<=714;
+      else pc<=711;
      end
+     714:pc<=715;
+     715:pc<=717;
+     717:pc<=718;
+     718:pc<=716;
+     716:begin exp_result<=exponential({{32{rv[31]}},rv});pc<=72;end
+     711:pc<=712;
+     712:pc<=73;
      73:begin putscratch(i,activation(op,rv));i<=i+1;pc<=10;end
      72:begin
       mag={32'd0,exp_result}>>14;
@@ -456,28 +1146,50 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
       putscratch(i,mag[31:0]);i<=i+1;pc<=10;
      end
      12:begin if(op==2)begin putscratch(i,narrow32($signed(x)+128'sd0+$signed(rv)));i<=i+1;pc<=10;end else begin ma<=x;mb<=rv;pc<=13;st<=MULWAIT;end end
-     13:begin putscratch(i,narrow32(scale(product,16)));i<=i+1;pc<=10;end
+     13:begin putscratch(i,narrow32(shared_scale(1'b0)));i<=i+1;pc<=10;end
      // RMS: exact quotient/remainder sum avoids overflowing uint64 sum squares.
      80:if(i==n)begin divide($signed(remsum),{32'd0,n},0,0,83);end else readword(d[4]+i*4,81);
      81:begin ma<=rv;mb<=rv;pc<=82;st<=MULWAIT;end
      82:divide(product[63:0],{32'd0,n},0,0,821);
      821:begin usum<=usum+$unsigned(dv);remsum<=remsum+divrem;i<=i+1;pc<=80;end
      83:begin
-      mag=usum+$unsigned(dv);if(divrem>n-divrem||(divrem==n-divrem&&mag[0]))mag=mag+1;
-      sqrad<=mag+(d[9]==0?64'd4295:{32'd0,d[9]});sqroot<=0;sqrem<=0;sqcount<=32;st<=SQROOT;
+      norm_variance_q<=usum+$unsigned(dv);pc<=830;
      end
-     85:begin denom<=sqroot;i<=0;pc<=86;end
+     830:begin
+      if(divrem>n-divrem||(divrem==n-divrem&&norm_variance_q[0]))norm_variance_q<=norm_variance_q+64'd1;
+      pc<=831;
+     end
+     831:begin norm_variance_q<=norm_variance_q+(d[9]==0?64'd4295:{32'd0,d[9]});pc<=832;end
+     832:begin
+      norm_leading=0;
+      if(op==22)begin
+       norm_leading=63;for(norm_bit=0;norm_bit<64;norm_bit=norm_bit+1)if(norm_variance_q[norm_bit])norm_leading=63-norm_bit;
+       norm_leading=norm_leading/2;if(norm_leading>8)norm_leading=8;
+      end
+      norm_fraction<=norm_leading[3:0];pc<=833;
+     end
+     833:begin sqrad<=norm_variance_q<<{norm_fraction,1'b0};sqroot<=0;sqrem<=0;sqcount<=32;st<=SQROOT;end
+
+     85:begin denom<=sqroot;i<=0;if(op==22)divide(64'sd1<<<(48+norm_fraction),sqroot,1,0,851);else pc<=86;end
+     851:begin norm_reciprocal<=dv;pc<=86;if(vector_inputs_valid&&n[2:0]==0)st<=NORM_OUTPUT_SETUP;end
      86:if(i==n)startwrite();else readword(d[4]+i*4,87);
-     87:divide($signed(rv)*64'sd65536,denom,1,1,88);
+     87:if(op==22)begin ma<=norm_reciprocal;mb<=rv;pc<=872;st<=MULWAIT;end
+      else divide($signed(rv)*64'sd65536,denom,1,1,88);
+     872:begin norm<=shared_scale(1'b0);readword(d[5]+i*4,89);end
      88:begin norm<=dv;readword(d[5]+i*4,89);end
      89:begin ma<=norm;mb<=$signed(rv)+(d[10]!=0?64'sd65536:64'sd0);pc<=891;st<=MULWAIT;end
-     891:begin putscratch(i,narrow32(scale(product,16)));i<=i+1;pc<=86;end
+     891:begin putscratch(i,narrow32(shared_scale(1'b0)));i<=i+1;pc<=86;end
      // Common softmax. Scores in scratch[softbase+i], later replaced by probabilities.
      90:if(i==n)begin i<=0;usum<=0;pc<=92;end else readword(d[4]+i*4,91);
      91:begin putscratch(softbase+i,rv);if(rv>maxval)maxval<=rv;i<=i+1;pc<=90;end
      92:if(i==n)begin i<=0;pc<=94;end else begin pc<=93;end
      93:pc<=931;
-     931:begin exp_result<=exponential($signed(sv)-$signed({{32{maxval[31]}},maxval}));pc<=932;end
+     931:pc<=933;
+     933:pc<=934;
+     934:pc<=937;
+     937:pc<=938;
+     938:pc<=935;
+     935:begin exp_result<=exponential($signed(sv)-$signed({{32{maxval[31]}},maxval}));pc<=932;end
      932:begin putscratch(softbase+i,$signed(exp_result));usum<=usum+{32'd0,exp_result};i<=i+1;pc<=92;end
      94:if(i==n)begin i<=0;j<=0;acc<=0;if(op==14)pc<=145;else startwrite();end else begin pc<=95;end
      95:divide($signed(sv)*64'sd65536,usum,1,1,96);
@@ -489,78 +1201,390 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
      103:begin z<=rv;readword(d[6]+4*i,104);end
      104:begin w<=rv;ma<=x;mb<=z;pc<=105;st<=MULWAIT;end
      105:begin acc<=product[63:0];ma<=y;mb<=w;pc<=106;st<=MULWAIT;end
-     106:begin putscratch(i,narrow32(scale(add64(acc,-$signed(product[63:0])),30)));ma<=y;mb<=z;pc<=107;st<=MULWAIT;end
+     106:begin putscratch(i,narrow32(shared_scale(1'b0)));ma<=y;mb<=z;pc<=107;st<=MULWAIT;end
      107:begin acc<=product[63:0];ma<=x;mb<=w;pc<=108;st<=MULWAIT;end
-     108:begin putscratch(i+n/2,narrow32(scale(add64(acc,product[63:0]),30)));i<=i+1;pc<=100;end
+     108:begin putscratch(i+n/2,narrow32(shared_scale(1'b0)));i<=i+1;pc<=100;end
      // REDUCE and integer GEMV: one shared multiplier and saturated ascending accumulation.
      110:if(i==no)startwrite();else if(j==(op==11?m:op==17?k:n))begin
       if(op==11&&d[9]!=0)readword(d[6]+4*i,114);else pc<=115;
-     end else readword(d[4]+4*(op==11?i*m+j:op==17?i*k+j:j),111);
-     111:begin x<=rv;readword(d[5]+4*(op==11?i*m+j:op==17?j:j*k+i),112);end
+     end else readword(d[4]+4*(op==11?i[12:0]*m[5:0]+j:op==17?i[12:0]*k[12:0]+j:j),111);
+     111:begin x<=rv;readword(d[5]+4*(op==11?i[12:0]*m[5:0]+j:op==17?j:j[12:0]*k[12:0]+i),112);end
      112:begin ma<=x;mb<=rv;pc<=113;st<=MULWAIT;end
-     113:begin if(op==11)acc<=add64(acc,scale(product,14));else acc<=add64(acc,$signed(product[63:0]));j<=j+1;pc<=110;end
-     114:begin acc<=add64(acc,{{32{rv[31]}},rv});pc<=115;end
-     115:begin if(op==11)putscratch(i,narrow32(acc));else putscratch(i,narrow32(scale(acc,16)));i<=i+1;j<=0;acc<=0;pc<=110;end
+     113:begin if(op==11)acc<=shared_scale_add(1'b0);else acc<=shared_add(1'b0);j<=j+1;pc<=110;end
+     114:begin acc<=shared_add(1'b0);pc<=115;end
+     115:begin if(op==11)putscratch(i,narrow32(acc));else putscratch(i,narrow32(shared_scale(1'b0)));i<=i+1;j<=0;acc<=0;pc<=110;end
+     // Depthwise causal convolution: share the eight existing Delta multipliers.
+     // Separate weight/data caches eliminate per-tap line ping-pong. Each tap
+     // is read only once; the same value supplies its product and shifted state.
+     // Products retire in ascending tap order, retaining saturated INT64 sums
+     // and all diagnostics exactly, including the k=1 (stateless) contract.
+     1900:if(i==n)startwrite();
+      else if(j==0&&i[2:0]==0&&t==0)readword(d[4]+4*i,1906);
+      else if(j+1==k)pc<=1907;
+      else readword(d[8]+4*(i[9:0]*convolution_history+j),1901);
+     1906:begin
+      // Dedicated eight-word convolution line buffer is written on this edge.
+      t<=1;pc<=1900;
+     end
+     1907:begin
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)
+       if(j==delta_lane)delta_ma[delta_lane]<=conv_input_scalar;
+      if(j!=0)putscratch(no+i[9:0]*convolution_history+j-1,conv_input_scalar);
+      readword(d[5]+4*(i[12:0]*k[12:0]+j),1902);
+     end
+     1901:begin
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)
+       if(j==delta_lane)delta_ma[delta_lane]<=rv;
+      if(j!=0)putscratch(no+i[9:0]*convolution_history+j-1,rv);
+      readword(d[5]+4*(i[12:0]*k[12:0]+j),1902);
+     end
+     1902:begin
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)
+       if(j==delta_lane)delta_mb[delta_lane]<=rv;
+      if(j+1==k)begin j<=0;pc<=1903;end
+      else begin j<=j+1;pc<=1900;end
+     end
+     1903:wait_delta_product(1904); // registered product, including the final weight operand
+     1904:begin acc<=shared_add(1'b0);
+      if(j+1==k)pc<=1905;else j<=j+1;end
+     1905:begin putscratch(i,narrow32(shared_scale(1'b0)));
+      i<=i+1;j<=0;t<=0;acc<=0;pc<=1900;end
+     // Scalar compatibility implementation.
      // Depthwise causal convolution and oldest-first state shift.
-     120:if(i==n)startwrite();else if(j==k)begin putscratch(i,narrow32(scale(acc,16)));i<=i+1;j<=0;acc<=0;pc<=120;end
+     120:if(i==n)startwrite();else if(j==k)begin putscratch(i,narrow32(shared_scale(1'b0)));i<=i+1;j<=0;acc<=0;pc<=120;end
       else if(j+1==k)readword(d[4]+4*i,121);else readword(d[8]+4*(i[9:0]*convolution_history+j),121);
-     121:begin x<=rv;readword(d[5]+4*(i*k+j),122);end
+     121:begin x<=rv;readword(d[5]+4*(i[12:0]*k[12:0]+j),122);end
      122:begin ma<=x;mb<=rv;pc<=123;st<=MULWAIT;end
-     123:begin acc<=add64(acc,product[63:0]);if(j+1<k)begin if(j+2==k)readword(d[4]+4*i,124);else readword(d[8]+4*(i[9:0]*convolution_history+j+1),124);end else begin j<=j+1;pc<=120;end end
+     123:begin acc<=shared_add(1'b0);if(j+1<k)begin if(j+2==k)readword(d[4]+4*i,124);else readword(d[8]+4*(i[9:0]*convolution_history+j+1),124);end else begin j<=j+1;pc<=120;end end
      124:begin putscratch(no+i[9:0]*convolution_history+j,rv);j<=j+1;pc<=120;end
-     // Delta: decay state, memory/delta per column, update state, output per column.
+     // Eight independent columns keep ascending row accumulation and exact ABI rounding.
+     // Aligned full heads use the line port; arbitrary dimensions keep the scalar path.
+     1700:if(PARALLEL_DELTA)begin if(i==n)begin i<=0;pc<=1702;end else readword(d[4]+4*i,1701);
+
+     end
+     1701:if(PARALLEL_DELTA)begin begin i<=i+8;pc<=1700;end
+
+     end
+     1702:if(PARALLEL_DELTA)begin if(i==n)begin i<=0;pc<=1704;end else readword(d[5]+4*i,1703);
+
+     end
+     1703:if(PARALLEL_DELTA)begin begin i<=i+8;pc<=1702;end
+
+     end
+     1704:if(PARALLEL_DELTA)begin if(i==n)begin
+       i<=0;delta_load_sent<=0;delta_load_received<=0;delta_load_lines<=ns[14:3];
+       delta_load_pending<=0;delta_load_error<=0;delta_load_valid<=0;dma_addr<=d[8][29:0];st<=DELTA_LOAD;
+      end else readword(d[6]+4*i,1705);
+
+     end
+     1705:if(PARALLEL_DELTA)begin begin i<=i+8;pc<=1704;end
+
+     end
+     1710:if(PARALLEL_DELTA)begin if(i==ns)begin i<=0;j<=0;pc<=1714;
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)delta_acc[delta_lane]<=0;
+     end else pc<=1711;
+
+     end
+     1711:if(PARALLEL_DELTA)begin begin for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+      delta_ma[delta_lane]<=vector_rd[delta_lane];
+      delta_mb[delta_lane]<=$signed({1'b0,d[9]});end pc<=1712;end
+
+     end
+     1712:if(PARALLEL_DELTA)begin wait_delta_product(1713);
+
+     end
+     1713:if(PARALLEL_DELTA)begin begin putvector(no+i);for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)
+      vector_wd[delta_lane]<=shared_delta_clip(delta_lane[2:0]);
+      i<=i+8;pc<=1710;end
+
+     end
+     1714:if(PARALLEL_DELTA)begin if(j==n)begin i<=0;j<=0;pc<=1721;
+       if(n==128)begin delta_pipe_update<=1;delta_pipe_sent<=0;delta_pipe_retired<=0;
+        delta_pipe_row<=0;delta_pipe_col<=0;delta_pipe_valid<=0;pc<=1724;st<=DELTA_VECTOR_PIPE;end
+      end
+      else if(n==128)begin delta_dot_q<=0;st<=DELTA_DOT_SETUP;end
+       else if(i==n)pc<=1718;else pc<=1715;
+
+     end
+     // Prime row zero. Thereafter i names the next scratch row, while the
+     // existing operand/product registers carry the preceding row in order.
+     1715:if(PARALLEL_DELTA)begin begin for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+      delta_ma[delta_lane]<=vector_rd[delta_lane];delta_mb[delta_lane]<=delta_k_scalar;end i<=i+1;pc<=1716;end
+
+     end
+     // This edge registers the previous row's product and reads scratch[i].
+     1716:if(PARALLEL_DELTA)begin wait_delta_product(1717);
+
+     end
+     1717:if(PARALLEL_DELTA)begin begin for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+      delta_acc[delta_lane]<=shared_delta_add(delta_lane[2:0]);
+      if(i<n)begin
+       delta_ma[delta_lane]<=vector_rd[delta_lane];delta_mb[delta_lane]<=delta_k_scalar;
+      end
+      end
+      // i==n drains the last product exactly once; no speculative operand is
+      // consumed. The following residual state sees the final saturated sum.
+      if(i==n)pc<=1718;else begin i<=i+1;pc<=1716;end
+     end
+
+     end
+     1718:if(PARALLEL_DELTA)begin begin for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+      delta_ma[delta_lane]<=$signed({delta_v_lane[delta_lane][31],delta_v_lane[delta_lane]})-
+       $signed(shared_delta_clip(delta_lane[2:0]));
+      delta_mb[delta_lane]<=$signed({1'b0,d[10]});end pc<=1719;end
+
+     end
+     1719:if(PARALLEL_DELTA)begin wait_delta_product(1720);
+
+     end
+     1720:if(PARALLEL_DELTA)begin begin putvector(no+ns+j);for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+      vector_wd[delta_lane]<=shared_delta_clip(delta_lane[2:0]);
+      delta_acc[delta_lane]<=0;end i<=0;j<=j+8;pc<=1714;end
+
+     end
+     1721:if(PARALLEL_DELTA)begin if(i==n)begin i<=0;j<=0;pc<=1725;
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)delta_acc[delta_lane]<=0;
+     end else pc<=1722;
+
+     end
+     1722:if(PARALLEL_DELTA)begin begin for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+      delta_ma[delta_lane]<=delta_k_scalar;delta_mb[delta_lane]<=vector_rd[delta_lane];end pc<=1723;end
+
+     end
+     1723:if(PARALLEL_DELTA)begin wait_delta_product(1724);
+
+     end
+     1724:if(PARALLEL_DELTA)begin begin putvector(no+i[7:0]*n[7:0]+j);for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)
+      vector_wd[delta_lane]<=shared_delta_clip(delta_lane[2:0]);
+      if(j+8==n)begin j<=0;i<=i+1;end else j<=j+8;pc<=1721;end
+
+     end
+     1725:if(PARALLEL_DELTA)begin if(j==n)startwrite();
+       else if(n==128)begin delta_dot_q<=1;st<=DELTA_DOT_SETUP;end
+       else if(i==n)pc<=1729;else pc<=1726;
+
+     end
+     1726:if(PARALLEL_DELTA)begin begin for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+      delta_ma[delta_lane]<=vector_rd[delta_lane];delta_mb[delta_lane]<=delta_q_scalar;end i<=i+1;pc<=1727;end
+
+     end
+     1727:if(PARALLEL_DELTA)begin wait_delta_product(1728);
+
+     end
+     1728:if(PARALLEL_DELTA)begin begin for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+      delta_acc[delta_lane]<=shared_delta_add(delta_lane[2:0]);
+      if(i<n)begin
+       delta_ma[delta_lane]<=vector_rd[delta_lane];delta_mb[delta_lane]<=delta_q_scalar;
+      end
+      end
+      if(i==n)pc<=1729;else begin i<=i+1;pc<=1727;end
+     end
+
+     end
+     1729:if(PARALLEL_DELTA)begin begin putvector(j);for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+      vector_wd[delta_lane]<=shared_delta_clip(delta_lane[2:0]);
+      delta_acc[delta_lane]<=0;end i<=0;j<=j+8;pc<=1725;end
+     // Scalar Delta fallback: arbitrary n and the same rounding policy.
+
+     end
      130:if(i==ns)begin i<=0;j<=0;acc<=0;pc<=133;end else readword(d[8]+4*i,131);
      131:begin ma<=rv;mb<=$signed({1'b0,d[9]});pc<=132;st<=MULWAIT;end
-     132:begin putscratch(no+i,narrow32(scale(product,30)));i<=i+1;pc<=130;end
-     133:if(j==n)begin i<=0;j<=0;pc<=137;end else if(i==n)begin x<=narrow32(scale(acc,24));readword(d[6]+j*4,136);end else begin pc<=134;end
+     132:begin putscratch(no+i,narrow32(shared_scale(1'b0)));i<=i+1;pc<=130;end
+     133:if(j==n)begin i<=0;j<=0;pc<=137;end else if(i==n)begin x<=narrow32(shared_scale(1'b0));readword(d[6]+j*4,136);end else begin pc<=134;end
      134:begin x<=sv;readword(d[5]+4*i,135);end
      135:begin ma<=x;mb<=rv;pc<=1351;st<=MULWAIT;end
-     1351:begin acc<=add64(acc,product[63:0]);i<=i+1;pc<=133;end
+     1351:begin acc<=shared_add(1'b0);i<=i+1;pc<=133;end
      136:begin ma<=$signed(rv)-$signed({{32{x[31]}},x});mb<=$signed({1'b0,d[10]});pc<=1361;st<=MULWAIT;end
-     1361:begin putscratch(no+ns+j,narrow32(scale(product,30)));i<=0;j<=j+1;acc<=0;pc<=133;end
+     1361:begin putscratch(no+ns+j,narrow32(shared_scale(1'b0)));i<=0;j<=j+1;acc<=0;pc<=133;end
      137:if(i==n)begin i<=0;j<=0;acc<=0;pc<=1390;end else begin pc<=1371;end
      1371:begin x<=sv;readword(d[5]+4*i,1372);end
      1372:begin ma<=rv;mb<=x;pc<=138;st<=MULWAIT;end
-     138:begin putscratch(no+i*n+j,narrow32(add64({{32{sv[31]}},sv},scale(product,8))));if(j+1==n)begin j<=0;i<=i+1;end else j<=j+1;pc<=137;end
-     1390:if(j==n)startwrite();else if(i==n)begin putscratch(j,narrow32(scale(acc,op==20?16:24)));j<=j+1;i<=0;acc<=0;end else begin pc<=1391;end
+     138:begin putscratch(no+i[7:0]*n[7:0]+j,narrow32(shared_scale_add(1'b0)));if(j+1==n)begin j<=0;i<=i+1;end else j<=j+1;pc<=137;end
+     1390:if(j==n)startwrite();else if(i==n)begin putscratch(j,narrow32(shared_scale(1'b0)));j<=j+1;i<=0;acc<=0;end else begin pc<=1391;end
      1391:begin x<=sv;readword(d[4]+4*i,1392);end
      1392:begin ma<=x;mb<=rv;pc<=1393;st<=MULWAIT;end
-     1393:begin acc<=add64(acc,product[63:0]);i<=i+1;pc<=1390;end
+     1393:begin acc<=shared_add(1'b0);i<=i+1;pc<=1390;end
      // Attention scores then shared softmax and value contraction.
      140:if(i==n)begin i<=0;usum<=0;pc<=92;end else if(j==k)begin ma<=acc;mb<=$signed({1'b0,d[9]});pc<=144;st<=MULWAIT;end else readword(d[4]+4*j,141);
-     141:begin x<=rv;readword(d[5]+4*(i*k+j),142);end
+     141:begin x<=rv;readword(d[5]+4*(i[12:0]*k[12:0]+j),142);end
      142:begin ma<=x;mb<=rv;pc<=143;st<=MULWAIT;end
-     143:begin acc<=add64(acc,product[63:0]);j<=j+1;pc<=140;end
-     144:begin lutval=narrow32(scale(product,46));putscratch(softbase+i,lutval[31:0]);if(lutval>maxval)maxval<=lutval[31:0];i<=i+1;j<=0;acc<=0;pc<=140;end
-     145:if(j==k)startwrite();else if(i==n)begin putscratch(j,narrow32(scale(acc,16)));j<=j+1;i<=0;acc<=0;end else begin pc<=146;end
-     146:begin x<=sv;readword(d[6]+4*(i*k+j),147);end
+     143:begin acc<=shared_add(1'b0);j<=j+1;pc<=140;end
+     144:begin lutval=narrow32(shared_scale(1'b0));putscratch(softbase+i,lutval[31:0]);if(lutval>maxval)maxval<=lutval[31:0];i<=i+1;j<=0;acc<=0;pc<=140;end
+     145:if(j==k)startwrite();else if(i==n)begin putscratch(j,narrow32(shared_scale(1'b0)));j<=j+1;i<=0;acc<=0;end else begin pc<=146;end
+     146:begin x<=sv;readword(d[6]+4*(i[12:0]*k[12:0]+j),147);end
      147:begin ma<=x;mb<=rv;pc<=148;st<=MULWAIT;end
-     148:begin acc<=add64(acc,product[63:0]);i<=i+1;pc<=145;end
+     148:begin acc<=shared_add(1'b0);i<=i+1;pc<=145;end
+     2100:if(i==n)startwrite();else pc<=2101;
+     2101:begin
+      for(delta_lane=0;delta_lane<8;delta_lane=delta_lane+1)begin
+       quant_vector_remainder[delta_lane]<=peak==0?38'd0:quant_vector_numerator[delta_lane];
+       quant_vector_quotient[delta_lane]<=0;quant_vector_negative[delta_lane]<=vector_rd[delta_lane][31];
+       quant_vector_nonzero[delta_lane]<=vector_rd[delta_lane]!=0;
+      end
+      quant_divisor<={peak,6'd0};quant_bit<=6;st<=peak==0?QUANT_VECTOR_DONE:QUANT_VECTOR_DIV;
+     end
      // Quantization peak pass and argmax with first-index ties.
      150:if(i==n)begin
       if(op==16)begin putscratch(0,best);result_count<=best;startwrite();end
-      else begin result_count<=peak;if(peak==0)flag_sink=flag_zero(1'b0);i<=0;pc<=153;end
+      else begin result_count<=peak;if(peak==0)flag_sink=flag_zero(1'b0);i<=0;pc<=vector_inputs_valid&&n[2:0]==0?2100:153;end
      end else readword(d[4]+4*i,151);
      151:begin mag=rv<0?-$signed({{32{rv[31]}},rv}):$signed({{32{rv[31]}},rv});if(mag>peak)peak<=mag[31:0];if(rv>maxval)begin maxval<=rv;best<=i;end i<=i+1;pc<=150;end
      153:if(i==n)startwrite();else if(peak==0)begin putscratch(i,0);i<=i+1;end else readword(d[4]+4*i,154);
-     154:divide($signed(rv)*64'sd127,{32'd0,peak},1,1,155);
+     154:begin
+      // The peak pass proves |rv|<=peak, so floor(|rv|*127/peak)<=127.
+      quant_remainder<=quant_numerator;quant_divisor<={peak,6'd0};
+      quant_quotient<=0;quant_bit<=6;quant_negative<=rv[31];st<=QUANT_DIV;
+     end
      155:begin putscratch(i,dv[31:0]);i<=i+1;pc<=153;end
-     // Tagged raw W4 partial records and packed positive FP16 scales.
+     // Four adjacent records share a DDR line and four exact coefficient pipelines.
+     // Groups divisible by four use this path; tail dimensions retain scalar ABI.
+     1800:if(PARALLEL_RAW)begin if(i==n)startwrite();else if(j==m)begin putscratch(i,narrow32(acc));i<=i+1;j<=0;acc<=0;end
+      else readword(d[4]+i[12:0]*d[12]+j*8,1801);
+
+     end
+     1801:if(PARALLEL_RAW)begin begin
+      for(raw_lane=0;raw_lane<4;raw_lane=raw_lane+1)begin
+       raw_tags[raw_lane]<=cache_data[raw_lane*64+:32];raw_partials[raw_lane]<=cache_data[raw_lane*64+32+:32];
+      end
+      if(raw_parallel8)readword(d[4]+i[12:0]*d[12]+j*8+32,18011);
+      else readword(d[5]+((i[12:0]*m[5:0]+j)*2/4)*4,1802);
+     end
+
+     end
+     18011:if(PARALLEL_RAW)begin begin
+      for(raw_lane=0;raw_lane<4;raw_lane=raw_lane+1)begin
+       raw_tags[raw_lane+4]<=cache_data[raw_lane*64+:32];raw_partials[raw_lane+4]<=cache_data[raw_lane*64+32+:32];
+      end
+      readword(d[5]+((i[12:0]*m[5:0]+j)*2/4)*4,1802);
+     end
+
+     end
+     1802:if(PARALLEL_RAW)begin begin
+      raw_bad=0;
+      for(raw_lane=0;raw_lane<8;raw_lane=raw_lane+1)if(raw_lane<4||raw_parallel8)begin
+       raw_scale_bits=scale_cache_data[(((i[12:0]*m[5:0]+j)&15)+raw_lane)*16+:16];
+       // With split cache disabled the just-read scales live in the ordinary cache.
+       if(!SPLIT_READ_CACHE)raw_scale_bits=cache_data[(((i[12:0]*m[5:0]+j)&15)+raw_lane)*16+:16];
+       raw_scales[raw_lane]<=raw_scale_bits;
+       if(raw_bad==0)begin
+        if(raw_tags[raw_lane]!=(((j+raw_lane)<<16)|i))raw_bad=12;
+        else if(raw_scale_bits[15]||raw_scale_bits[14:10]==31||raw_scale_bits[14:0]==0)raw_bad=4;
+       end
+       delta_ma[raw_lane]<=$signed({22'd0,raw_scale_bits[14:10]!=0,raw_scale_bits[9:0]});
+       delta_mb[raw_lane]<=$signed({1'b0,d[9]});
+      end
+      if(raw_bad!=0)begin diagnostics_clear=1;if(raw_bad==4)flag_sink=flag_invalid(1'b0);fail(raw_bad);end
+      else pc<=1803;
+     end
+
+     end
+     1803:if(PARALLEL_RAW)begin wait_delta_product(1804);
+
+     end
+     1804:if(PARALLEL_RAW)begin begin
+      for(raw_lane=0;raw_lane<8;raw_lane=raw_lane+1)if(raw_lane<4||raw_parallel8)begin
+       mag=delta_product[raw_lane][63:0];raw_exponent=raw_scales[raw_lane][14:10]!=0?$signed({27'd0,raw_scales[raw_lane][14:10]})-11:-10;
+       raw_room=0;
+       if(op==21&&mag!=0)begin
+        raw_top=0;for(raw_bit=0;raw_bit<64;raw_bit=raw_bit+1)if(mag[raw_bit])raw_top=raw_bit;
+        raw_room=36-raw_top-raw_exponent;if(raw_room>16)raw_room=16;else if(raw_room<0)raw_room=0;
+       end
+       raw_extra[raw_lane]<=raw_room[4:0];raw_exponent=raw_exponent+raw_room;
+       if(raw_exponent>=0)begin mag=mag<<raw_exponent;raw_shift[raw_lane]<=0;end
+       else raw_shift[raw_lane]<=-raw_exponent;
+       raw_numerator[raw_lane]<=mag;raw_digits[raw_lane]<=mag[62:0];raw_quotient[raw_lane]<=0;raw_mod[raw_lane]<=0;
+      end
+      raw_div_steps<=3;pc<=1805;
+     end
+
+     end
+     1805:if(PARALLEL_RAW)begin begin
+      for(raw_lane=0;raw_lane<8;raw_lane=raw_lane+1)if(raw_lane<4||raw_parallel8)begin
+       coefficient_next_digits=raw_digits[raw_lane];coefficient_next_quotient=raw_quotient[raw_lane];coefficient_next_mod=raw_mod[raw_lane];
+       for(coefficient_step=0;coefficient_step<3;coefficient_step=coefficient_step+1)begin
+        coefficient_sum={1'b0,coefficient_next_mod}+{1'b0,coefficient_next_digits[62:56]};
+        coefficient_digit=coefficient_next_mod+(coefficient_sum>=127?7'd1:7'd0);
+        coefficient_next_mod=coefficient_sum>=127?coefficient_sum-127:coefficient_sum;
+        coefficient_next_quotient=(coefficient_next_quotient<<7)|{57'd0,coefficient_digit};coefficient_next_digits=coefficient_next_digits<<7;
+       end
+       raw_digits[raw_lane]<=coefficient_next_digits;raw_quotient[raw_lane]<=coefficient_next_quotient;raw_mod[raw_lane]<=coefficient_next_mod;
+      end
+      raw_div_steps<=raw_div_steps-1;if(raw_div_steps==1)pc<=1806;
+     end
+
+     end
+     1806:if(PARALLEL_RAW)begin begin
+      for(raw_lane=0;raw_lane<8;raw_lane=raw_lane+1)if(raw_lane<4||raw_parallel8)begin
+       qnext=raw_quotient[raw_lane]>>raw_shift[raw_lane];
+       raw_remainder=raw_numerator[raw_lane]-((qnext<<raw_shift[raw_lane])<<7)+(qnext<<raw_shift[raw_lane]);
+       raw_denominator=64'd127<<raw_shift[raw_lane];
+       if(raw_remainder>raw_denominator-raw_remainder||
+        (raw_remainder==raw_denominator-raw_remainder&&qnext[0]))qnext=qnext+1;
+       if(raw_numerator[raw_lane]!=0&&qnext==0)flag_sink=flag_under(1'b0);
+       delta_ma[raw_lane]<=raw_partials[raw_lane];delta_mb[raw_lane]<=narrow32($signed({64'd0,qnext}));
+      end
+      pc<=1807;
+     end
+
+     end
+     1807:if(PARALLEL_RAW)begin wait_delta_product(1808);
+
+     end
+     1808:if(PARALLEL_RAW)begin if(SHARED_RAW_ACCUM)begin
+      // One exact scale/RNE/saturation chain, one term per clock in original
+      // 0..7 order. The eight multiply/div127 lanes remain parallel.
+      raw_partial_sum<=acc;raw_acc_lane<=0;pc<=1810;
+     end else begin
+      raw_sum=acc;
+      for(raw_lane=0;raw_lane<4;raw_lane=raw_lane+1)
+       raw_sum=add64(raw_sum,scale({{62{delta_product[raw_lane][65]}},delta_product[raw_lane]},14+raw_extra[raw_lane]));
+      if(raw_parallel8)begin raw_partial_sum<=raw_sum;pc<=1809;end
+      else begin acc<=raw_sum;j<=j+4;pc<=1800;end
+     end
+
+     end
+     1809:if(PARALLEL_RAW)begin if(!SHARED_RAW_ACCUM)begin
+      raw_sum=raw_partial_sum;
+      for(raw_lane=4;raw_lane<8;raw_lane=raw_lane+1)
+       raw_sum=add64(raw_sum,scale({{62{delta_product[raw_lane][65]}},delta_product[raw_lane]},14+raw_extra[raw_lane]));
+      acc<=raw_sum;j<=j+8;pc<=1800;
+     end
+
+     end
+     1810:if(PARALLEL_RAW)begin begin
+      raw_sum=add64(raw_partial_sum,scale({{62{delta_product[raw_acc_lane][65]}},delta_product[raw_acc_lane]},14+raw_extra[raw_acc_lane]));
+      raw_partial_sum<=raw_sum;
+      if(raw_acc_lane==(raw_parallel8?3'd7:3'd3))begin
+       acc<=raw_sum;j<=j+(raw_parallel8?8:4);pc<=1800;
+      end else raw_acc_lane<=raw_acc_lane+3'd1;
+     end
+     // Scalar tagged raw W4 partial records and packed positive FP16 scales.
+
+     end
      160:if(i==n)startwrite();else if(j==m)begin putscratch(i,narrow32(acc));i<=i+1;j<=0;acc<=0;end
-      else readword(d[4]+i*d[12]+j*8,161);
-     161:if(rv!={j[15:0],i[15:0]})begin diagnostics_clear=1;fail(12);end else readword(d[4]+i*d[12]+j*8+4,162);
-     162:begin x<=rv;readword(d[5]+((i*m+j)*2/4)*4,163);end
+      else readword(d[4]+i[12:0]*d[12]+j*8,161);
+     161:if(rv!={j[15:0],i[15:0]})begin diagnostics_clear=1;fail(12);end else readword(d[4]+i[12:0]*d[12]+j*8+4,162);
+     162:begin x<=rv;readword(d[5]+((i[12:0]*m[5:0]+j)*2/4)*4,163);end
      163:begin
-      lutcoord=((i*m+j)&1)!=0?$signed({16'd0,rv[31:16]}):$signed({16'd0,rv[15:0]});
+      lutcoord=((i[12:0]*m[5:0]+j)&1)!=0?$signed({16'd0,rv[31:16]}):$signed({16'd0,rv[15:0]});
       if(lutcoord[15]||lutcoord[14:10]==31||lutcoord[14:0]==0)begin diagnostics_clear=1;flag_sink=flag_invalid(1'b0);fail(4);end
       else begin ma<=$signed({53'd0,lutcoord[14:10]!=0,lutcoord[9:0]});mb<=$signed({1'b0,d[9]});pc<=1630;st<=MULWAIT;end
      end
      1630:begin
        mag=product[63:0];
-       if(lutcoord[14:10]>=11)begin mag=mag<<(lutcoord[14:10]-5'd11);coefficient_shift<=0;end
-       else coefficient_shift<=lutcoord[14:10]!=0?5'd11-lutcoord[14:10]:5'd10;
+       coefficient_extra<=0;
+       coefficient_exponent=lutcoord[14:10]!=0?$signed({27'd0,lutcoord[14:10]})-11:-10;
+       if(op==21&&mag!=0)begin
+        coefficient_top=0;for(coefficient_bit=0;coefficient_bit<64;coefficient_bit=coefficient_bit+1)
+         if(mag[coefficient_bit])coefficient_top=coefficient_bit;
+        coefficient_room=36-coefficient_top-coefficient_exponent;
+        if(coefficient_room>16)coefficient_room=16;else if(coefficient_room<0)coefficient_room=0;
+        coefficient_extra<=coefficient_room[4:0];coefficient_exponent=coefficient_exponent+coefficient_room;
+       end
+       if(coefficient_exponent>=0)begin mag=mag<<coefficient_exponent;coefficient_shift<=0;end
+       else coefficient_shift<=-coefficient_exponent;
        coefficient_numerator<=mag;coefficient_digits<=mag[62:0];
-       coefficient_quotient<=0;coefficient_mod<=0;coefficient_steps<=9;st<=DIV127;
+       coefficient_quotient<=0;coefficient_mod<=0;coefficient_steps<=3;st<=DIV127;
       end
       1632:begin
        qnext=coefficient_quotient>>coefficient_shift;
@@ -573,11 +1597,13 @@ module npu_tensor_v2 #(parameter logic [31:0] CSR_BASE=32'h10006000)(
        if(coefficient_remainder>coefficient_denominator-coefficient_remainder||
           (coefficient_remainder==coefficient_denominator-coefficient_remainder&&qnext[0]))qnext=qnext+1;
        if(coefficient_numerator!=0&&qnext==0)flag_sink=flag_under(1'b0);
-       ma<=x;mb<=narrow32($signed({64'd0,qnext}));pc<=164;st<=MULWAIT;
+       ma<=x;
+       mb<=narrow32($signed({64'd0,qnext}));pc<=164;st<=MULWAIT;
       end
-      164:begin acc<=add64(acc,scale(product,14));j<=j+1;pc<=160;end
+      164:begin acc<=shared_scale_add(1'b0);j<=j+1;pc<=160;end
      default:fail(12);
     endcase
+    end
     default:begin end
    endcase
     // Clear/start discard stale pending events, but capture events from THIS
@@ -7781,4 +8807,31 @@ function automatic [30:0] lut_exp(input [31:0] idx);
 4095:lut_exp=31'd121;
 default:lut_exp=31'd121;
 endcase end endfunction
+endmodule
+
+// Bounded signed ties-to-even rounder with explicit diagnostic outputs.
+module npu_tensor_round_shared #(parameter integer WIDTH=97,parameter bit DELTA_SHIFTS=0)(
+ input wire signed [WIDTH-1:0] value,input wire [5:0] shift,
+ output wire signed [63:0] result,output wire saturated,underflow);
+ wire signed [WIDTH-1:0] quotient;
+ wire guard_bit,sticky;
+ generate if(DELTA_SHIFTS)begin: fixed_shifts
+  reg signed [WIDTH-1:0] selected_q;reg selected_guard,selected_sticky;
+  always @*case(shift)
+   8:begin selected_q=value>>>8;selected_guard=value[7];selected_sticky=|value[6:0];end
+   16:begin selected_q=value>>>16;selected_guard=value[15];selected_sticky=|value[14:0];end
+   24:begin selected_q=value>>>24;selected_guard=value[23];selected_sticky=|value[22:0];end
+   default:begin selected_q=value>>>30;selected_guard=value[29];selected_sticky=|value[28:0];end
+  endcase
+  assign quotient=selected_q;assign guard_bit=selected_guard;assign sticky=selected_sticky;
+ end else begin: variable_shifts
+  wire [WIDTH-1:0] low_mask=({{(WIDTH-1){1'b0}},1'b1}<<(shift-1))-1'b1;
+  assign quotient=value>>>shift;
+  assign guard_bit=shift!=0&&value[shift-1];assign sticky=|(value&low_mask);
+ end endgenerate
+ wire signed [WIDTH:0] rounded=$signed({quotient[WIDTH-1],quotient})+
+  $signed({{WIDTH{1'b0}},(guard_bit&&(sticky||quotient[0]))});
+ assign saturated=rounded[WIDTH:63]!={(WIDTH-62){rounded[63]}};
+ assign result=saturated?(rounded[WIDTH]?64'sh8000000000000000:64'sh7fffffffffffffff):rounded[63:0];
+ assign underflow=value!=0&&rounded==0;
 endmodule

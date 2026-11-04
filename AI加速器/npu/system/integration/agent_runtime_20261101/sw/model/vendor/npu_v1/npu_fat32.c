@@ -281,12 +281,35 @@ int npu_fat32_read_exact_at(void *ctx, uint64_t offset, void *dst, size_t bytes)
         if (take > bytes) take = bytes;
 #if NPU_FAT32_MULTI_READ == 1
         if (!within && bytes >= 512u) {
-            uint32_t blocks = (uint32_t)(bytes / 512u);
-            uint32_t available = fs->sectors_per_cluster - (uint32_t)sector;
-            if (blocks > available) blocks = available;
-            take = (size_t)blocks * 512u;
-            rc = read_run(fs, cluster_lba(fs, current) + sector, blocks, out);
-            if (rc) goto read_error;
+            uint32_t wanted=(uint32_t)(bytes/512u);
+            uint32_t available=fs->sectors_per_cluster-(uint32_t)sector;
+            uint32_t blocks=wanted<available?wanted:available;
+            uint32_t last=current,last_index=index,start_index=index,tail=blocks;
+            if(wanted>128u)wanted=128u;
+            if(blocks>wanted){blocks=wanted;tail=blocks;}
+            while(blocks<wanted&&tail==available){
+                uint32_t next;
+                if(last_index+1u>=file->cluster_length)goto chain_error;
+                rc=next_cluster(fs,last,&next);if(rc)goto read_error;
+                if(!next)goto chain_error;
+                if(next!=last+1u)break;
+                last=next;++last_index;available=fs->sectors_per_cluster;
+                tail=wanted-blocks;if(tail>available)tail=available;
+                blocks+=tail;
+            }
+            take=(size_t)blocks*512u;
+            rc=read_run(fs,cluster_lba(fs,current)+sector,blocks,out);
+            if(rc)goto read_error;
+            bytes-=take;out+=take;current=last;index=last_index;
+            within_cluster=last_index==start_index?within_cluster+take:(size_t)tail*512u;
+            if(bytes&&within_cluster==cluster_bytes){
+                uint32_t next;
+                if(index+1u>=file->cluster_length)goto chain_error;
+                rc=next_cluster(fs,current,&next);if(rc)goto read_error;
+                if(!next)goto chain_error;
+                current=next;++index;within_cluster=0;
+            }
+            continue;
         } else {
 #endif
         rc = read_sector(fs, cluster_lba(fs, current) + sector, fs->scratch);

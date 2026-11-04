@@ -1,5 +1,5 @@
 module ddr_queue4_tb #(
- parameter integer DEPTH=4,parameter integer TIMEOUT_BITS=10
+ parameter integer DEPTH=4,parameter integer TIMEOUT_BITS=10,MAX_READ_BURST=1
 )(
  input logic cpu_clk,ui_clk,reset_n,init_done,
  output wire ready_cpu,fault_cpu,
@@ -12,7 +12,7 @@ module ddr_queue4_tb #(
  input wire c_req_valid,output wire c_req_ready,input wire [29:0] c_req_addr,input wire c_req_write,
  input wire [255:0] c_req_wdata,input wire [31:0] c_req_wstrb,
  output wire c_rsp_valid,input wire c_rsp_ready,output wire [255:0] c_rsp_data,output wire c_rsp_error,
- output wire [27:0] axi_awaddr,axi_araddr,output wire axi_awvalid,axi_arvalid,
+ output wire [27:0] axi_awaddr,axi_araddr,output wire [3:0] axi_arlen,output wire axi_awvalid,axi_arvalid,
  input wire axi_awready,axi_arready,output wire [255:0] axi_wdata,output wire [31:0] axi_wstrb,
  input wire axi_wready,axi_wusero_last,input wire [3:0] axi_wusero_id,
  input wire [255:0] axi_rdata,input wire axi_rvalid,axi_rlast,input wire [3:0] axi_rid,
@@ -40,11 +40,11 @@ module ddr_queue4_tb #(
  .b_rsp_valid(irv),.b_rsp_ready(irr),.b_rsp_data(ird),.b_rsp_error(ire),
  .mem_req_valid(qv),.mem_req_ready(qr),.mem_req_addr(qa),.mem_req_write(qw),.mem_req_wdata(qd),.mem_req_wstrb(qs),
  .mem_rsp_valid(rv),.mem_rsp_ready(rr),.mem_rsp_data(rd),.mem_rsp_error(re),.active(arb_active),.owner(arb_owner));
- ag_hmic_bridge #(.TIMEOUT_BITS(TIMEOUT_BITS),.DEPTH(DEPTH)) bridge(
+ ag_hmic_bridge #(.TIMEOUT_BITS(TIMEOUT_BITS),.DEPTH(DEPTH),.MAX_READ_BURST(MAX_READ_BURST)) bridge(
  .cpu_clk(cpu_clk),.ui_clk(ui_clk),.reset_n(reset_n),.init_done(init_done),.ready_cpu(ready_cpu),.fault_cpu(fault_cpu),
  .req_valid(qv),.req_ready(qr),.req_addr(qa),.req_write(qw),.req_wdata(qd),.req_wstrb(qs),
  .rsp_valid(rv),.rsp_ready(rr),.rsp_data(rd),.rsp_error(re),
- .axi_awaddr(axi_awaddr),.axi_araddr(axi_araddr),.axi_awvalid(axi_awvalid),.axi_arvalid(axi_arvalid),.axi_awready(axi_awready),.axi_arready(axi_arready),
+ .axi_awaddr(axi_awaddr),.axi_araddr(axi_araddr),.axi_arlen(axi_arlen),.axi_awvalid(axi_awvalid),.axi_arvalid(axi_arvalid),.axi_awready(axi_awready),.axi_arready(axi_arready),
  .axi_wdata(axi_wdata),.axi_wstrb(axi_wstrb),.axi_wready(axi_wready),.axi_wusero_last(axi_wusero_last),.axi_wusero_id(axi_wusero_id),
  .axi_rdata(axi_rdata),.axi_rvalid(axi_rvalid),.axi_rlast(axi_rlast),.axi_rid(axi_rid));
 endmodule

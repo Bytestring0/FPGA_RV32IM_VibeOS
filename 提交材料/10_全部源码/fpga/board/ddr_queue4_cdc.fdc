@@ -1,0 +1,19 @@
+# DEPTH4: CPU clock is selected by board PLL (up to162MHz); UI clock125MHz.
+# CPU-sourced Gray bounds are reduced below one CPU period by build_system.py.
+# Do not use this stock 7ns FDC directly for a CPU clock faster than125MHz.
+# PDS2022 matches these conservative groups. Each from group includes the
+# three true Gray sources plus only its six sync-stage FFs. Real-netlist audit
+# MUST require-bounded-gray: true source triplet + target triplet, no surprises.
+set_max_delay 7.0 -datapath_only -from [get_cells -hierarchical {bridge/*requests*wgray*}] -to [get_cells -hierarchical {bridge/*requests*wgray_r1*}]
+set_max_delay 7.0 -datapath_only -from [get_cells -hierarchical {bridge/*requests*rgray*}] -to [get_cells -hierarchical {bridge/*requests*rgray_w1*}]
+set_max_delay 7.0 -datapath_only -from [get_cells -hierarchical {bridge/*responses*wgray*}] -to [get_cells -hierarchical {bridge/*responses*wgray_r1*}]
+set_max_delay 7.0 -datapath_only -from [get_cells -hierarchical {bridge/*responses*rgray*}] -to [get_cells -hierarchical {bridge/*responses*rgray_w1*}]
+# Payload stays source-owned until Gray pointer round-trip returns credit.
+# Retain an8ns flight-time bound; never setup-false-path payload or Gray buses.
+set_max_delay 8.0 -datapath_only -from [get_clocks cpu_clk] -to [get_clocks ddrphy_sysclk]
+set_max_delay 8.0 -datapath_only -from [get_clocks ddrphy_sysclk] -to [get_clocks cpu_clk]
+set_false_path -hold -from [get_clocks cpu_clk] -to [get_clocks ddrphy_sysclk]
+set_false_path -hold -from [get_clocks ddrphy_sysclk] -to [get_clocks cpu_clk]
+# Source-clock selection keeps target-domain sync stage-to-stage paths timed.
+# The attached HMIC/controller and both bridge domains MUST share reset.
+set_false_path -from [get_pins {clocking_unit/pll_mode.pll/LOCK}]

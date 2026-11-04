@@ -76,12 +76,12 @@ def validation_checks(lib):
     assert struct.unpack_from('<i',memory,32)[0]==14
     print(f'TENSOR_VALIDATION_PASS malformed={len(cases)} no_DDR_writes=true read_alias=true shifted_mapping=true')
 
-def raw_w4_checks(lib):
+def raw_w4_checks(lib, opcode=19):
     """Opcode19 independent exact rational scale decode plus tagged DDR guards."""
     rng=random.Random(0x1919);fixtures=[];valid=invalid=0
     def make(n,m,maximum,seed):
         stride=((m*8+31)//32)*32+(32 if seed&1 else 0)
-        d={f:0 for f in FIELDS};d.update(opcode=19,n=n,m=m,a=32,stride_a=stride,param0=maximum)
+        d={f:0 for f in FIELDS};d.update(opcode=opcode,n=n,m=m,a=32,stride_a=stride,param0=maximum)
         aend=32+(n-1)*stride+m*8;d['b']=(aend+63)//32*32;d['out']=(d['b']+n*m*2+63)//32*32
         memory=bytearray([0xa5]*(d['out']+n*4+32));oracle=Oracle();out=[]
         for r in range(n):
@@ -95,10 +95,12 @@ def raw_w4_checks(lib):
                 struct.pack_into('<H',memory,d['b']+(r*m+g)*2,bits)
                 e=(bits>>10)&31;mant=(1024 if e else 0)+(bits&1023);shift=e-11 if e else -10
                 num,den=mant*maximum,127
+                extra=max(0,min(16,36-(num.bit_length()-1)-shift)) if opcode==21 and num else 0
+                shift+=extra
                 if shift>=0:num<<=shift
                 else:den<<=-shift
                 coef=oracle.sat(oracle.rne(num,den))
-                terms.append(oracle.rne(partial*coef,1<<14))
+                terms.append(oracle.rne(partial*coef,1<<(14+extra)))
             out.append(oracle.sat(oracle.sum64(terms)))
         expected=bytearray(memory)
         for r,x in enumerate(out):struct.pack_into('<i',expected,d['out']+r*4,x)
@@ -200,11 +202,14 @@ class Oracle:
         elif op == 3: out = [self.sat(self.rne(x*y, 1<<16)) for x,y in zip(a,b)]
         elif op in (4,5,6): out = [self.activation(op,x) for x in a]
         elif op == 7: out = [self.rne(self.exp(x),1<<14) for x in a]
-        elif op == 8:
+        elif op in (8,22):
             mean = round(Fraction(sum(x*x for x in a),n))
-            root = math.isqrt(mean + (d["param0"] or 4295))
+            radicand=mean+(d["param0"] or 4295)
+            fraction=min(8,(64-radicand.bit_length())//2) if op==22 else 0
+            root=math.isqrt(radicand<<(2*fraction))
+            reciprocal=self.rne(1<<(48+fraction),root) if op==22 else 0
             for x,w in zip(a,b):
-                norm = self.rne(x*65536,root)
+                norm=self.rne(x*reciprocal,1<<32) if op==22 else self.rne(x*65536,root)
                 value = self.sat(self.rne(norm*(w+(65536 if d["param1"] else 0)),65536),64)
                 out.append(self.sat(value))
         elif op == 9: out = self.softmax(a)
@@ -256,7 +261,7 @@ class Oracle:
 def lengths(d):
     op,n,m,k=d['opcode'],d['n'],d['m'],d['k']
     na,nb,nc,ns=n,0,0,0
-    if op in (2,3,8): nb=n
+    if op in (2,3,8,22): nb=n
     if op==10: nb=nc=n//2
     if op==11: na=nb=n*m;nc=n if d['param0'] else 0
     if op==12: nb=n*k;ns=n*(k-1)
@@ -270,6 +275,7 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--output',type=Path)
     parser.add_argument('--extended-only',action='store_true',help='Only maximum dimensions and multi-step state; do not repeat the324 default cases')
+    parser.add_argument('--norm-only',action='store_true',help='Small and full normalization fixtures only')
     parser.add_argument('--raw-only',action='store_true',help='Only additive fused rawW4 opcode19 and its invalid guards')
     args=parser.parse_args()
     fixtures=[]
@@ -278,10 +284,10 @@ def main():
         so=Path(work)/'libtensor.so'
         subprocess.run(['gcc','-std=c11','-Wall','-Wextra','-Werror','-shared','-fPIC','-O2',str(SW/'npu_tensor_reference.c'),str(SW/'npu_fixed_math.c'),'-o',str(so)],check=True)
         lib=C.CDLL(str(so));lib.npu_tensor_reference.argtypes=[C.POINTER(Job),C.POINTER(Mapping),C.POINTER(Stats)];lib.npu_tensor_reference.restype=C.c_uint32
-        if args.raw_only:fixtures=raw_w4_checks(lib)
+        if args.raw_only:fixtures=raw_w4_checks(lib)+raw_w4_checks(lib,21)
         else:validation_checks(lib)
-        for op in (() if args.raw_only else (*range(1,19),20)):
-            modes=([18,19] if op in (12,13,17,18,20) else [18]) if args.extended_only else range(18)
+        for op in ((8,22) if args.norm_only else () if args.raw_only else (*range(1,19),20,22)):
+            modes=range(18) if args.norm_only else ([18,19] if op in (12,13,17,18,20) else [18]) if args.extended_only else range(18)
             for mode in modes:
                 d={f:0 for f in FIELDS};d.update(opcode=op,n=6 if op==10 else 7,m=3,k=5,param0=1073741824 if op in (13,14) else 0,param1=1073741824 if op==13 else 0)
                 if mode>=18:
@@ -293,7 +299,7 @@ def main():
                     if op==17:d['n']=32;d['k']=4096 if mode==18 else 2048
                     if mode==19 and op in (12,13,20):d['n']=8
                 if mode%3==1:
-                    if op==8:d['param1']=1;d['param0']=1
+                    if op in (8,22):d['param1']=1;d['param0']=1
                     if op==11:d['param0']=1
                     if op in (13,20):d['param0']=rng.randrange(1<<30);d['param1']=rng.randrange(1<<30)
                     if op==14:d['param0']=rng.randrange(1<<31)
@@ -307,6 +313,7 @@ def main():
                     if mode==0:return [0]*count
                     if mode<6:return [samples[(i+mode)%len(samples)] for i in range(count)]
                     bound=(1<<31) if mode%2 else 262144
+                    if args.norm_only and mode>=10:bound=1<<(mode-9)
                     return [rng.randrange(-bound,bound) for _ in range(count)]
                 a,b,c,state=(values(count) for count in (na,nb,nc,ns))
                 initial=bytearray([0xa5]*capacity)

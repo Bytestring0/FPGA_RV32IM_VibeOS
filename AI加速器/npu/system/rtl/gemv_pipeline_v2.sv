@@ -14,14 +14,19 @@ module gemv_pipeline_v2 #(
     output wire [15:0] out_row_id, out_group_id
 );
     localparam integer SUM_WIDTH = 12+$clog2(LANES);
-    reg product_valid, sum_valid;
+    localparam integer MID_NODES=LANES/8;
+    reg product_valid, middle_valid, sum_valid;
+    reg middle_first,middle_last;
+    reg [15:0] middle_row,middle_group;
+    reg signed [SUM_WIDTH-1:0] middle_sum[0:MID_NODES-1];
     reg product_first, product_last, sum_first, sum_last;
     reg [15:0] product_row, product_group, sum_row, sum_group;
     reg signed [31:0] sum_hold;
     reg signed [11:0] product_hold [0:LANES-1];
     wire accumulator_ready;
     wire sum_ready = !sum_valid || accumulator_ready;
-    wire product_ready = !product_valid || sum_ready;
+    wire middle_ready = !middle_valid || sum_ready;
+    wire product_ready = !product_valid || middle_ready;
     assign in_ready = rst_n && product_ready;
     genvar lane;
     generate
@@ -36,6 +41,10 @@ module gemv_pipeline_v2 #(
             wire signed [SUM_WIDTH-1:0] sum;
             if(lane>=LANES) begin : leaf
                 assign sum={{(SUM_WIDTH-12){product_hold[lane-LANES][11]}},product_hold[lane-LANES]};
+            end else if(lane>=MID_NODES&&lane<2*MID_NODES)begin: registered_cut
+                assign sum=middle_sum[lane-MID_NODES];
+                always @(posedge clk)if(middle_ready&&product_valid)
+                    middle_sum[lane-MID_NODES]<=reduction[2*lane].sum+reduction[2*lane+1].sum;
             end else begin : branch
                 assign sum=reduction[2*lane].sum+reduction[2*lane+1].sum;
             end
@@ -43,10 +52,11 @@ module gemv_pipeline_v2 #(
     endgenerate
     wire signed [SUM_WIDTH-1:0] reduced_sum=reduction[1].sum;
     always @(posedge clk or negedge rst_n) begin
-        if(!rst_n) begin product_valid<=0;sum_valid<=0;end
+        if(!rst_n) begin product_valid<=0;middle_valid<=0;sum_valid<=0;end
         else begin
             if(product_ready) product_valid<=in_valid;
-            if(sum_ready) sum_valid<=product_valid;
+            if(middle_ready)middle_valid<=product_valid;
+            if(sum_ready) sum_valid<=middle_valid;
         end
     end
     always @(posedge clk) begin
@@ -54,10 +64,14 @@ module gemv_pipeline_v2 #(
             product_first<=group_first;product_last<=group_last;
             product_row<=row_id;product_group<=group_id;
         end
-        if(sum_ready && product_valid) begin
+        if(middle_ready&&product_valid)begin
+            middle_first<=product_first;middle_last<=product_last;
+            middle_row<=product_row;middle_group<=product_group;
+        end
+        if(sum_ready && middle_valid) begin
             sum_hold<={{(32-SUM_WIDTH){reduced_sum[SUM_WIDTH-1]}},reduced_sum};
-            sum_first<=product_first;sum_last<=product_last;
-            sum_row<=product_row;sum_group<=product_group;
+            sum_first<=middle_first;sum_last<=middle_last;
+            sum_row<=middle_row;sum_group<=middle_group;
         end
     end
     group_acc group_acc_inst(

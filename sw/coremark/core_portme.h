@@ -10,7 +10,9 @@
 #ifndef COMPILER_FLAGS
 #define COMPILER_FLAGS "-O3 -march=rv32im_zicsr_zifencei -mabi=ilp32 -fno-builtin -msmall-data-limit=0"
 #endif
+#ifndef MEM_LOCATION
 #define MEM_LOCATION "64 KiB dual-port FPGA TCM"
+#endif
 typedef signed short ee_s16;
 typedef unsigned short ee_u16;
 typedef signed int ee_s32;

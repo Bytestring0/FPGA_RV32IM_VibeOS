@@ -4,6 +4,8 @@
 // 27 -> 81 MHz: 27 * 3 * 8 / 1 = 648 MHz VCO, divided by 8.
 // 27 -> 96 MHz: 27 * 16 * 2 / 1 = 864 MHz VCO, divided by 9.
 // 27 -> 102 MHz: 27 * 17 * 2 / 1 = 918 MHz VCO, divided by 9.
+// Experimental 27 -> 162 MHz: 27 * 6 * 4 = 648 MHz VCO, divided by 4.
+// This selects a clock ratio only; full SoC timing closure must be measured.
 module ag_board_clock #(
     parameter integer CLOCK_MHZ = 108
 ) (
@@ -18,10 +20,10 @@ module ag_board_clock #(
         GTP_GPLL #(
             .CLKIN_FREQ(27.0), .STATIC_RATIOI(1),
             .STATIC_RATIOM((CLOCK_MHZ == 96 || CLOCK_MHZ == 102) ? CLOCK_MHZ / 6 : CLOCK_MHZ / 27),
-            .STATIC_RATIOF((CLOCK_MHZ == 96 || CLOCK_MHZ == 102) ? 2.0 : 8.0),
-            .STATIC_RATIO0((CLOCK_MHZ == 96 || CLOCK_MHZ == 102) ? 9.0 : 8.0),
-            .STATIC_DUTYF((CLOCK_MHZ == 96 || CLOCK_MHZ == 102) ? 2 : 8),
-            .STATIC_DUTY0((CLOCK_MHZ == 96 || CLOCK_MHZ == 102) ? 9 : 8),
+            .STATIC_RATIOF((CLOCK_MHZ == 96 || CLOCK_MHZ == 102) ? 2.0 : CLOCK_MHZ == 54 ? 16.0 : CLOCK_MHZ == 162 ? 4.0 : 8.0),
+            .STATIC_RATIO0((CLOCK_MHZ == 96 || CLOCK_MHZ == 102) ? 9.0 : CLOCK_MHZ == 54 ? 16.0 : CLOCK_MHZ == 162 ? 4.0 : 8.0),
+            .STATIC_DUTYF((CLOCK_MHZ == 96 || CLOCK_MHZ == 102) ? 2 : CLOCK_MHZ == 54 ? 16 : CLOCK_MHZ == 162 ? 4 : 8),
+            .STATIC_DUTY0((CLOCK_MHZ == 96 || CLOCK_MHZ == 102) ? 9 : CLOCK_MHZ == 54 ? 16 : CLOCK_MHZ == 162 ? 4 : 8),
             .INTERNAL_FB("CLKOUTF"), .EXTERNAL_FB("DISABLE"),
             .LOCK_MODE(1'b0)
         ) pll (

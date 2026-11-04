@@ -48,6 +48,8 @@ def main():
             if key in identities and identities[key]!=digest:raise ValueError('CPU/PDS source mismatch: '+key)
         report['simulation_binding']={'report':str(a.simulation_report.resolve()),'sha256':sha(a.simulation_report),'passed':True}
         report['all_constrained_paths_met']='Design Summary : All Constraints Met.' in timing.read_text(encoding='utf-8-sig')
+        report['internal_timing_closed']=report['all_constrained_paths_met']
+        if not report['all_constrained_paths_met']:raise ValueError('routed setup/hold timing did not meet all constraints')
         report['routed_artifacts']={'route_sha256':sha(route),'timing_sha256':sha(timing)}
         if original.get('ddr_outstanding')==4:
             netlist=run/'synthesize/ag_npu_board_top_syn.vm';fdc=run/'board.fdc'

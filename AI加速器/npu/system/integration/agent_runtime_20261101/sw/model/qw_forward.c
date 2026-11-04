@@ -5,9 +5,14 @@
 #include "vendor/npu_v1/npu_runtime.h"
 #include "qw_libm.h"
 #include <string.h>
+#if defined(QW_TENSOR_ONLY_TARGET) && !defined(QW_ENABLE_TENSOR_V2)
+#error "QW_TENSOR_ONLY_TARGET requires QW_ENABLE_TENSOR_V2"
+#endif
 static int valid(const qw_model*m){return m&&m->magic==QW_MAGIC;}
 static qw_profile *profiling(const qw_model*m){return m->options.profile_clock?m->options.profile:0;}
+#ifndef QW_TENSOR_ONLY_TARGET
 static uint64_t profile_now(const qw_model*m){return m->options.profile_clock(m->options.profile_clock_user);}
+#endif
 void qw_profile_clear(qw_profile*p){if(p)memset(p,0,sizeof *p);}
 int qw_get_profile(const qw_model*m,qw_profile*p){if(!valid(m)||!p||!profiling(m))return QW_ARGUMENT;*p=*m->options.profile;return 0;}
 int qw_set_lut_nonlinear(qw_model*m,uint32_t enabled){
@@ -44,6 +49,7 @@ int qw_set_tile_rows(qw_model*m,uint32_t rows){
  if((uint64_t)rows*256u>m->plan.partial_bytes)return QW_CAPACITY;
  m->options.tile_rows=rows;return 0;
 }
+#ifndef QW_TENSOR_ONLY_TARGET
 static void trace(qw_model*m,unsigned layer,const char*stage,const float*p,size_t n){if(m->options.trace)m->options.trace(m->options.trace_user,m->position,layer,stage,p,n);}
 int qw_matrix(qw_model*m,const qw_tensor*t,const float*input,float*out){
  if(!t||t->dtype!=QT_W4||t->k>4096)return QW_FORMAT;
@@ -53,6 +59,9 @@ int qw_matrix(qw_model*m,const qw_tensor*t,const float*input,float*out){
  if(p)p->quantize_ticks+=profile_now(m)-start;if(rc)return QW_NUMERIC;
  for(uint32_t first=0;first<t->n;){
   uint32_t rows=t->n-first;if(rows>m->options.tile_rows)rows=m->options.tile_rows;
+#ifdef QW_PARTIAL_SRAM
+  uint32_t capacity=qw_partial_tile_rows(m,t);if(rows>capacity)rows=capacity;
+#endif
   npu_raw_job j={0};j.rows=rows;j.cols=t->k;j.weight_offset=t->ddr+first*t->stride;
   j.activation_offset=m->grants[1].offset;j.partial_offset=m->grants[2].offset;
   j.weight_stride=t->stride;j.global_row_base=first;npu_raw_layout l;
@@ -68,6 +77,11 @@ int qw_matrix(qw_model*m,const qw_tensor*t,const float*input,float*out){
   m->npu_jobs++;first+=rows;
  }return 0;
 }
+#else
+int qw_matrix(qw_model*m,const qw_tensor*t,const float*input,float*out){
+ (void)m;(void)t;(void)input;(void)out;return QW_FORMAT;
+}
+#endif
 static qw_tensor *layer_tensor(qw_model*m,unsigned l,const char*suffix){
  char name[80];unsigned p=0;memcpy(name,"blk.",4);p=4;if(l>=10)name[p++]=(char)('0'+l/10);name[p++]=(char)('0'+l%10);name[p++]='.';
  size_t n=strlen(suffix);if(p+n>=sizeof name)return 0;memcpy(name+p,suffix,n+1);return qw_find(m,name);
@@ -88,6 +102,7 @@ static int bind(qw_model*m){
 #undef GET
  }return 0;
 }
+#ifndef QW_TENSOR_ONLY_TARGET
 static void norm(qw_model*m,float*out,const float*in,const qw_tensor*t,unsigned n,int centered){
  for(unsigned i=0;i<n;i++)m->w->norm_weight[i]=qw_value(t,i);qw_rms(out,in,m->w->norm_weight,n,centered);
 }
@@ -156,6 +171,7 @@ static int attention(qw_model*m,unsigned i){
  }
  trace(m,i,"attention.gated",w->attention,2048);return qw_matrix(m,l->out,w->attention,w->out);
 }
+#endif
 static int qw_step(qw_model*m,uint32_t token,const float**logits,int emit_logits){
  if(logits)*logits=0;if(!valid(m)||!logits)return QW_ARGUMENT;
  if(m->raw.active||m->raw.cache_unknown)return QW_UNKNOWN;
@@ -165,23 +181,42 @@ static int qw_step(qw_model*m,uint32_t token,const float**logits,int emit_logits
  if(m->needs_reset)return QW_NEED_RESET;
  if(token>=QW_VOCAB)return QW_TOKEN;if(m->position>=m->options.context_tokens)return QW_CONTEXT_FULL;
 #ifdef QW_ENABLE_TENSOR_V2
- if(m->tensor_status.enabled)return qw_tensor_step(m,token,logits,emit_logits);
+ if(m->tensor_status.enabled){
+#ifdef QW_TENSOR_ONLY_TARGET
+  if(!m->tensor_execute||m->raw.config.mode!=NPU_RAW_HARDWARE)return QW_FORMAT;
 #endif
+  return qw_tensor_step(m,token,logits,emit_logits);
+ }
+#endif
+#ifdef QW_TENSOR_ONLY_TARGET
+ /* Explicit hardware target: configuration failure never falls back to the
+  * CPU FP graph. Host/reference builds retain the full compatibility path. */
+ return QW_FORMAT;
+#else
  qw_profile*p=profiling(m);uint64_t step_start=0;if(p){p->tokens_started++;step_start=profile_now(m);}
  m->logits_valid=0;qw_work*w=m->w;int rc=0;
+ if(m->embedding_lazy){
+  /* Tied embedding was not streamed at open; fetch exactly this row. */
+  unsigned char*row=(unsigned char*)(uintptr_t)m->embedding->data+(uint64_t)token*(uint64_t)m->embedding_row_bytes;
+  if(!m->options.embedding_read||
+     m->options.embedding_read(m->options.embedding_user,
+       m->embedding_source_offset+(uint64_t)token*(uint64_t)m->embedding_row_bytes,
+       row,m->embedding_row_bytes)){rc=QW_IO;goto error;}
+ }
  for(unsigned j=0;j<1024;j++)w->x[j]=qw_value(m->embedding,token*1024+j);
  trace(m,UINT32_MAX,"embedding",w->x,1024);
  for(unsigned i=0;i<24;i++){
   qw_layer*l=&m->layers[i];memcpy(w->residual,w->x,sizeof w->x);norm(m,w->normal,w->x,l->norm,1024,1);
   if((rc=i%4==3?attention(m,i):linear(m,i)))goto error;
   for(unsigned j=0;j<1024;j++)w->x[j]=w->residual[j]+w->out[j];
-  norm(m,w->normal,w->x,l->post,1024,1);
+  trace(m,i,"residual.attn",w->x,1024);norm(m,w->normal,w->x,l->post,1024,1);trace(m,i,"ffn.norm",w->normal,1024);
   if((rc=qw_matrix(m,l->gate,w->normal,w->gate))||(rc=qw_matrix(m,l->up,w->normal,w->up)))goto error;
+  trace(m,i,"ffn.gate",w->gate,3584);trace(m,i,"ffn.up",w->up,3584);
   for(unsigned j=0;j<3584;j++){
     float gate;if(m->options.lut_nonlinear){if((rc=qw_lut_silu(w->gate[j],&gate,&m->lut_status)))goto error;}
     else gate=qw_silu(w->gate[j]);w->gate[j]=gate*w->up[j];
    }
-  if((rc=qw_matrix(m,l->down,w->gate,w->out)))goto error;
+  trace(m,i,"ffn.product",w->gate,3584);if((rc=qw_matrix(m,l->down,w->gate,w->out)))goto error;trace(m,i,"ffn.down",w->out,1024);
   for(unsigned j=0;j<1024;j++){w->x[j]+=w->out[j];if(!qw_finite(w->x[j])){rc=QW_NUMERIC;goto error;}}
   trace(m,i,"layer.output",w->x,1024);
  }
@@ -196,6 +231,7 @@ static int qw_step(qw_model*m,uint32_t token,const float**logits,int emit_logits
    if(rc)goto error;
  }else{
  if(p){p->bf16head_calls++;head_start=profile_now(m);}
+ if(m->embedding_lazy){rc=QW_UNKNOWN;goto error;} /* full-matrix head needs the whole matrix */
  if(m->options.bf16_head_kernel){
   if(m->options.bf16_head_kernel(m->options.bf16_head_user,m->embedding->data,w->normal,QW_VOCAB,1024,m->logits)){
    if(p)p->bf16head_ticks+=profile_now(m)-head_start;rc=QW_NUMERIC;goto error;
@@ -215,6 +251,7 @@ static int qw_step(qw_model*m,uint32_t token,const float**logits,int emit_logits
  }else{m->logits_valid=0;*logits=0;}
  m->position++;m->last_error=0;if(p){p->totalstep_ticks+=profile_now(m)-step_start;p->tokens_completed++;}return 0;
 error:m->needs_reset=1;m->last_error=rc;if(p){p->totalstep_ticks+=profile_now(m)-step_start;p->tokens_failed++;}return rc;
+#endif
 }
 int qw_decode(qw_model*m,uint32_t token,const float**logits){return qw_step(m,token,logits,1);}
 int qw_prefill(qw_model*m,const uint32_t*tokens,size_t n,size_t*processed){

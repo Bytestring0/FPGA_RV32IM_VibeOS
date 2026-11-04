@@ -129,6 +129,8 @@ ag_backend_poll_status qw_agent_protocol_poll(void *context,
     const ag_loop_input *input, uint32_t work_quota, char *response,
     size_t response_capacity, size_t *response_bytes);
 ag_loop_backend qw_agent_protocol_adapter(qw_agent_protocol_backend *bridge);
+#define AGENT_DIRECT_MAX_TOKENS 96u
+int qw_agent_direct_chat(qw_agent_protocol_backend *,const char *);
 
 /* One complete task, no per-turn model reset, no scripted-token fallback.
  * Return AG_LOOP_FINISHED or AG_LOOP_CLARIFY on success; all failures return

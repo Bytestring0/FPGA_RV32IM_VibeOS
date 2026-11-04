@@ -92,6 +92,6 @@ module ddr_arbiter2 #(
         case({push,pop})2'b10:count<=count+1'b1;2'b01:count<=count-1'b1;default:begin end endcase
       end
     end
-    initial if(DEPTH!=4)$error("ddr_arbiter2 supports DEPTH1 or4");
+    initial if(DEPTH<4||DEPTH>32||(DEPTH&(DEPTH-1))!=0)$error("ddr_arbiter2 requires power-of-two DEPTH1 or4..32");
  end endgenerate
 endmodule

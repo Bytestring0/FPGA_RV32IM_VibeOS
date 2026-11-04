@@ -1,0 +1,217 @@
+{
+  "main": {
+    "id": "32f814a7a6f4490b",
+    "type": "split",
+    "children": [
+      {
+        "id": "ee2a7894e8bbcda5",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "8779f35847381097",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "file:C:/Users/Au224/Downloads/性能优化与Cache评估_20261102.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "性能优化与Cache评估_20261102"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "0e0f5f4f6d13925e",
+    "type": "split",
+    "children": [
+      {
+        "id": "1cbce04792fa2785",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "76c14a5238e8da80",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "文件列表"
+            }
+          },
+          {
+            "id": "3cb8068d4a0eac3e",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          },
+          {
+            "id": "b1e0f287e1b3d184",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "书签"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "3af12f32334aac71",
+    "type": "split",
+    "children": [
+      {
+        "id": "cb4441955cabe061",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "374dddb75eaedf0e",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "README.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "反向链接"
+            }
+          },
+          {
+            "id": "22a7c5d1dfbf33d2",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "README.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "出链"
+            }
+          },
+          {
+            "id": "c824b2bcc084691d",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "6002a01bba40a5f6",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "添加笔记属性"
+            }
+          },
+          {
+            "id": "ca9b953de5a5e1a4",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "README.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "大纲"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:打开快速切换": false,
+      "graph:查看关系图谱": false,
+      "canvas:新建白板": false,
+      "daily-notes:打开/创建今天的日记": false,
+      "templates:插入模板": false,
+      "command-palette:打开命令面板": false,
+      "bases:新建数据库": false
+    }
+  },
+  "active": "8779f35847381097",
+  "lastOpenFiles": [
+    "file:D:/FPGA/RiscV/docs/两路Cache设计与性能.md",
+    "01-第一条指令.md",
+    "07-取指前端.md",
+    "06-寄存器堆与运算.md",
+    "05-从指令到控制信号.md",
+    "04-完整项目从哪里开始.md",
+    "03-让内存等待.md",
+    "02-让程序真正跑起来.md",
+    "12-预测和乘除.md",
+    "13-SoC与固件.md",
+    "14-验证与调试.md",
+    "15-FPGA与赛题.md",
+    "20-逐拍走读真实核心.md",
+    "21-完整项目测试与排错实战.md",
+    "19-亲手搭单发射流水线.md",
+    "18-外部内存与跨时钟.md",
+    "17-多周期核心实战.md",
+    "11-异常中断与CSR.md",
+    "10-双发射.md",
+    "09-访存路径.md",
+    "README.md",
+    "未命名.canvas",
+    "2026-10-29.md"
+  ]
+}

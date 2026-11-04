@@ -41,7 +41,7 @@ def fixtures(out):
         d={f:0 for f in oracle.FIELDS}
         d.update(opcode=op,n=10 if op==10 else 9,m=3,k=4,a=BASE,b=BASE+256,c=BASE+512,out=BASE+768,state=BASE+1024)
         if op==11:d['param0']=1
-        if op==8:d['param1']=1
+        if op in (8,22):d['param1']=1
         if op in (13,20):d.update(param0=1030792151,param1=536870912)
         if from_previous:d.update(a=BASE+768,out=BASE+1536,param0=281477120)
         if op==14:d.update(n=8,k=8,param0=536870912)
@@ -105,6 +105,7 @@ def fixtures(out):
     add(20,'delta_q24_first')
     add(20,'delta_q24_second_state_step',kind=1)
     add(8,'delta_q24_to_norm_q48_epsilon',kind=1,from_previous=True)
+    add(22,'reciprocal_norm')
     add(3,'mul_rne_saturation',edges=True)
     add(15,'quant_zero',zero=True)
     add(19,'matrix_v1_to_reduce_raw_w4',kind=2)
@@ -121,19 +122,34 @@ def fixtures(out):
         stats='{%du,%du,{'%(s[0],s[1])+','.join(str(x)+'u' for x in s[2:])+'}}'
         header.append('{"%s",{%s},f%d_initial,f%d_expected,%du,%du,%du,%s},'%(r['name'],job,i,i,len(r['initial']),len(r['expected']),r['kind'],stats))
     header.append('};')
+    # A separate mode1 CPU/cache/MMIO check: 3 rows, 129 cols, FP16 scales
+    # start at byte2 within a line. Goldens stay in TCM; no target reference.
+    fused=[]
+    for maximum in (65536,32768):
+        values=[];o=oracle.Oracle()
+        for row in range(3):
+            terms=[]
+            for group in range(2):
+                partial=sum((((row*11+c*7+31)&15)-8)*((c*13+31)%255-127) for c in range(group*128,min((group+1)*128,129)))
+                coefficient=o.sat(o.rne(maximum*16384,127*(1 if group==0 else 2)))
+                terms.append(o.rne(partial*coefficient,1<<14))
+            values.append(o.sat(o.sum64(terms)))
+        fused.append(values)
+    header.append('static const uint32_t fused_expected[2][3] __attribute__((unused)) = {'+','.join('{'+','.join(str(x&0xffffffff)+'u' for x in row)+'}' for row in fused)+'};')
     (out/'tensor_system_fixtures.h').write_text('\n'.join(header)+'\n')
     common.save(out/'fixtures.json',{'oracle':'independent Fraction, cross-checked host C', 'rows':rows})
     return rows
 
 
 def firmware(tc,out,include,defines=()):
-    out.mkdir();prefix=str(tc/'bin/riscv-none-elf-');elf=out/'firmware.elf'
+    out.mkdir();prefix=str(tc);elf=out/'firmware.elf'
     flags=['-march=rv32im_zicsr_zifencei','-mabi=ilp32','-Os','-std=c11','-ffreestanding','-fno-builtin',
            '-fno-pic','-msmall-data-limit=0','-mno-relax','-ffunction-sections','-fdata-sections','-Wall','-Wextra','-Werror',
            '-fstack-usage','-nostdlib','-nostartfiles','-Wl,--gc-sections','-Wl,-Map,'+str(out/'firmware.map'),
-           '-T',common.CPU/'sw/link.ld','-I',SYSTEM/'sw','-I',include]
+           '-T',common.CPU/'sw/link.ld','-I',SYSTEM/'sw','-I',include,
+           '-I',SYSTEM/'integration/agent_runtime_20261101/sw/model/freestanding_include']
     sources=[common.CPU/'sw/start.S',*(SYSTEM/'sw'/name for name in ('tensor_acceptance.c','npu_tensor_driver.c',
-              'npu_tensor_ag.c','npu_tensor_reference.c','npu_runtime.c','freestanding.c'))]
+              'npu_tensor_ag.c','npu_tensor_reference.c','npu_runtime.c','freestanding.c','npu_fused_matrix.c','npu_raw.c'))]
     common.run([prefix+'gcc',*flags,*('-D'+v for v in defines),*sources,'-lgcc','-o',elf],out/'compile.log')
     common.run([prefix+'objcopy','-O','binary',elf,out/'firmware.bin'],out/'objcopy.log')
     if common.run([prefix+'nm','-u',elf],out/'undefined.log').strip():raise ValueError('undefined firmware symbols')
@@ -211,18 +227,36 @@ def tagged(text,tag):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--toolchain',required=True,type=Path);p.add_argument('--output',required=True,type=Path)
-    p.add_argument('--cpu-mode',choices=('original','portable_metadata'),default='portable_metadata')
+    tc_group=p.add_mutually_exclusive_group(required=True);tc_group.add_argument('--toolchain',type=Path);tc_group.add_argument('--compiler-prefix')
+    p.add_argument('--timeout-seconds',type=int,default=60);p.add_argument('--output',required=True,type=Path)
+    p.add_argument('--cpu-mode',choices=('original','portable_metadata'),default='original',help='production CPU RTL by default; compatibility patch is explicit and never valid for PDS')
+    p.add_argument('--partial-sram',action='store_true')
+    p.add_argument('--fused-matrix',action='store_true',help='include real mode1 driver + CPU cached Q16 readback, twice')
+    p.add_argument('--scalar-raw',action='store_true',help='area-only full system variant; numeric ABI unchanged')
+    p.add_argument('--scalar-delta',action='store_true',help='area-only full system variant; numeric ABI unchanged')
+    p.add_argument('--shared-raw-accum',action='store_true',help='reuse exact raw RNE/saturation accumulator; numeric order unchanged')
     p.add_argument('--matrix-lanes',type=int,choices=(16,32,64),default=64)
     p.add_argument('--ddr-outstanding',type=int,choices=(1,4),default=1)
     p.add_argument('--profiles',choices=('single','dual'),nargs='+',default=['single','dual'])
-    a=p.parse_args();out=a.output.resolve();tc=a.toolchain.resolve()
+    a=p.parse_args();out=a.output.resolve();tc=str(a.toolchain.resolve()/'bin/riscv-none-elf-') if a.toolchain else a.compiler_prefix
+    if not 1<=a.timeout_seconds<=120:p.error('timeout-seconds must be 1..120')
+    original_run=common.run
+    def bounded_run(*args,**kwargs):
+        kwargs['timeout']=min(kwargs.get('timeout',a.timeout_seconds),a.timeout_seconds)
+        return original_run(*args,**kwargs)
+    common.run=bounded_run
     if out.exists() or not out.is_relative_to(SYSTEM/'build'):raise ValueError('new output under system/build required')
-    if not (tc/'bin/riscv-none-elf-gcc').is_file():raise ValueError('installed WSL Linux toolchain required')
+    if not Path(tc+'gcc').is_file():raise ValueError('installed WSL Linux toolchain required')
     out.mkdir(parents=True)
-    selected=[SYSTEM/'rtl',common.CPU/'rtl',SYSTEM/'sw',SYSTEM/'sim',SYSTEM/'tools']
+    # Guard actual RTL, firmware inputs, and Python goldens/harness. Editing
+    # reporting-only tools must not invalidate a passed hardware simulation.
+    selected=[SYSTEM/'rtl',common.CPU/'rtl',SYSTEM/'sw']
     protected=[p for folder in selected for p in folder.glob('*') if p.is_file()]
-    protected += [common.NPU/'rtl/npu_bram.sv',common.NPU/'rtl/npu_bram_top.sv',
+    protected += [SYSTEM/'sim/ag_npu_tensor_sim.sv',SYSTEM/'sim/test_system.cpp',
+                  SYSTEM/'sim/test_tensor_reference.py',SYSTEM/'tools/system_common.py',
+                  Path(__file__),common.CPU/'rtl/files.f',
+                  *SYSTEM.joinpath('integration/agent_runtime_20261101/sw/model/freestanding_include').glob('*.h'),
+                  common.NPU/'rtl/npu_bram.sv',common.NPU/'rtl/npu_bram_top.sv',
                   *(common.CORE/n for n in ('mac_lane.sv','group_acc.sv','gemv_core.sv')),
                   common.CPU/'sw/start.S',common.CPU/'sw/link.ld',common.CPU/'scripts/bin2hex.py']
     protected=sorted(set(protected))
@@ -230,17 +264,23 @@ def main():
     report={'passed':False,'scope':'real RV32 + production ag_npu_system tensor/matrix + Cache/DDR simulation',
             'board_verified':False,'physical_timing_closed':False,'full_model_inference':False,
             'cpu_mode':a.cpu_mode,'tensor_v2_enabled':True,'matrix_lanes':a.matrix_lanes,
+            'tensor_parallel_raw':not a.scalar_raw,'tensor_parallel_delta':not a.scalar_delta,
+            'tensor_shared_raw_accum':a.shared_raw_accum,
             'cache_enabled':True,'ddr_outstanding':a.ddr_outstanding,
             'ddr_bfm':'ordered credit-reserved request/response deque','source_sha256':before,'profiles':{}}
     common.save(out/'report.json',report)
     try:
         report['tools']={'verilator':common.run(['verilator','--version'],out/'verilator.log').strip(),
-                         'compiler':common.run([tc/'bin/riscv-none-elf-gcc','--version'],out/'compiler.log').splitlines()[0]}
+                         'compiler':common.run([tc+'gcc','--version'],out/'compiler.log').splitlines()[0]}
+        report['partial_sram_enabled']=a.partial_sram
         rows=fixtures(out);report['fixture_count']=len(rows);report['opcodes']=sorted({r['descriptor'][0] for r in rows})
         if not rows:raise ValueError('empty fixture set')
-        report['firmware']=firmware(tc,out/'firmware',out)
-        report['wrong_expected_firmware']=firmware(tc,out/'wrong_expected',out,['NEGATIVE_EXPECTATION=1'])
-        report['skip_cache_firmware']=firmware(tc,out/'skip_cache',out,['NPU_TEST_SKIP_CACHE=1'])
+        defines=(['TEST_PARTIAL_SRAM=1'] if a.partial_sram else [])+(['NPU_TEST_FUSED=1'] if a.fused_matrix else [])
+        report['fused_matrix_enabled']=a.fused_matrix
+        report['firmware']=firmware(tc,out/'firmware',out,defines)
+        report['wrong_expected_firmware']=firmware(tc,out/'wrong_expected',out,['NEGATIVE_EXPECTATION=1']+defines)
+        report['skip_cache_firmware']=firmware(tc,out/'skip_cache',out,['NPU_TEST_SKIP_CACHE=1']+defines)
+        if a.fused_matrix:report['wrong_fused_firmware']=firmware(tc,out/'wrong_fused',out,['NEGATIVE_FUSED_EXPECTATION=1']+defines)
         cpu_sources=[common.CPU/line.strip() for line in (common.CPU/'rtl/files.f').read_text().splitlines() if line.strip() and not line.startswith('#')]
         if a.cpu_mode=='portable_metadata':
             original=common.CPU/'rtl/rv32_core.sv';code=original.read_text()
@@ -256,20 +296,37 @@ def main():
         sources=[*cpu_sources,common.NPU/'rtl/npu_bram.sv',common.NPU/'rtl/npu_bram_top.sv',
                  *(common.CORE/n for n in ('mac_lane.sv','group_acc.sv','gemv_core.sv')),
                  *sorted((SYSTEM/'rtl').glob('*.sv')),SYSTEM/'sim/ag_npu_tensor_sim.sv']
-        cpp=harness(out,len(rows),a.ddr_outstanding)
+        executed_rows=rows+([rows[-1],rows[-1]] if a.partial_sram else [])
+        cpp=harness(out,len(executed_rows),a.ddr_outstanding)
+        if a.partial_sram:
+            code=cpp.read_text().replace('d.dma_completions==3','d.dma_completions==5');cpp.write_text(code)
+        if a.fused_matrix:
+            count=3+(2 if a.partial_sram else 0)
+            code=cpp.read_text().replace('d.dma_completions=='+str(count),'d.dma_completions=='+str(count+2));cpp.write_text(code)
         for label in a.profiles:
             dual=int(label=='dual');obj=out/(label+'_obj')
             common.run(['verilator','--cc','--exe','--build','--timing','-j','4','-O3','-CFLAGS','-O3',
                 '-Wno-fatal','--top-module','ag_npu_tensor_sim',"-GDUAL_ISSUE=1'b"+str(dual),
-                '-GMATRIX_LANES='+str(a.matrix_lanes),'-GDDR_OUTSTANDING='+str(a.ddr_outstanding),*sources,'--Mdir',obj,cpp],out/(label+'_build.log'),timeout=900)
+                "-GPARTIAL_SRAM_ENABLE=1'b"+str(int(a.partial_sram)),'-GMATRIX_LANES='+str(a.matrix_lanes),'-GDDR_OUTSTANDING='+str(a.ddr_outstanding),
+                '-GTENSOR_PARALLEL_RAW='+str(int(not a.scalar_raw)),
+                '-GTENSOR_PARALLEL_DELTA='+str(int(not a.scalar_delta)),
+                '-GTENSOR_SHARED_RAW_ACCUM='+str(int(a.shared_raw_accum)),*sources,'--Mdir',obj,cpp],out/(label+'_build.log'),timeout=900)
             exe=obj/'Vag_npu_tensor_sim'
             text=common.run([exe,'10000000','tensor'],out/(label+'.log'),cwd=out/'firmware',timeout=180)
             result=common.result(text);bus=tagged(text,'TENSOR_SYSTEM_BUS');summary=tagged(text,'TENSOR_SYSTEM_SUMMARY')
             cases=[json.loads(line.split(' ',1)[1]) for line in text.splitlines() if line.startswith('TENSOR_SYSTEM_CASE ')]
-            if len(cases)!=len(rows) or summary['jobs']!=len(rows) or summary['opcodes']!=len(report['opcodes']) or result['trap'] or result['exit_code'] or not result['done'] or (dual and not result['dual_retired']):raise ValueError('CPU tensor acceptance incomplete')
+            if len(cases)!=len(executed_rows) or summary['jobs']!=len(executed_rows) or summary['opcodes']!=len(report['opcodes']) or result['trap'] or result['exit_code'] or not result['done'] or (dual and not result['dual_retired']):raise ValueError('CPU tensor acceptance incomplete')
             wrong=common.result(common.run([exe,'10000000','tensor'],out/(label+'_wrong_expected.log'),cwd=out/'wrong_expected',expected=1,timeout=180))
             stale=common.result(common.run([exe,'10000000','tensor'],out/(label+'_skip_cache.log'),cwd=out/'skip_cache',expected=1,timeout=180))
-            if not all(r['done'] and r['exit_code']==10 and not r['trap'] for r in (wrong,stale)):raise ValueError('golden/cache negative did not fail at DDR compare')
+            if not wrong['done'] or wrong['exit_code']!=10 or wrong['trap']:raise ValueError('wrong golden did not fail at DDR compare')
+            if not stale['done'] or stale['trap'] or stale['exit_code'] not in ((10,43) if a.fused_matrix else (10,)):raise ValueError('skip-cache negative did not reject stale data')
+            if a.fused_matrix and stale['exit_code']==43 and 'FUSED_EXECUTE_FAILURE' not in (out/(label+'_skip_cache.log')).read_text():raise ValueError('skip-cache failure not in fused driver')
+            if a.fused_matrix:
+                fused=[json.loads(line.split(' ',1)[1]) for line in text.splitlines() if line.startswith('FUSED_MATRIX_SYSTEM ')]
+                if len(fused)!=2 or any(r['rows']!=3 or r['result_count']!=3 for r in fused):raise ValueError('missing fused driver CPU/cache completion')
+                negative=common.result(common.run([exe,'10000000','tensor'],out/(label+'_wrong_fused.log'),cwd=out/'wrong_fused',expected=1,timeout=180))
+                if negative['exit_code']!=10 or negative['trap'] or not negative['done']:raise ValueError('wrong fused golden did not fail at CPU Q16 compare')
+                report.setdefault('fused_matrix_profiles',{})[label]={'runs':fused,'wrong_expected':negative,'skip_cache':stale}
             report['profiles'][label]={'result':result,'bus':bus,'summary':summary,'cases':cases,'wrong_expected':wrong,'skip_cache':stale}
             common.save(out/'report.json',report)
             print('PASS_TENSOR_SYSTEM_V2',label,json.dumps(result),flush=True)

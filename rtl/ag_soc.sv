@@ -49,8 +49,7 @@ module ag_soc #(
     input wire ext_rsp_valid, output wire ext_rsp_ready,
     input wire [31:0] ext_rsp_data, input wire ext_rsp_error
 );
-    localparam integer AW = $clog2(RAM_WORDS);
-    logic [31:0] ram [0:RAM_WORDS-1];
+    integer j;
     logic iv, ir, irv, irr;
     logic [1:0] ire;
     logic [31:0] ia;
@@ -84,8 +83,8 @@ module ag_soc #(
     logic [31:0] cache_range_start,cache_range_end,cache_range_start_hold,cache_range_end_hold;
     wire [31:0] cache_ihit,cache_imiss,cache_dhit,cache_dmiss,cache_wb,cache_ib_hit;
     wire external_select = EXT_MMIO_ENABLE &&
-        ((mmio_addr >= 32'h10001000 && mmio_addr < 32'h10001100) ||
-         (mmio_addr >= 32'h10004000 && mmio_addr < 32'h10007000) ||
+        ((mmio_addr >= 32'h10001000 && mmio_addr < 32'h10001300) ||
+         (mmio_addr >= 32'h10004000 && mmio_addr < 32'h10008000) ||
          (mmio_addr >= 32'h10010000 && mmio_addr < 32'h10018000));
     wire mmio_fire = QUEUED_MMIO ? (mmio_pending && !external_select) :
         (dv && dr && !d_ext && da >= RAM_WORDS * 4);
@@ -99,10 +98,6 @@ module ag_soc #(
     assign ext_req_wdata = mmio_wdata;
     assign ext_req_wstrb = mmio_strb;
     assign ext_rsp_ready = !rst && EXT_MMIO_ENABLE && ext_wait && (!drv || drr);
-    integer j;
-    initial begin
-        if (INIT_FILE != "") $readmemh(INIT_FILE, ram);
-    end
     assign ir = i_ext ? mi_ready : (!irv || irr);
     // Accept the request before decoding a slow peripheral. A UART store
     // holds its response until TX accepts it; ready has no address/data path.
@@ -188,23 +183,16 @@ module ag_soc #(
         .branch_count(branch_count), .mispredict_count(mispredict_count),
         .load_stall_count(load_stall_count)
     );
-    // No reset on data or arrays: preserve synchronous block-RAM inference.
-    // Software must FENCE.I after code writes; concurrent same-address port
-    // read/write data is deliberately not relied on by the CPU/software.
-    always_ff @(posedge clk) begin
-        if (iv && ir && ia < RAM_WORDS * 4)
-            ram_i_data <= ram[ia[AW+1:2]];
-        if (iv && ir && ia < RAM_WORDS * 4 - 4)
-            ram_i_second <= ram[ia[AW+1:2] + 1'b1];
-        // Speculate reads while the response slot is free. Address range and
-        // request-valid stay on write enables only; held responses stay stable.
-        if (!drv || drr) ram_d_data <= ram[da[AW+1:2]];
-        if (dv && dr && da < RAM_WORDS * 4) begin
-            if (dw)
-                for (j = 0; j < 4; j = j + 1)
-                    if (ds[j]) ram[da[AW+1:2]][8*j +: 8] <= dd[8*j +: 8];
-        end
-    end
+    // Each adjacent instruction pair uses one port of each parity bank.
+    // The independent data read/write uses the other port, avoiding the
+    // three replicated memories inferred for the former three-read array.
+    ag_tcm_banked #(.WORDS(RAM_WORDS), .INIT_FILE(INIT_FILE)) tcm (
+        .clk(clk), .i_en(iv && ir), .i_addr(ia),
+        .i_data(ram_i_data), .i_second(ram_i_second),
+        .d_read_en(!drv || drr), .d_addr(da), .d_data(ram_d_data),
+        .d_write_en(dv && dr && dw && da < RAM_WORDS * 4),
+        .d_wdata(dd), .d_wstrb(ds)
+    );
     always_ff @(posedge clk) begin
         if (rst) begin
             irv <= 0; ire <= 0; drv <= 0; dre <= 0; d_is_ram <= 0; d_is_ddr <= 0; i_is_ddr <= 0;
@@ -354,6 +342,75 @@ module ag_soc #(
                     32'h10000224: if(CACHE_ENABLE && DDR_ENABLE) mmio_data<=cache_ib_hit;else dre<=1;
                     default: dre <= 1;
                 endcase
+            end
+        end
+    end
+endmodule
+
+// Two true-dual-port parity banks: simultaneous dual fetch and data access.
+// No array/output reset. Same-address read/write returns the pre-write word
+// in RTL, matching the original nonblocking array; software uses FENCE.I
+// before executing modified code and does not rely on FPGA cross-port RDW.
+module ag_tcm_banked #(
+    parameter integer WORDS = 16384,
+    parameter INIT_FILE = "build/firmware.hex"
+) (
+    input wire clk, i_en, d_read_en, d_write_en,
+    input wire [31:0] i_addr, d_addr, d_wdata,
+    input wire [3:0] d_wstrb,
+    output wire [31:0] i_data, i_second, d_data
+);
+    localparam integer AW = $clog2(WORDS);
+    localparam integer BANK_WORDS = (WORDS + 1) / 2;
+    reg [31:0] even_bank [0:BANK_WORDS-1];
+    reg [31:0] odd_bank [0:BANK_WORDS-1];
+    reg [31:0] init_words [0:WORDS-1];
+    reg [31:0] i_even_q, i_odd_q, d_even_q, d_odd_q, boundary_second;
+    reg i_odd, d_odd, second_boundary;
+    wire i_accept = i_en && i_addr < WORDS * 4;
+    wire i_last = i_addr >= WORDS * 4 - 4;
+    wire [AW-2:0] i_even_addr = i_addr[AW+1:3] + i_addr[2];
+    wire [AW-2:0] i_odd_addr = i_addr[AW+1:3];
+    wire [AW-2:0] d_bank_addr = d_addr[AW+1:3];
+    integer init_page, init_word, byte_index;
+    initial begin
+        if (INIT_FILE != "") begin
+            $readmemh(INIT_FILE, init_words);
+            // PDS bounds each procedural loop to 2000 iterations.
+            for (init_page = 0; init_page < (WORDS + 1023) / 1024; init_page = init_page + 1)
+                for (init_word = 0; init_word < 1024; init_word = init_word + 1)
+                    if (init_page * 1024 + init_word < WORDS) begin
+                        if (init_word % 2 == 0)
+                            even_bank[init_page * 512 + init_word / 2] = init_words[init_page * 1024 + init_word];
+                        else
+                            odd_bank[init_page * 512 + init_word / 2] = init_words[init_page * 1024 + init_word];
+                    end
+        end
+    end
+    assign i_data = i_odd ? i_odd_q : i_even_q;
+    assign i_second = second_boundary ? boundary_second : (i_odd ? i_even_q : i_odd_q);
+    assign d_data = d_odd ? d_odd_q : d_even_q;
+    always @(posedge clk) begin
+        if (i_accept) begin
+            i_odd <= i_addr[2];
+            second_boundary <= i_last;
+            if (i_last) boundary_second <= i_second;
+            if (!i_addr[2] || !i_last) i_even_q <= even_bank[i_even_addr];
+            if (i_addr[2] || !i_last) i_odd_q <= odd_bank[i_odd_addr];
+        end
+    end
+    always @(posedge clk) begin
+        if (d_read_en) begin
+            d_even_q <= even_bank[d_bank_addr];
+            d_odd_q <= odd_bank[d_bank_addr];
+            d_odd <= d_addr[2];
+        end
+        if (d_write_en) begin
+            for (byte_index = 0; byte_index < 4; byte_index = byte_index + 1) begin
+                if (d_wstrb[byte_index] && !d_addr[2])
+                    even_bank[d_bank_addr][8*byte_index +: 8] <= d_wdata[8*byte_index +: 8];
+                if (d_wstrb[byte_index] && d_addr[2])
+                    odd_bank[d_bank_addr][8*byte_index +: 8] <= d_wdata[8*byte_index +: 8];
             end
         end
     end

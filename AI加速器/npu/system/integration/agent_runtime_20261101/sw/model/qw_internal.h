@@ -37,6 +37,7 @@ struct qw_model {
  uint32_t head_integer_saturations,head_integer_underflows;
  qw_lut_status lut_status;
  qw_tensor *embedding,*final_norm;qw_work *w;float *delta,*conv,*kv,*logits;
+ uint32_t embedding_lazy,embedding_row_bytes;uint64_t embedding_source_offset;
  int8_t *activation;unsigned char *partial;
 #ifdef QW_ENABLE_TENSOR_V2
  qw_tensor_execute_fn tensor_execute;void *tensor_user,*tensor_scratch;
@@ -45,6 +46,19 @@ struct qw_model {
  qw_tensor_task *task_owner;qw_tensor_task sync_task;
 #endif
 };
+/* Partial SRAM tiles must fit the actual padded raw record row. Keep16-row
+ * multiples so FP16 group scales stay32-byte aligned across every next tile. */
+static inline uint32_t qw_partial_tile_rows(const qw_model*m,const qw_tensor*t){
+ uint32_t rows=m->options.tile_rows;
+#ifdef QW_PARTIAL_SRAM
+ uint32_t groups=(t->k+127u)/128u,stride=(groups*8u+31u)&~31u;
+ uint32_t capacity=stride?(uint32_t)m->plan.partial_bytes/stride:0;
+ capacity&=~15u;if(rows>capacity)rows=capacity;
+#else
+ (void)t;
+#endif
+ return rows;
+}
 float qw_value(const qw_tensor *,uint32_t);
 qw_tensor *qw_find(qw_model *,const char *);
 int qw_bind_catalog(qw_model *,const char *,size_t);

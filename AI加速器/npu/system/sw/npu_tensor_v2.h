@@ -14,7 +14,7 @@ enum { NPU_TENSOR_COPY=1,NPU_TENSOR_ADD,NPU_TENSOR_MUL,NPU_TENSOR_SIGMOID,
  NPU_TENSOR_SOFTMAX,NPU_TENSOR_ROPE,NPU_TENSOR_REDUCE,NPU_TENSOR_DWCONV,
  NPU_TENSOR_DELTA,NPU_TENSOR_ATTENTION,NPU_TENSOR_QUANT_A8,NPU_TENSOR_ARGMAX,
  NPU_TENSOR_MATVEC_Q16,NPU_TENSOR_VECMAT_Q16,NPU_TENSOR_REDUCE_RAW_W4,
- NPU_TENSOR_DELTA_Q24 };
+ NPU_TENSOR_DELTA_Q24, NPU_TENSOR_REDUCE_RAW_W4_Q46, NPU_TENSOR_RMSNORM_PRECISE };
 enum { NPU_TENSOR_OK=0,NPU_TENSOR_ERR_ARGUMENT=1,NPU_TENSOR_ERR_OPCODE=2,
  NPU_TENSOR_ERR_DIMENSION=3,NPU_TENSOR_ERR_PARAMETER=4,NPU_TENSOR_ERR_STRIDE=5,
  NPU_TENSOR_ERR_ALIGNMENT=6,NPU_TENSOR_ERR_RANGE=7,NPU_TENSOR_ERR_OVERLAP=8,
@@ -51,8 +51,19 @@ typedef struct { uint32_t error,result; npu_fixed_status numeric; } npu_tensor_s
  * not). Saturation counts each int64/int32 clipping stage. Stats are per-call.
  * scratch_bytes conservatively bounds local arithmetic array bytes, excluding
  * call frames: output[4096], temporary[4096], state[16384] = 98304 bytes.
+ * REDUCE_RAW_W4_Q46(21) is additive: same layout/guards as19, with up to16
+ * extra coefficient bits. For p=mant*maximum and shift=e?e-11:-10, choose
+ * extra=clamp(36-floor(log2(p))-shift,0,16), or0 if p=0. Coefficient is
+ * sat32(RNE(p*2^(shift+extra)/127)); terms RNE(partial*coef/2^(14+extra)).
+ * Extra bits are reduced before overflow; legacy19 is unchanged. Quality
+ * must be measured per model. Q46 names the maximum fractional precision.
  * This experimental policy is not model-quality or hardware validation.
  *
+ * RMSNORM_PRECISE(22): same validation/layout as8; mean and epsilon unchanged.
+ * For positive radicand r, f=min(8,floor(clz64(r)/2)); root=floor(sqrt(r*2^(2*f))).
+ * reciprocal=RNE(2^(48+f)/root); norm=RNE(x*reciprocal/2^32), followed by
+ * the same weight/center and sat32 as8. One reciprocal division per job replaces
+ * one division per element. Opcode8 keeps its exact legacy rounding.
  * Numeric operation order (storage is signed int32 unless stated):
  * COPY/ADD operate Q16; MUL RNE(a*b/2^16). SIGMOID/SILU/SOFTPLUS use
  * npu_fixed_*_q16 LINEAR profile 0x10001 unchanged. EXP_NEG first RNE(Q16/32)

@@ -1,0 +1,128 @@
+{
+  "objective": "Complete runnable FPGA RISC-V plus NPU model path",
+  "subagents_active": false,
+  "active_jobs": 0,
+  "pds_version": "2025.2 ADS",
+  "architecture": {
+    "matrix_lanes": 64,
+    "delta_lanes": 8,
+    "ddr_outstanding": 4,
+    "i_d_cache": true,
+    "partial_sram": false,
+    "qkv_banked": true,
+    "scalar_rounder_pipelined": true
+  },
+  "optimizations": {
+    "tcm_128k_drm_before": 96,
+    "tcm_128k_drm_after": 64,
+    "tcm_capacity_bytes": 131072,
+    "ddr_bridge_luts_before": 4133,
+    "ddr_bridge_luts_after": 1014,
+    "agent_text_before_bytes": 112440,
+    "agent_text_tensor_only_bytes": 82856,
+    "conv_n1024_k4_before_cycles": 87782,
+    "conv_n1024_k4_after_cycles": 35511,
+    "delta_op13_128_before_cycles": 62481,
+    "delta_op13_128_after_cycles": 54323
+  },
+  "full_model_npu_rtl": {
+    "passed": true,
+    "actual_full_w4_weights": true,
+    "all_24_layers": true,
+    "full_vocabulary_rows": 248320,
+    "context_capacity": 2048,
+    "tokens": 1,
+    "matrix_jobs": 265,
+    "tensor_jobs": 4298,
+    "matrix_cycles": 36410775,
+    "tensor_cycles": 30445741,
+    "bus_clocks": 67108499,
+    "complete_logits_match": true,
+    "host_graph_scheduler": true,
+    "rv32_cpu_graph_scheduling": false,
+    "board_run": false,
+    "report": "AI加速器/npu/system/build/full_model_npu_rtl_20261103/rtl_report.json"
+  },
+  "cpu_cached_ddr_integration": {
+    "passed": true,
+    "source_changes_during_run_empty": true,
+    "rtl_report": "AI加速器/npu/system/build/system_pipeline_run_20261103/report.json",
+    "production_dual_issue_cpu": true
+  },
+  "production_rv32_single_op_benchmark": {
+    "passed": true,
+    "dual_cycles_software": [
+      651598,
+      651441
+    ],
+    "dual_cycles_complete_fused_driver": [
+      4586,
+      4530
+    ],
+    "dual_speedup": [
+      142.08,
+      143.81
+    ],
+    "strict_scope": "scalar C full W4A8 coefficient RNE and ordered reduction vs full device/cache/MMIO job; this is one 16x2048 operator, not full-model token/s"
+  },
+  "final_firmware": {
+    "build_passed": true,
+    "clock_hz": 54000000,
+    "firmware": "AI加速器/npu/system/build/model_npu_final54_20261103",
+    "tensor_only": true,
+    "precise_norm": true,
+    "fused_matrix": true,
+    "partial_sram": false,
+    "static_tcm_bytes": 53952,
+    "stack_reserve_bytes": 8192,
+    "sd_multiblock": true,
+    "spi_data_clock_hz": 6750000,
+    "corrected_cdc_firmware": "same fingerprint",
+    "sd_assets_user_confirmed": true,
+    "appres_copied_user_confirmed": true
+  },
+  "pds_2025_acceleration": {
+    "fresh_compile_and_parallel_synthesis_route": true,
+    "route_threads_reported": 4,
+    "older_2022_to_2025_adf_reuse": "format incompatible",
+    "no_subagents": true
+  },
+  "latest_final_physical": {
+    "project": "npu_system_pds/npu_release54_final_20261103",
+    "synthesis_luts": 38592,
+    "lut_capacity": 66600,
+    "lut_percent": 57.95,
+    "drm36k": 93,
+    "drm_capacity": 155,
+    "apms": 123,
+    "device_map_passed": true,
+    "route_only_probe": "npu_system_pds/npu_release54_routefix_20261103",
+    "route_completed": true,
+    "internal_timing_closed": false,
+    "queue4_cdc_audit_passed": false,
+    "cdc_audit_issue": "existing audit parser recognizes PDS 2022 mapped module syntax, not PDS 2025 target netlist",
+    "setup_wns_ns": {
+      "cpu_to_cpu": -5.657,
+      "ui_to_cpu": -7.449,
+      "cpu_to_ui": -2.652
+    },
+    "hold_wns_ns": {
+      "ddr_phy_fast_corner": -1.046
+    },
+    "bitstream_generated": false,
+    "board_programmed": false,
+    "final_report": "npu_system_pds/npu_release54_routefix_20261103/routefix_report.json"
+  },
+  "board": {
+    "fpga_connected": true,
+    "jtag": "PDS2025 USB Cable II server localhost:65420",
+    "uart": "COM12 CP210x 115200 8N1",
+    "sd_fat32_assets_verified": true,
+    "model_tokens_run": 0
+  },
+  "remaining": [
+    "RTL CDC/DDR PHY hold/setup closure and a source-matched bitstream are still required",
+    "Only after final corrected report passes should the existing script scripts/run_npu_model.ps1 -Port COM12 download volatile FPGA configuration and capture two full model tokens",
+    "Physical board token/s and model quality approval remain unverified"
+  ]
+}
